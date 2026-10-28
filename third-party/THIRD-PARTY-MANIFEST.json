@@ -3019,6 +3019,16 @@
         "native/microsoft-crt/UCRT-STATIC-ATTRIBUTION.txt"
       ],
       "provenanceLimit": "SDK original terms and public REDIST list preserved; not an actual link map or approval of separate MSVC terms"
+    },
+    {
+      "name": "Tauri NSIS installer template",
+      "version": "2.12.1 (30da1fd6e17de6107ecc850c95dfb16b5729f2dd)",
+      "license": "MIT",
+      "scope": "Customized installer template: stable legacy registry key and explicit CompanyName; originals and modified source included",
+      "origin": "https://github.com/tauri-apps/tauri/blob/30da1fd6e17de6107ecc850c95dfb16b5729f2dd/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi",
+      "notices": [
+        "native/tauri-nsis-template/LICENSE-MIT"
+      ]
     }
   ],
   "sourceOrigins": [
@@ -3079,6 +3089,10 @@
       "path": "sources/microsoft-crt/windows-sdk-10.0.26100.0-license-original.rtf",
       "url": "https://developer.microsoft.com/windows/downloads/windows-sdk/",
       "provenance": "Original installed Windows SDK 10.0.26100.0 Licenses/sdk_license.rtf; URL identifies SDK distribution, not a byte-download claim"
+    },
+    {
+      "path": "native/tauri-nsis-template/installer-upstream.nsi",
+      "url": "https://github.com/tauri-apps/tauri/blob/30da1fd6e17de6107ecc850c95dfb16b5729f2dd/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi"
     }
   ],
   "limitations": [
@@ -3097,8 +3111,8 @@
   "files": [
     {
       "path": "THIRD-PARTY-NOTICES.txt",
-      "bytes": 2552480,
-      "sha256": "e028ee616e1d964d28f316c371694455e4a909753d08dbb949beadbf20639937"
+      "bytes": 2554065,
+      "sha256": "7bcdd6190f08d68ca30e3f550f2638d23bffbe22c003ba0d57d66bf59712a56c"
     },
     {
       "path": "RUST-LIBRARY-COPYRIGHT.html",
@@ -3107,15 +3121,25 @@
     },
     {
       "path": "THIRD-PARTY-SOURCES.zip",
-      "bytes": 5017986,
-      "sha256": "7e9d0a487b0b07a10fbb7b6156b2cd5face6a68211843ad0c92f75da23b2aebd"
+      "bytes": 5036241,
+      "sha256": "1829dd2326f8e0456b0540a916ed46cd60cd5cab79595ea632a53e2327bc871f"
     }
   ],
   "sourceArchiveEntries": [
     {
       "path": "SOURCE-ACCESS.txt",
-      "bytes": 3351,
-      "sha256": "d0a98683339140309eef581051f58808f1d8a48f87bb76e65861ed57545e39f2"
+      "bytes": 3616,
+      "sha256": "14222c8b1e4d9de2ead7a835bbda6ce8764bed28029045dfca523715698f4046"
+    },
+    {
+      "path": "native/tauri-nsis-template/installer-cerulean.nsi",
+      "bytes": 33415,
+      "sha256": "2d8fc55cb76686501d606e7459a803018b465094518ef35e7cabc1db46c5f30d"
+    },
+    {
+      "path": "native/tauri-nsis-template/installer-upstream.nsi",
+      "bytes": 32061,
+      "sha256": "dabed59013b1d78b879a1a85bc7f2eed2993b33a9a90cdabe5946de3d3950597"
     },
     {
       "path": "original-notices/native/microsoft-crt/MSVC-STATIC-ATTRIBUTION.txt",
@@ -3181,6 +3205,11 @@
       "path": "original-notices/native/nsis/Docs/src/license.but",
       "bytes": 15309,
       "sha256": "eba8495e56c75ade8a0e5c1ef7457acce169f1725ee3a99d451887968410aa95"
+    },
+    {
+      "path": "original-notices/native/tauri-nsis-template/LICENSE-MIT",
+      "bytes": 1090,
+      "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
     },
     {
       "path": "original-notices/native/webview2/webview2-LICENSE.txt",

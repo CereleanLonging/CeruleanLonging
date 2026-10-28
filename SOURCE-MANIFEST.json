@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "policySha256": "1029b395e43251f3ebde6ecacee01d84e9fdcde953d2b6f807eaffa499634f4a",
+  "policySha256": "64c138e6250f503a4e8af183fcd879a904bc23ca76e9229daf4050104cf763d9",
   "files": [
     {
       "path": ".cargo/config.toml",
@@ -20,12 +20,12 @@
     {
       "path": "Cargo.lock",
       "bytes": 117524,
-      "sha256": "ac1340ae6677435d56605892901a76a3fb1a7e4edf261b2ad6460800c47715f9"
+      "sha256": "e337240238f7af0a652460ec95ce51712e590d39e085034a33e3874e3542e86a"
     },
     {
       "path": "Cargo.toml",
       "bytes": 618,
-      "sha256": "3fc0aaa93afb58295ecfae734d57543dd7ec7d46cc8759063bf1b50018cf84f7"
+      "sha256": "72ac7dd285da628b4dfb66ef9e4e7119614ea0c4fc2de1c159ce7b629a3c0f7a"
     },
     {
       "path": "apps/desktop/icon.svg",
@@ -68,9 +68,19 @@
       "sha256": "24d59a5adf76bfc22d1ea0fc60a74cf81ff2065b7e080797a037339cad90d5b5"
     },
     {
+      "path": "apps/desktop/src-tauri/installer/LICENSE-MIT.tauri",
+      "bytes": 1090,
+      "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
+    },
+    {
       "path": "apps/desktop/src-tauri/installer/hooks.nsh",
       "bytes": 5190,
       "sha256": "177fe93028a0e1407e2c186fbae9d52357f526eb0862d3dbc5d2153601daeb70"
+    },
+    {
+      "path": "apps/desktop/src-tauri/installer/template.nsi",
+      "bytes": 33415,
+      "sha256": "2d8fc55cb76686501d606e7459a803018b465094518ef35e7cabc1db46c5f30d"
     },
     {
       "path": "apps/desktop/src-tauri/src/experiment_workbench.rs",
@@ -109,8 +119,8 @@
     },
     {
       "path": "apps/desktop/src-tauri/tauri.conf.json",
-      "bytes": 1781,
-      "sha256": "1ba0923dc5a27558878f705cff17cc896164e53eed4e702a629b2698405b2c69"
+      "bytes": 1855,
+      "sha256": "d3a3f0304d4035533d275e1d5f0f76551c96ccfaea5d9a062ff42f13013b80f1"
     },
     {
       "path": "apps/desktop/src/AdviceTracking.tsx",
@@ -2009,8 +2019,8 @@
     },
     {
       "path": "crates/core/src/lib.rs",
-      "bytes": 25907,
-      "sha256": "1a479a61fce1fa8e875f9e5013e347a173b81097d1d33019712b6b0fcc427280"
+      "bytes": 26646,
+      "sha256": "41812bd74c1bb4ffa766079c3cb00b0307926889fda1927e4d835003f73b6fba"
     },
     {
       "path": "crates/core/src/main.rs",
@@ -3230,12 +3240,12 @@
     {
       "path": "package-lock.json",
       "bytes": 51222,
-      "sha256": "1d746af50dbe557f2b12bb38c157b72222cc8d83153de9c32ad46b5ba89a8868"
+      "sha256": "5672455b3dbe4cdca477fb4e63c4e685ad77101b7876fc68685142a0f115630c"
     },
     {
       "path": "package.json",
       "bytes": 1062,
-      "sha256": "ebfdc33f9d8d20687946c41c48224ba0ef2a446163701344c519f8f976d38ec5"
+      "sha256": "7a48b71a40c4c105aaafcbdf3a2672cfaa2cf828f577ee3dc227eac157ce276b"
     },
     {
       "path": "rust-toolchain.toml",
@@ -3269,8 +3279,8 @@
     },
     {
       "path": "scripts/distribution-build-inputs.py",
-      "bytes": 10698,
-      "sha256": "f1294f104f8f9be8023ffc043554b463d240dc0029710cc54046ca598f7321e2"
+      "bytes": 11030,
+      "sha256": "f4b1ee03fb4b26a254ca1d2836c3cbdc4680339aeae2137de9ce477c2a0334f6"
     },
     {
       "path": "scripts/distribution-notices.py",
@@ -3309,8 +3319,8 @@
     },
     {
       "path": "scripts/source-candidate-policy.json",
-      "bytes": 11029,
-      "sha256": "1029b395e43251f3ebde6ecacee01d84e9fdcde953d2b6f807eaffa499634f4a"
+      "bytes": 11120,
+      "sha256": "64c138e6250f503a4e8af183fcd879a904bc23ca76e9229daf4050104cf763d9"
     },
     {
       "path": "scripts/source-candidate.py",
@@ -3449,33 +3459,33 @@
     },
     {
       "path": "third-party/THIRD-PARTY-MANIFEST.json",
-      "bytes": 201448,
-      "sha256": "e4dfdc8d6c4c746ae8200c4dbe5d8cc05f3babeeb653356ebaff8f252ab60bb1"
+      "bytes": 202775,
+      "sha256": "f2dcc03af0b205b926ef857781a43687185f02bf9de54db8ca35d63be70cf5c5"
     },
     {
       "path": "third-party/THIRD-PARTY-NOTICES.txt",
-      "bytes": 2552480,
-      "sha256": "e028ee616e1d964d28f316c371694455e4a909753d08dbb949beadbf20639937"
+      "bytes": 2554065,
+      "sha256": "7bcdd6190f08d68ca30e3f550f2638d23bffbe22c003ba0d57d66bf59712a56c"
     },
     {
       "path": "third-party/THIRD-PARTY-SOURCES.zip",
-      "bytes": 5017986,
-      "sha256": "7e9d0a487b0b07a10fbb7b6156b2cd5face6a68211843ad0c92f75da23b2aebd"
+      "bytes": 5036241,
+      "sha256": "1829dd2326f8e0456b0540a916ed46cd60cd5cab79595ea632a53e2327bc871f"
     },
     {
       "path": "third-party/distribution-build-inputs.json",
-      "bytes": 5059,
-      "sha256": "2425ba1cf4746f11f34283a11da5ebb85d154db98ac4c4d6a30d7159c748a5bb"
+      "bytes": 5455,
+      "sha256": "df60947fd71f8a330bb0594e330208f407f90a3085ec88e685c880e93ad823e2"
     },
     {
       "path": "third-party/distribution-inputs.json",
-      "bytes": 193396,
-      "sha256": "80f759484abd5ef7db58bb4d9be4b42899de378377f5bcf4f4531970e65e2072"
+      "bytes": 200517,
+      "sha256": "4810995a8b9d1b7e1198bc4ae2b3ecddc5b74a7262f96147f7a8ae85dd834921"
     },
     {
       "path": "third-party/distribution-inputs.zip",
-      "bytes": 5042064,
-      "sha256": "b107588c244595ba9eb1c646dcf21dace0e5cc261fa73bac682f701f21385087"
+      "bytes": 5060155,
+      "sha256": "714e1ba87d974fb5a5b217937279a0a7dfdac844addee25fcc53e4b8a54620be"
     },
     {
       "path": "third-party/sqlite-notices.json",
@@ -3603,7 +3613,7 @@
       "sha256": "05ef6f87c4537657e38077f62fb27f9d32831bf86dac2d6b688a2fc308abe3a2"
     }
   ],
-  "totalBytes": 24417045,
+  "totalBytes": 24499561,
   "publicationAuthorized": false,
   "projectLicenseGranted": false,
   "credentialsCertifiedAbsent": false,

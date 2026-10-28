@@ -47,7 +47,8 @@
     "third-party/SQLITE-NOTICES.txt",
     "third-party/THIRD-PARTY-MANIFEST.json",
     "third-party/THIRD-PARTY-NOTICES.txt",
-    "third-party/THIRD-PARTY-SOURCES.zip"
+    "third-party/THIRD-PARTY-SOURCES.zip",
+    "apps/desktop/src-tauri/installer/LICENSE-MIT.tauri"
   ],
   "trees": {
     "crates": [
@@ -68,7 +69,9 @@
       ".json"
     ],
     "apps/desktop/src-tauri/installer": [
-      ".nsh"
+      ".nsh",
+      ".nsi",
+      ".tauri"
     ],
     "vendor/ts-rs-macros": [
       ".rs",
