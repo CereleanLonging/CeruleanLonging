@@ -100,7 +100,17 @@ test(
         const r = await b.call({ type: "snapshot" });
         assert.equal(r.result.plans[0].approved, true);
         assert.equal(r.result.events.length, 2);
-        assert.ok(r.result.adapters.every((x) => x.status === (["qoder","workbuddy"].includes(x.id)?"prototype":"partial")));
+        // Snapshots use the presentation catalog. Historical management request
+        // catalogs retain their original bytes and are checked independently.
+        assert.deepEqual(
+          Object.fromEntries(r.result.adapters.map(({ id, status }) => [id, status])),
+          {
+            codex: "partial", omp: "partial", qoder: "prototype",
+            workbuddy: "partial", openai: "partial", anthropic: "partial",
+            deepseek: "partial", qwen: "partial", kimi: "partial",
+            a6api: "partial", grok: "partial",
+          },
+        );
         assert.ok(r.result.adapters.every((x) => x.capabilities.length === 10 &&
           x.capabilities.every((c) => c.state === "unverified" && c.testedVersion === null && c.evidenceSha256 === null)));
         await b.stop();

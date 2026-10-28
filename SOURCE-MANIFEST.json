@@ -3289,8 +3289,8 @@
     },
     {
       "path": "tests/core-ipc.test.mjs",
-      "bytes": 4100,
-      "sha256": "d5a6e4936ffc3cbe2a7dc059be377b98354d474345465782c1fcce9192b71f66"
+      "bytes": 4538,
+      "sha256": "b46afe05ad76c5df61219f927df49ce71bf8c375eb58b7868afedddade9373c7"
     },
     {
       "path": "tests/fixtures/DesktopJointWindow.cs",
