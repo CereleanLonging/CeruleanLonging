@@ -98,6 +98,7 @@ fn fixture(root: &Path) -> Value {
     // No baseline binding or authoritative journal is fabricated or rewritten.
     drop(Store::open(&data).unwrap());
     crate::relay_guard::tests::promote_fixture(&data, &root.join("reader16-cold"));
+    crate::rejected_usage_guard::tests::promote_fixture(&data, &root.join("reader17-cold"));
     let mut host = api_host_tests::fixture(
         root,
         ProjectWorkerAdapter::A6api,

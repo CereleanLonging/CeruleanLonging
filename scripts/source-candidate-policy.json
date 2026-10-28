@@ -88,206 +88,172 @@
     {
       "path": "crates/adapters/src/api_generation/scoped.rs",
       "sourceSha256": "6e0f6f56e5d79d0e2ef89c8a520787fb5e4bcb0a2a6b51079e908f7cabf7a995",
-      "markerSha256": "42c82102b851b50051e94e315f7b385089569bc067db0e48270d72d2f116fe18",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "42c82102b851b50051e94e315f7b385089569bc067db0e48270d72d2f116fe18"
     },
     {
       "path": "crates/adapters/src/api_generation/scoped/tests.rs",
       "sourceSha256": "157868bf608fa8105e815d345b859da4afe9a4d99c5d438419d6f0be6f835088",
-      "markerSha256": "92f07319ddaf28406e1f43d83d412d577c428f92ecfe10dad308d4af0b179d5d",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "92f07319ddaf28406e1f43d83d412d577c428f92ecfe10dad308d4af0b179d5d"
     },
     {
       "path": "crates/adapters/src/api_generation/tests.rs",
       "sourceSha256": "b2fb7f48885091301299cbfeab6899e9828dcfddd38fd67c6b2ac7824e8e919e",
-      "markerSha256": "92f07319ddaf28406e1f43d83d412d577c428f92ecfe10dad308d4af0b179d5d",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "92f07319ddaf28406e1f43d83d412d577c428f92ecfe10dad308d4af0b179d5d"
     },
     {
       "path": "crates/adapters/src/openai.rs",
       "sourceSha256": "cca6e303d616a018d8a0e0eb3f197b15fdaeefbb2c85704a107f710114c59776",
-      "markerSha256": "7182947bef9fa04963deabbaed71c232f970c01c4e9a7c13bc336670482aed0f",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "7182947bef9fa04963deabbaed71c232f970c01c4e9a7c13bc336670482aed0f"
     },
     {
       "path": "crates/adapters/src/openai.rs",
       "sourceSha256": "cca6e303d616a018d8a0e0eb3f197b15fdaeefbb2c85704a107f710114c59776",
-      "markerSha256": "ac09ea1898b4b55777e16216521761ab93d26906862b8039477958470b8dc262",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "ac09ea1898b4b55777e16216521761ab93d26906862b8039477958470b8dc262"
     },
     {
       "path": "crates/adapters/src/openai/evidence/preflight/tests.rs",
       "sourceSha256": "f1e9e0dcec9ed5653aee333728711dce4a69de7b75e78b7f034f96767e217083",
-      "markerSha256": "4b550ff448078c155b948dac8e99efd3bcae1c24e66d18eed40f2eb8fd3f2d28",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "4b550ff448078c155b948dac8e99efd3bcae1c24e66d18eed40f2eb8fd3f2d28"
     },
     {
       "path": "crates/adapters/src/openai/evidence/tests.rs",
       "sourceSha256": "813a10a6cebaac0b7b6ac95e888c896f4bb65fee027a6886792d2438661d953d",
-      "markerSha256": "50b4b3b35c057726542b33e01dda4df77c76d0713d354a2cb2589a6ee2b227da",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "50b4b3b35c057726542b33e01dda4df77c76d0713d354a2cb2589a6ee2b227da"
     },
     {
       "path": "crates/adapters/src/openai/scoped_pricing/transport.rs",
       "sourceSha256": "f24d58faf318e38938d133613edcb92199c566eece9d57a704c950019ecd99f5",
-      "markerSha256": "266df4fbeef6ef5e3627a6d6b39abddc45bc5bf6f6851ed64bc875c9e3945e9e",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "266df4fbeef6ef5e3627a6d6b39abddc45bc5bf6f6851ed64bc875c9e3945e9e"
     },
     {
       "path": "crates/adapters/src/provider_models/tests.rs",
       "sourceSha256": "ef4477e2895b0facc7c2154459a4384cf4b2b3ff087de12732c1343cd95a6a3e",
-      "markerSha256": "a34fa3c6d37318365d46fff1f50d41253bb062bdbfa8c3f5ea3ae264604de1b4",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "a34fa3c6d37318365d46fff1f50d41253bb062bdbfa8c3f5ea3ae264604de1b4"
     },
     {
       "path": "crates/core/src/api_currency_host_tests.rs",
       "sourceSha256": "74d50f6cad739c3cf2b972f142bfc86c974154e70e96c79792a63d44996bb601",
-      "markerSha256": "746c2d1bf06c3e6a12bb993d253e67a8e565f67f0d0ebb64c6fbc662b3f4c759",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "746c2d1bf06c3e6a12bb993d253e67a8e565f67f0d0ebb64c6fbc662b3f4c759"
     },
     {
       "path": "crates/core/src/api_host_tests.rs",
-      "sourceSha256": "3bfd997e32a44e0b8eeea0009dbe6f585552a577f06de34b80a6a34f20d25b34",
-      "markerSha256": "08e40b27c92a9f4fcdbd57377411335bfc1a1ea320a8f8658c4f1a9bdbd52a23",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "sourceSha256": "4d11b85b3fd14d681d4c6b9cbfd2df14eacddea25d77744a3fd306f44a53220c",
+      "markerSha256": "08e40b27c92a9f4fcdbd57377411335bfc1a1ea320a8f8658c4f1a9bdbd52a23"
     },
     {
       "path": "crates/core/src/api_host_tests.rs",
-      "sourceSha256": "3bfd997e32a44e0b8eeea0009dbe6f585552a577f06de34b80a6a34f20d25b34",
-      "markerSha256": "3d217b2ab6e9a4d51aa6fdccf0dd7a0568b2cf553245e73863f51c397e253b6a",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "sourceSha256": "4d11b85b3fd14d681d4c6b9cbfd2df14eacddea25d77744a3fd306f44a53220c",
+      "markerSha256": "3d217b2ab6e9a4d51aa6fdccf0dd7a0568b2cf553245e73863f51c397e253b6a"
     },
     {
       "path": "crates/core/src/api_inventory_tests.rs",
-      "sourceSha256": "d1802ff848bc247b1967a36d594d5b9627ee7d54ce0b7e53751aec6985e5e5a0",
-      "markerSha256": "5ac0d3f3e0bf8b627e2908dac3b6301d4074118787afa8ffe772a6926c3e7513",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "sourceSha256": "5e4630d42080c3a80e6b7faa2ba210a7891f7bbf32ef457132b26781559aec57",
+      "markerSha256": "5ac0d3f3e0bf8b627e2908dac3b6301d4074118787afa8ffe772a6926c3e7513"
     },
     {
       "path": "crates/core/src/api_inventory_tests.rs",
-      "sourceSha256": "d1802ff848bc247b1967a36d594d5b9627ee7d54ce0b7e53751aec6985e5e5a0",
-      "markerSha256": "5e8d6526858a837495d16ba7824aca3cec5839691fbd32c1ef73c1a69a9b2265",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "sourceSha256": "5e4630d42080c3a80e6b7faa2ba210a7891f7bbf32ef457132b26781559aec57",
+      "markerSha256": "5e8d6526858a837495d16ba7824aca3cec5839691fbd32c1ef73c1a69a9b2265"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "f0f8474e7869511f568aa0aef55f3ac01e28ebf25472b81fbe39589b77c5d0b2",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "f0f8474e7869511f568aa0aef55f3ac01e28ebf25472b81fbe39589b77c5d0b2"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "2c1012733fe175d8043f10ef218dacd7575972f0a37bedfa6478bbe09bc64284",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "2c1012733fe175d8043f10ef218dacd7575972f0a37bedfa6478bbe09bc64284"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "751e4e561f3fb2cab8fda731f92cfb8ca84dd8c19428feca9d3fa9f71ecaa5a4",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "751e4e561f3fb2cab8fda731f92cfb8ca84dd8c19428feca9d3fa9f71ecaa5a4"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "e25280911a44ba48a671c5d61b70fbd20c6b92e04343e9decf407271a9cdbbc4",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "e25280911a44ba48a671c5d61b70fbd20c6b92e04343e9decf407271a9cdbbc4"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "6bc120d57caf8673b24aee1100cdb4871239efa537b80231c9699aa6ccbb0b36",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "6bc120d57caf8673b24aee1100cdb4871239efa537b80231c9699aa6ccbb0b36"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "177e12c2926d7fb0738f0a8473fca0b98f9bc384d7f3dce93bbfd4cc219aedc4",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "177e12c2926d7fb0738f0a8473fca0b98f9bc384d7f3dce93bbfd4cc219aedc4"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "af11f31f4ef8b2e0a941501148d25c16b90a5afaf43fc05ca63606dc1235d706",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "af11f31f4ef8b2e0a941501148d25c16b90a5afaf43fc05ca63606dc1235d706"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "f7b8714a4a702122f2f76e4c87ce44622cd8e3e3fd254b246ca9f7f44cc6eee8",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "f7b8714a4a702122f2f76e4c87ce44622cd8e3e3fd254b246ca9f7f44cc6eee8"
     },
     {
       "path": "crates/core/src/credential_vault.rs",
       "sourceSha256": "a22f0b3af2bfba88fb886a6cc23467a7df68eb16e174f739053110787b345dc1",
-      "markerSha256": "b0519892139cf4865a98102caff4f2a0c13f2272c73a9ec5cca84e62d4552167",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "b0519892139cf4865a98102caff4f2a0c13f2272c73a9ec5cca84e62d4552167"
     },
     {
       "path": "crates/core/src/currency_budget/api_scoped/tests.rs",
       "sourceSha256": "f22c785bd79f0e1492cae5f0dfed89a38cf0772e280276765d2d2640c069e9df",
-      "markerSha256": "a280d7f40b49ad241ac7dc0cffb30ba4fd9454fb49a8c8c30a6e0c8651ad1f15",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "a280d7f40b49ad241ac7dc0cffb30ba4fd9454fb49a8c8c30a6e0c8651ad1f15"
     },
     {
       "path": "crates/core/src/currency_budget/tests.rs",
       "sourceSha256": "6fcfeea2b569e85fbba90694fb5553d433b0008a3cbdcbcf606469bb599ef03a",
-      "markerSha256": "134f889f60a2aee29280a7a4a046b2445084f8ceaf11676738df85bbf9c54488",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "134f889f60a2aee29280a7a4a046b2445084f8ceaf11676738df85bbf9c54488"
     },
     {
       "path": "crates/core/src/desktop_run_tests.rs",
       "sourceSha256": "7e3babbadfc35c948379b1bb298db075ac9b81fdb2574fa20ba2917d6e70bc53",
-      "markerSha256": "7be6b4df2aa4266c50a0325538aa958afe42467095c65e8b9d4359a30078fc90",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "7be6b4df2aa4266c50a0325538aa958afe42467095c65e8b9d4359a30078fc90"
     },
     {
       "path": "crates/core/src/integration_tests.rs",
       "sourceSha256": "dd6b04034bc443a75640414e31c1962e1f1125bbda9e1978f1dfda79108b7236",
-      "markerSha256": "b9320cad92ff8e04edcfdddff98ecd65eb95ae3c3584095946e01a7c531cab14",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "b9320cad92ff8e04edcfdddff98ecd65eb95ae3c3584095946e01a7c531cab14"
     },
     {
       "path": "crates/core/src/integration_tests.rs",
       "sourceSha256": "dd6b04034bc443a75640414e31c1962e1f1125bbda9e1978f1dfda79108b7236",
-      "markerSha256": "687e5875575f6061fdc48699196a546705919ce76936f9ddfa73f77a713e3cac",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "687e5875575f6061fdc48699196a546705919ce76936f9ddfa73f77a713e3cac"
     },
     {
       "path": "crates/core/src/integration_tests/team_materials_250.rs",
       "sourceSha256": "bd7ebca95e51aa5b4d8470016dfed78430b064f96dad5ceead62f3d68a8965a7",
-      "markerSha256": "e96f335f6aa111097e63feb46a37607a4611f17e85f52e36929cb100f4afa570",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "e96f335f6aa111097e63feb46a37607a4611f17e85f52e36929cb100f4afa570"
     },
     {
       "path": "crates/core/src/integration_tests/team_materials_250.rs",
       "sourceSha256": "bd7ebca95e51aa5b4d8470016dfed78430b064f96dad5ceead62f3d68a8965a7",
-      "markerSha256": "df2b241d36374376ef0981794d057877a9f4365325b7677542f04db68036a30f",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "df2b241d36374376ef0981794d057877a9f4365325b7677542f04db68036a30f"
     },
     {
       "path": "crates/core/src/omp_host/tests.rs",
       "sourceSha256": "782e07de27ebc11d5feab6b6374b88233f9af6055c988b12c5526bd1f76798a7",
-      "markerSha256": "23a7767005d65980e826ddc635e792bb91ceb3e3987106028a2a59c5c5dc0dd1",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "23a7767005d65980e826ddc635e792bb91ceb3e3987106028a2a59c5c5dc0dd1"
     },
     {
       "path": "crates/core/src/provider_connections/tests.rs",
       "sourceSha256": "85bffee261f1d69c5b7a0e7fa02fe6927246506f50ea32d3ad8ad7051985c613",
-      "markerSha256": "4c5e7c1788c25f3c0e5a37b05a6c077dd26d841abb0461decc509ab6c7262328",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "4c5e7c1788c25f3c0e5a37b05a6c077dd26d841abb0461decc509ab6c7262328"
     },
     {
       "path": "crates/core/src/qoder_product_live.rs",
       "sourceSha256": "6328d5159cd06e1974774bb3d1b260598f3ac5f5d46ad8dfe7fffdf8729b3256",
-      "markerSha256": "fa9c90a86f628976eb428872e9c4313a948372bc847c88b06818178a2cc5677a",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "fa9c90a86f628976eb428872e9c4313a948372bc847c88b06818178a2cc5677a"
     },
     {
       "path": "crates/core/src/workbuddy_product_live.rs",
       "sourceSha256": "5db51f9ac214f4a68acd476c17b839c7cf464c833211b93655e538d779cab0c8",
-      "markerSha256": "f9fbac1933ea15aad23bfc8f1db71306804dbd9f73cfab5de0bae8ef85506df8",
-      "reason": "Reviewed literal in unit-test or explicit test-fixture code; lowercase hyphen-word placeholder, not an account credential"
+      "markerSha256": "f9fbac1933ea15aad23bfc8f1db71306804dbd9f73cfab5de0bae8ef85506df8"
     }
   ]
 }

@@ -47,6 +47,7 @@ fn configured(temp: &Path, chief: E, deputy: E) -> RuntimeHost {
     drop(host);
     let data = temp.join("data");
     crate::relay_guard::tests::promote_fixture(&data, &temp.join("before16"));
+    crate::rejected_usage_guard::tests::promote_fixture(&data, &temp.join("before17"));
     let mut host = RuntimeHost::open(&data).unwrap();
     let mut draft = api_project_tests::draft_for(
         draft,

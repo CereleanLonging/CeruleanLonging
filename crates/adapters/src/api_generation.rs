@@ -7,12 +7,14 @@ mod response_diagnostic;
 mod transport_diagnostic;
 use response_diagnostic::PersistedFailure;
 pub use response_diagnostic::ResponseRejection;
+mod measurement;
 mod wire;
 use cerulean_domain::{
     credentials::CredentialProvider,
     execution::{digest, identifier, require},
     secret::SecretInput,
 };
+pub use measurement::{ApiAttempt, ApiAttemptResult, RejectedUsage};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::BTreeSet, time::Duration};

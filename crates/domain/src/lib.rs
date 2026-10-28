@@ -104,6 +104,8 @@ pub struct Snapshot {
     pub verification_detail: Option<verification_detail::VerificationDetail>,
     #[serde(default)]
     pub omp_files: Option<omp_restore::OmpFilesView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub omp_restore: Option<omp_restore::OmpRestoreOutcome>,
     #[serde(default)]
     pub omp_jobs: Vec<omp_jobs::OmpJob>,
     #[serde(default)]

@@ -1,5 +1,8 @@
 //! Explicit local experiment runner, reusing the original durable workflow,
 //! API/file loop and verifier. Never resumes an intent or fabricates managers.
+#[cfg(test)]
+use cerulean_adapters::api_generation::ApiFailure;
+
 use crate::{
     api_execution::{load, publish},
     artifacts::{contains_path, root_path},
@@ -7,7 +10,7 @@ use crate::{
     source_snapshot::{observe, Tree},
     verifier::PinnedCheck,
 };
-use cerulean_adapters::api_generation::{ApiClient, ApiFailure, ApiReply, PreparedRequest};
+use cerulean_adapters::api_generation::{ApiClient, PreparedRequest};
 use cerulean_domain::{
     execution::*,
     workflow::{TaskState, WorkflowCommand},
@@ -274,7 +277,7 @@ fn relay_archive(root: &Path, relay: bool) -> Result<Option<PathBuf>, String> {
         .file_name()
         .and_then(|v| v.to_str())
         .ok_or("invalid baseline root name")?;
-    let archive = prospective(&root.with_file_name(format!("{name}.reader16-cold-backup")))?;
+    let archive = prospective(&root.with_file_name(format!("{name}.reader17-cold-backup")))?;
     absent(
         &archive,
         "baseline relay cold-backup destination already exists; preserve original materials",
@@ -338,29 +341,34 @@ fn lock_promoted_relay_root(root: &Path, expected_guard: &str) -> Result<File, S
         crate::backup::inventory(&root.join("events"), false).map_err(|e| e.to_string())?;
     require(
         events.nodes.len() == 1
-            && events.nodes[0].entry.path == crate::relay_guard::FILE_NAME
+            && events.nodes[0].entry.path == crate::rejected_usage_guard::FILE_NAME
             && !events.nodes[0].entry.directory
             && events.nodes[0].entry.sha256 == expected_guard,
         "baseline relay new-root guard or event inventory changed; preserve original materials",
     )?;
-    crate::relay_guard::require_protected(root, true)?;
+    crate::rejected_usage_guard::require_protected(root, true)?;
     Ok(writer)
 }
 
 #[cfg(windows)]
 fn protect_new_relay_root(root: &Path, archive: &Path) -> Result<File, String> {
     // There is no new-root guard format. Reuse the actual cold-backup review and
-    // promotion path, before writing any relay-bearing specification or event.
+    // promotion path, before writing any API specification or event. All new API roots use reader17.
     // Failure deliberately retains this new root and every backup/pending file.
     fs::create_dir(root.join("events")).map_err(|e| e.to_string())?;
     drop(lock(root, true)?);
+
     #[cfg(test)]
     relay_prepare_tests::checkpoint(root, "before-backup")?;
     let backup = crate::backup::create(root, archive)?;
     require_empty_relay_backup(archive, &backup.manifest_digest)?;
-    let review = crate::relay_guard::review(root, archive, &backup.manifest_digest)?;
-    let promoted =
-        crate::relay_guard::promote(root, archive, &backup.manifest_digest, &review.digest)?;
+    let review = crate::rejected_usage_guard::review(root, archive, &backup.manifest_digest)?;
+    let promoted = crate::rejected_usage_guard::promote(
+        root,
+        archive,
+        &backup.manifest_digest,
+        &review.digest,
+    )?;
     #[cfg(test)]
     relay_prepare_tests::checkpoint(root, "after-promotion")?;
     lock_promoted_relay_root(
@@ -409,7 +417,7 @@ pub fn prepare(root: &Path, spec: RunSpec) -> Result<Value, String> {
         &root,
         "baseline data root must be new; preserve original preparation",
     )?;
-    let archive = relay_archive(&root, crate::relay_guard::revision_uses_relay(&spec.plan))?;
+    let archive = relay_archive(&root, true)?;
     if let Some(archive) = &archive {
         require(
             !contains_path(archive, &project) && !contains_path(&project, archive),
@@ -490,7 +498,7 @@ pub async fn run_from_vault(
             )?)
         },
         &mut async |client: &ApiClient, prepared, cancel: &mut oneshot::Receiver<()>, gateway: &mut cerulean_adapters::api_generation::GatewayObserver<'_>| {
-            client.send_with_gateway(prepared, cancel, gateway).await
+            client.send_measured_with_gateway(prepared, cancel, gateway).await
         },
         cancel,
         verification_cancel,
@@ -499,7 +507,7 @@ pub async fn run_from_vault(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn execute(
+async fn execute<O: cerulean_adapters::api_generation::ApiAttemptResult>(
     root: &Path,
     expected: &str,
     approval: RunApproval,
@@ -510,7 +518,7 @@ async fn execute(
         PreparedRequest,
         &mut oneshot::Receiver<()>,
         &mut cerulean_adapters::api_generation::GatewayObserver<'_>,
-    ) -> Result<ApiReply, ApiFailure>,
+    ) -> O,
     cancel: &mut oneshot::Receiver<()>,
     verification_cancel: &AtomicBool,
 ) -> Result<Terminal, String> {
@@ -529,7 +537,7 @@ async fn execute(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn execute_observed(
+async fn execute_observed<O: cerulean_adapters::api_generation::ApiAttemptResult>(
     root: &Path,
     expected: &str,
     approval: RunApproval,
@@ -540,7 +548,7 @@ async fn execute_observed(
         PreparedRequest,
         &mut oneshot::Receiver<()>,
         &mut cerulean_adapters::api_generation::GatewayObserver<'_>,
-    ) -> Result<ApiReply, ApiFailure>,
+    ) -> O,
     cancel: &mut oneshot::Receiver<()>,
     verification_cancel: &AtomicBool,
     on_started: impl FnOnce(&str) -> Result<(), String>,

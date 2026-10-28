@@ -65,6 +65,7 @@ $operation=$null;$lastReview=$null;$lastHold=$null;$sourceInfo=$null;$candidateI
 $lastFormatReview=$null;$lastFormatStatus=$null
 $lastRecoveryReview=$null
 $lastReaderReview=$null;$lastRecoveryMode=$null
+$lastRejectedUsageReview=$null
 $lastScopedPricingReview=$null
 $lastScopedCountReview=$null
 $lastImportReview=$null
@@ -149,6 +150,7 @@ try{
         $scopedExecutionDigest=Field '分档决策与费用确认启用摘要' '' $true
         $apiCurrencyDigest=Field 'API 逐轮计数与费用确认启用摘要' '' $true
         $apiFeeResolutionDigest=Field 'API 未知费用核对启用摘要' '' $true
+        $rejectedUsageDigest=Field '失败响应计量保护启用摘要' '' $true
         $recoveryHold=Field '当前数据锁定摘要'
         $backupHold=Field '旧备份原锁定摘要'
         $recoveryDigest=Field '原恢复审阅摘要'
@@ -165,6 +167,7 @@ try{
         Buttons '分档决策与费用确认' @(@('审阅分档决策与费用确认','scopedExecutionReview'),@('确认启用分档决策与费用确认','scopedExecutionPromote'))
         Buttons 'API 逐轮计数与费用确认' @(@('审阅API 逐轮计数与费用确认','apiCurrencyReview'),@('确认启用API 逐轮计数与费用确认','apiCurrencyPromote'))
         Buttons 'API 未知费用核对' @(@('审阅API 未知费用核对','apiFeeResolutionReview'),@('确认启用API 未知费用核对','apiFeeResolutionPromote'))
+        Buttons '失败响应计量保护' @(@('审阅失败响应计量保护','rejectedUsageReview'),@('确认启用失败响应计量保护','rejectedUsagePromote'))
         Buttons '恢复审阅' @(@('审阅原位置恢复','recoveryReview'),@('读取恢复事务','recoveryStatus'),@('诊断恢复中断','recoveryDiagnose'),@('核对恢复归档','recoveryInspect'))
         Buttons '旧锁定备份' @(@('审阅旧锁定备份恢复','recoveryPreviousReview'),@('准备旧备份恢复','recoveryPreviousPrepare'))
         Buttons '恢复事务' @(@('准备恢复副本','recoveryPrepare'),@('保留原目录并恢复','recoveryApply'),@('核验并结束恢复','recoveryFinish'),@('放弃未开始恢复','recoveryAbandon'))
@@ -181,6 +184,7 @@ try{
             $script:lastScopedExecutionReview=$null;$scopedExecutionDigest.Text=''
             $script:lastApiCurrencyReview=$null;$apiCurrencyDigest.Text=''
             $script:lastApiFeeResolutionReview=$null;$apiFeeResolutionDigest.Text=''
+            $script:lastRejectedUsageReview=$null;$rejectedUsageDigest.Text=''
             $script:lastRecoveryReview=$null;$script:lastRecoveryMode=$null
             $consent.Checked=$false
         }
@@ -223,7 +227,7 @@ try{
                 $pin=[CeruleanPackagePin]::Open($path,$false)
                 try{
                     $value=(ReadBounded $path)|ConvertFrom-Json
-                    if($value.schema -notin @(1,2) -or ($value.schema -eq 2 -and (($value.controllerReaderGeneration -isnot [int] -and $value.controllerReaderGeneration -isnot [long]) -or $value.controllerReaderGeneration -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16))) -or $value.ownerSid -cne $config.ownerSid -or (NormalPath $value.transaction) -ine (NormalPath $transaction.Text) -or (NormalPath $value.data) -ine $data.Text -or (NormalPath $value.install) -ine $install.Text){throw '原准备意图与当前维护会话身份或读取代际不符'}
+                    if($value.schema -notin @(1,2) -or ($value.schema -eq 2 -and (($value.controllerReaderGeneration -isnot [int] -and $value.controllerReaderGeneration -isnot [long]) -or $value.controllerReaderGeneration -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17))) -or $value.ownerSid -cne $config.ownerSid -or (NormalPath $value.transaction) -ine (NormalPath $transaction.Text) -or (NormalPath $value.data) -ine $data.Text -or (NormalPath $value.install) -ine $install.Text){throw '原准备意图与当前维护会话身份或读取代际不符'}
                     $intentDigest.Text=Digest $path
                     $output.Text=$value|ConvertTo-Json -Depth 15
                 }finally{$pin.Dispose()}
@@ -249,7 +253,7 @@ try{
                 if($action -eq 'sourceInfo'){$script:sourceInfo=$info}else{$script:candidateInfo=$info}
                 $output.Text=$info|ConvertTo-Json -Depth 6;$status.Text='已读取清单。执行准备时还会校验实际文件、签名与程序能力。';$consent.Checked=$false;return
             }
-            $mutating=$action -notin @('importVerify','importReview','importInspect','coreReview','coreStatus','Review','formatStatus','formatReview','readerReview','currencyReview','preparationReview','countingReview','countResolutionReview','scopedPricingReview','scopedCountReview','scopedExecutionReview','apiCurrencyReview','apiFeeResolutionReview','dataVerify','recoveryReview','recoveryPreviousReview','recoveryStatus','recoveryDiagnose','recoveryInspect')
+            $mutating=$action -notin @('importVerify','importReview','importInspect','coreReview','coreStatus','Review','formatStatus','formatReview','readerReview','currencyReview','preparationReview','countingReview','countResolutionReview','scopedPricingReview','scopedCountReview','scopedExecutionReview','apiCurrencyReview','apiFeeResolutionReview','rejectedUsageReview','dataVerify','recoveryReview','recoveryPreviousReview','recoveryStatus','recoveryDiagnose','recoveryInspect')
             if($mutating -and -not $consent.Checked){throw '请先审阅信息并勾选本次操作确认'}
             if($mutating){$consent.Checked=$false}
             $arguments=@();$file='';$isCore=$action.StartsWith('core')
@@ -405,6 +409,17 @@ try{
                     $arguments+=@('--review-digest',$script:lastApiFeeResolutionReview.digest)
                     ClearDataReviews;$script:lastFormatStatus=$null;$script:lastHold=$null
                 }else{$script:lastApiFeeResolutionReview=$null;$apiFeeResolutionDigest.Text=''}
+            }elseif($action -in @('rejectedUsageReview','rejectedUsagePromote')){
+                # reader17 records usage only; no task, budget approval, billing settlement or hold release.
+                if(-not $DataMaintenance){throw '请打开独立数据维护窗口'}
+                if(-not $script:lastHold.validRecord -or -not $backup.Text -or $backupDigest.Text -cnotmatch '^[a-f0-9]{64}$'){throw '请先读取有效核心锁定并核对冷备份摘要'}
+                $file=Join-Path $directory 'cerulean-runtime.exe'
+                $arguments=@('--workbench','--data-dir',$data.Text,'data-format',$(if($action -eq 'rejectedUsageReview'){'review-rejected-usage'}else{'promote-rejected-usage'}),'--from',(NormalPath $backup.Text),'--manifest-digest',$backupDigest.Text,'--hold-digest',$script:lastHold.holdDigest)
+                if($action -eq 'rejectedUsagePromote'){
+                    if(-not $script:lastRejectedUsageReview -or $script:lastRejectedUsageReview.digest -cne $rejectedUsageDigest.Text){throw '请先审阅失败响应计量保护的当前计划'}
+                    $arguments+=@('--review-digest',$script:lastRejectedUsageReview.digest)
+                    ClearDataReviews;$script:lastFormatStatus=$null;$script:lastHold=$null
+                }else{$script:lastRejectedUsageReview=$null;$rejectedUsageDigest.Text=''}
             }elseif($action -in @('dataBackup','dataVerify','dataRestore','dataRelease','formatStatus','formatReview','formatMigrate')){
                 if(-not $DataMaintenance){throw '请打开独立数据维护窗口'}
                 $file=Join-Path $directory 'cerulean-runtime.exe';$arguments=@('--workbench','--data-dir',$data.Text)
@@ -501,6 +516,7 @@ try{
             if($op.action -eq 'scopedExecutionReview'){$script:lastScopedExecutionReview=$result.result;$scopedExecutionDigest.Text=$result.result.digest}
             if($op.action -eq 'apiCurrencyReview'){$script:lastApiCurrencyReview=$result.result;$apiCurrencyDigest.Text=$result.result.digest}
             if($op.action -eq 'apiFeeResolutionReview'){$script:lastApiFeeResolutionReview=$result.result;$apiFeeResolutionDigest.Text=$result.result.digest}
+            if($op.action -eq 'rejectedUsageReview'){$script:lastRejectedUsageReview=$result.result;$rejectedUsageDigest.Text=$result.result.digest}
             if($op.action -eq 'importReview'){$retentionDigest.Text=$result.result.digest;$script:lastImportReview=$result.result}
             if($op.action -in @('importBackup','importVerify')){$backupDigest.Text=$result.result.manifestDigest}
             if($op.action -in @('dataBackup','dataVerify')){$backupDigest.Text=$result.result.manifestDigest}
@@ -516,7 +532,7 @@ try{
     if($Describe){
         $gates=0
         foreach($button in $actionButtons){
-            if($button.Tag -in @('importStop','importBackup','importRetain','corePrepare','Prepare','Apply','Rollback','Commit','Reconcile','AbandonCommit','FinishMaintenance','AbandonPreparation','dataBackup','dataRestore','dataRelease','formatMigrate','readerPromote','currencyPromote','preparationPromote','countingPromote','countResolutionPromote','scopedPricingPromote','scopedCountPromote','scopedExecutionPromote','apiCurrencyPromote','apiFeeResolutionPromote','recoveryPreviousPrepare','recoveryPrepare','recoveryApply','recoveryFinish','recoveryAbandon')){
+            if($button.Tag -in @('importStop','importBackup','importRetain','corePrepare','Prepare','Apply','Rollback','Commit','Reconcile','AbandonCommit','FinishMaintenance','AbandonPreparation','dataBackup','dataRestore','dataRelease','formatMigrate','readerPromote','currencyPromote','preparationPromote','countingPromote','countResolutionPromote','scopedPricingPromote','scopedCountPromote','scopedExecutionPromote','apiCurrencyPromote','apiFeeResolutionPromote','rejectedUsagePromote','recoveryPreviousPrepare','recoveryPrepare','recoveryApply','recoveryFinish','recoveryAbandon')){
                 $method=$button.GetType().GetMethod('OnClick',([Reflection.BindingFlags]::Instance -bor [Reflection.BindingFlags]::NonPublic))
                 $null=$method.Invoke($button,@([EventArgs]::Empty))
                 if($status.Text -notlike '*勾选本次操作确认*'){throw '操作确认事件校验未通过'}

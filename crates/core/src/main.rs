@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "binaryUpdateSchema": 2,
                 "dataSchema": 1,
                 "dataFormatGuardSchema": 1,
-                "dataReaderGeneration": cerulean_core::relay_guard::GENERATION,
+                "dataReaderGeneration": cerulean_core::rejected_usage_guard::GENERATION,
                 "maintenanceInterlockSchema": 1,
                 "dataRecoverySchema": 2,
                 "readableDataSchemas": cerulean_core::data_format::READABLE_SCHEMAS,

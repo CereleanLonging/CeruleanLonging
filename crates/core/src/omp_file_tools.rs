@@ -365,14 +365,14 @@ struct WriteArgs {
 #[cfg(all(test, windows, target_pointer_width = "64"))]
 mod pin_diagnostic;
 #[cfg_attr(test, track_caller)]
-fn pin_directory(path: &Path) -> Result<File, String> {
+pub(crate) fn pin_directory(path: &Path) -> Result<File, String> {
     #[cfg(test)]
     let caller = std::panic::Location::caller();
-    let file = OpenOptions::new()
+    let file = crate::directory_publication::pin(path, || OpenOptions::new()
         .read(true)
         .share_mode(1)
         .custom_flags(FLAGS)
-        .open(path)
+        .open(path))
         .map_err(|_error| {
             #[cfg(test)]
             eprintln!(

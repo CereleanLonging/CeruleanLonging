@@ -45,6 +45,39 @@ fn task_goal(text: String, format: Option<TaskTextFormat>) -> String {
     }
 }
 
+/// Opt-in output semantics for a newly approved experiment; old requests retain
+/// their exact original goal, even when their wording was ambiguous.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResultContract {
+    #[serde(rename = "p01-summary-v1")]
+    P01SummaryV1,
+}
+
+fn explicit_result_contract<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<ResultContract>, D::Error> {
+    ResultContract::deserialize(deserializer).map(Some)
+}
+
+const P01_SUMMARY_CONTRACT: &str = "结果契约 p01-summary-v1：main.mjs 导出的 run(events) 直接返回状态统计对象，顶层字段恰好为 counts 和 completedIds；counts 包含 queued、running、done、failed 四个计数，completedIds 为排序后的 done 状态 id。不要额外返回 rows 字段，也不要在 summary 字段下嵌套结果。原任务的输入校验、排序、不修改输入和文件修改范围要求继续适用。";
+
+fn result_goal(
+    text: String,
+    task: &str,
+    contract: Option<ResultContract>,
+) -> Result<String, String> {
+    match contract {
+        None => Ok(text),
+        Some(ResultContract::P01SummaryV1) => {
+            require(
+                task == "P01",
+                "result contract does not match fixed workload",
+            )?;
+            Ok(format!("{text}\n{P01_SUMMARY_CONTRACT}"))
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ComposeRequest {
@@ -54,6 +87,12 @@ pub struct ComposeRequest {
         deserialize_with = "explicit_task_text_format"
     )]
     pub task_text_format: Option<TaskTextFormat>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "explicit_result_contract"
+    )]
+    pub result_contract: Option<ResultContract>,
     pub bundle: String,
     pub manifest_sha256: String,
     pub schedule: String,
@@ -351,6 +390,11 @@ pub(crate) fn compose_mode(
     let goal = String::from_utf8(content["inputs/control/task.txt"].clone())
         .map_err(|_| "task is not UTF-8")?;
     let goal = task_goal(goal, request.task_text_format);
+    let goal = result_goal(
+        goal,
+        &string(&manifest.slot, "task")?,
+        request.result_contract,
+    )?;
     bytes(Path::new(&request.launcher), LAUNCHER)?;
     bytes(Path::new(&request.checker), CHECKER)?;
     let launcher = std::fs::canonicalize(&request.launcher).map_err(|e| e.to_string())?;
@@ -511,3 +555,7 @@ pub fn verify(spec: &RunSpec) -> Result<MaterialProof, String> {
 #[cfg(test)]
 #[path = "baseline_materials/text_tests.rs"]
 mod text_tests;
+
+#[cfg(test)]
+#[path = "baseline_materials/result_contract_tests.rs"]
+mod result_contract_tests;

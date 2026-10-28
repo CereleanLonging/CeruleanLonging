@@ -217,14 +217,14 @@ pub(crate) fn launch(
                                 #[cfg(test)]
                                 if let Some(fixture) = gateway_fixture {
                                     round += 1;
-                                    return fixture(&prepared, round, gateway);
+                                    return fixture(&prepared, round, gateway).into();
                                 }
                                 #[cfg(test)]
                                 if let Some(fixture) = fixture {
                                     round += 1;
-                                    return fixture(&prepared, round);
+                                    return fixture(&prepared, round).into();
                                 }
-                                client.send_with_gateway(prepared, cancel, gateway).await
+                                client.send_measured_with_gateway(prepared, cancel, gateway).await
                             };
                         let inner = crate::api_execution::LegacyDriver { client: &client, send: &mut send };
                         let mut driver = crate::api_tool_checkpoint::OwnedDriver { inner, sender: &sender };

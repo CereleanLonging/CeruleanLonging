@@ -102,6 +102,7 @@ fn main() {
         omp_restore::OmpFileItem::decl(),
         omp_restore::OmpFileReview::decl(),
         omp_restore::OmpFilesView::decl(),
+        omp_restore::OmpRestoreOutcome::decl(),
         supervision::SupervisionPolicy::decl(),
         supervision::SupervisionOverride::decl(),
         supervision::SupervisionAdviceView::decl(),

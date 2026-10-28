@@ -602,7 +602,7 @@ fn publish(root: &Path, data: &Data) -> Result<(), String> {
         conn.close().map_err(|(_, e)| e.to_string())?;
         file.sync_all().map_err(|e| e.to_string())?;
         check_paths(root)?;
-        fs::rename(&temp, &destination).map_err(|e| e.to_string())
+        crate::directory_publication::replace(&temp, &destination).map_err(|e| e.to_string())
     })();
     drop(file);
     // Only remove the private temp we created; never remove a foreign sidecar.

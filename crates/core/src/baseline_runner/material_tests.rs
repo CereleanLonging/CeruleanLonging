@@ -158,7 +158,7 @@ async fn material_change_after_prepare_stops_before_credentials_and_intent() {
     let original = fs::read(&file).unwrap();
     fs::write(&file, "changed").unwrap();
     let (_tx, mut rx) = oneshot::channel();
-    let result = execute(
+    let result = execute::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(
         data,
         &digest(&spec).unwrap(),
         authorization(&spec),
@@ -192,7 +192,12 @@ async fn synthetic_and_legacy_specs_cannot_enter_production() {
         prepare(data, spec.clone()).unwrap();
         let (_tx, mut rx) = oneshot::channel();
         let result =
-            execute(
+            execute::<
+                Result<
+                    cerulean_adapters::api_generation::ApiReply,
+                    cerulean_adapters::api_generation::ApiFailure,
+                >,
+            >(
                 data,
                 &digest(&spec).unwrap(),
                 authorization(&spec),
@@ -235,7 +240,7 @@ async fn bound_run_accepts_fixed_checker_and_reopens_without_redispatch() {
   return result;
 }
 "#;
-    let end=execute(data,&digest(&spec).unwrap(),authorization(&spec),"synthetic-material-fixture",
+    let end=execute::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(data,&digest(&spec).unwrap(),authorization(&spec),"synthetic-material-fixture",
         |_|ApiClient::new(SecretInput::new("synthetic-no-user-key".into()).unwrap()),
         &mut async |_:&ApiClient,prepared,_:&mut oneshot::Receiver<()>, _gateway: &mut cerulean_adapters::api_generation::GatewayObserver<'_>| {
             sends+=1;
@@ -257,7 +262,12 @@ async fn bound_run_accepts_fixed_checker_and_reopens_without_redispatch() {
         assert_eq!(report["coreExport"]["apiReplies"], 2);
         let (_tx, mut cancel) = oneshot::channel();
         let denied =
-            execute(
+            execute::<
+                Result<
+                    cerulean_adapters::api_generation::ApiReply,
+                    cerulean_adapters::api_generation::ApiFailure,
+                >,
+            >(
                 data,
                 &digest(&spec).unwrap(),
                 authorization(&spec),

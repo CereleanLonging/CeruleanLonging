@@ -33,7 +33,7 @@ impl Windows {
 #[cfg(windows)]
 pub mod catalog {
     use super::Binding;
-    use cerulean_core::{backup, data_format, experiment_guard, Store};
+    use cerulean_core::{backup, data_format, experiment_guard, rejected_usage_guard, Store};
     use serde::{Deserialize, Serialize};
     use sha2::{Digest, Sha256};
     use std::{
@@ -161,6 +161,14 @@ pub mod catalog {
         Ok(count)
     }
     pub fn create(root: &Path, id: &str) -> Result<Entry, String> {
+        create_for_generation(root, id, rejected_usage_guard::GENERATION)
+    }
+    #[cfg(test)]
+    pub(super) fn create_legacy(root: &Path, id: &str) -> Result<Entry, String> {
+        create_for_generation(root, id, experiment_guard::GENERATION)
+    }
+    fn create_for_generation(root: &Path, id: &str, generation: u32) -> Result<Entry, String> {
+        require(matches!(generation, 15 | 17), "未知新工作台格式")?;
         require(
             valid_id(id),
             "实验编号须以exp-开头，总长5至48位，仅含小写字母、数字或连字符",
@@ -179,7 +187,7 @@ pub mod catalog {
                 purpose: PURPOSE.into(),
                 id: id.into(),
                 data_root: data.clone(),
-                minimum_reader: experiment_guard::GENERATION,
+                minimum_reader: generation,
                 credentials_copied: false,
             },
         )?;
@@ -190,11 +198,23 @@ pub mod catalog {
         drop(Store::open(&data)?);
         let archive = folder.join("initial-cold-backup");
         let backup_digest = backup::create(&data, &archive)?.manifest_digest;
-        let review = experiment_guard::review(&data, &archive, &backup_digest)?;
-        write_new(&folder.join("protection-review.json"), &review)?;
-        let status = experiment_guard::promote(&data, &archive, &backup_digest, &review.digest)?;
+        let (status, guard_file) = if generation == rejected_usage_guard::GENERATION {
+            let review = rejected_usage_guard::review(&data, &archive, &backup_digest)?;
+            write_new(&folder.join("protection-review.json"), &review)?;
+            (
+                rejected_usage_guard::promote(&data, &archive, &backup_digest, &review.digest)?,
+                rejected_usage_guard::MARKER,
+            )
+        } else {
+            let review = experiment_guard::review(&data, &archive, &backup_digest)?;
+            write_new(&folder.join("protection-review.json"), &review)?;
+            (
+                experiment_guard::promote(&data, &archive, &backup_digest, &review.digest)?,
+                experiment_guard::MARKER,
+            )
+        };
         require(
-            status.minimum_reader_generation == experiment_guard::GENERATION,
+            status.minimum_reader_generation == generation,
             "新工作台实验保护未完成",
         )?;
         let ready = Ready {
@@ -204,7 +224,7 @@ pub mod catalog {
             intent_digest: hash(&read(&folder.join("intent.json"))?),
             review_digest: hash(&read(&folder.join("protection-review.json"))?),
             backup_digest,
-            guard_digest: hash(&read(&folder.join("data").join(experiment_guard::MARKER))?),
+            guard_digest: hash(&read(&folder.join("data").join(guard_file))?),
         };
         // A crash during publication leaves ready.pending and is diagnostic-only.
         write_new(&folder.join("ready.pending"), &ready)?;
@@ -239,7 +259,7 @@ pub mod catalog {
                 && intent.purpose == PURPOSE
                 && intent.id == id
                 && intent.data_root == data
-                && (14..=experiment_guard::GENERATION).contains(&intent.minimum_reader)
+                && matches!(intent.minimum_reader, 14 | 15 | 17)
                 && !intent.credentials_copied
                 && ready.intent_digest == hash(&intent_bytes)
                 && ready.review_digest
@@ -251,10 +271,11 @@ pub mod catalog {
         )?;
         handles.push(backup::open(&data, true, false).map_err(err)?);
         handles.push(backup::open(&data.join("events"), true, false).map_err(err)?);
-        let guard_file = if intent.minimum_reader == 14 {
-            "events/00000000.reader14.json"
-        } else {
-            experiment_guard::MARKER
+        let guard_file = match intent.minimum_reader {
+            14 => "events/00000000.reader14.json",
+            15 => experiment_guard::MARKER,
+            17 => rejected_usage_guard::MARKER,
+            _ => return Err("未知原工作台保护格式".into()),
         };
         let guard = read_pinned(&data.join(guard_file), &mut handles)?;
         if intent.minimum_reader < experiment_guard::GENERATION
@@ -273,6 +294,16 @@ pub mod catalog {
             let _relay_guard =
                 read_pinned(&data.join(cerulean_core::relay_guard::MARKER), &mut handles)?;
         }
+        if data
+            .join(cerulean_core::rejected_usage_guard::MARKER)
+            .try_exists()
+            .map_err(err)?
+        {
+            let _usage_guard = read_pinned(
+                &data.join(cerulean_core::rejected_usage_guard::MARKER),
+                &mut handles,
+            )?;
+        }
         let guard_value: serde_json::Value = serde_json::from_slice(&guard).map_err(err)?;
         let archive = folder.join("initial-cold-backup");
         let backup_review = backup::verify(&archive)?;
@@ -285,7 +316,7 @@ pub mod catalog {
             "工作台保护或初始备份不匹配",
         )?;
         require(
-            (intent.minimum_reader..=cerulean_core::relay_guard::GENERATION)
+            (intent.minimum_reader..=cerulean_core::rejected_usage_guard::GENERATION)
                 .contains(&data_format::status(&data)?.minimum_reader_generation),
             "实验保护状态不匹配",
         )?;

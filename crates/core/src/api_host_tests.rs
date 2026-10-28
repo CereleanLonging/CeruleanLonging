@@ -12,6 +12,20 @@ use cerulean_domain::{
 use serde_json::json;
 use std::time::{Duration, Instant};
 
+pub(super) fn protect_new_api_fixture(root: &Path) {
+    let data = root.join("data");
+    if !data.exists() {
+        // New synthetic API fixtures opt into measured replies before any
+        // project or dispatch exists. Existing roots are never auto-promoted.
+        drop(Store::open(&data).unwrap());
+        crate::rejected_usage_guard::tests::promote_fixture(
+            &data,
+            &root.join("reader17-initial-backup"),
+        );
+    }
+    crate::rejected_usage_guard::require_protected(&data, true).unwrap();
+}
+
 pub(super) fn fixture(
     root: &Path,
     adapter: project_setup::ProjectWorkerAdapter,
@@ -37,6 +51,7 @@ pub(super) fn fixture_with_configuration(
     configure: impl FnOnce(&mut project_setup::ProjectSetupDraft),
     revise: impl FnOnce(&Path, &mut PlanRevision),
 ) -> RuntimeHost {
+    protect_new_api_fixture(root);
     let (mut host, draft) = project_planning::tests::fixture(root);
     let provider = target.provider();
     let mut draft = api_project_tests::draft_for(draft, adapter, target);

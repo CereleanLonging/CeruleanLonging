@@ -6,7 +6,7 @@ pub const BACKUP_WRITER_VERSIONS: &[&str] = &[
     "0.1.0", "0.1.1", "0.1.2", "0.1.3", "0.1.4", "0.1.5", "0.1.6", "0.1.7", "0.1.8", "0.1.9",
     "0.1.10", "0.1.11", "0.1.12", "0.1.13", "0.1.14", "0.1.15", "0.1.16", "0.1.17", "0.1.18",
     "0.1.19", "0.1.20", "0.1.21", "0.1.22", "0.1.23", "0.1.24", "0.1.25", "0.1.26", "0.1.27",
-    "0.1.28", "0.1.29", "0.1.30",
+    "0.1.28", "0.1.29", "0.1.30", "0.1.31",
 ];
 #[cfg(windows)]
 mod acceptance_scope;
@@ -69,6 +69,7 @@ pub mod derived_index;
 pub mod desktop_execution;
 #[cfg(windows)]
 mod diagnostic_service;
+mod directory_publication;
 #[cfg(windows)]
 pub mod efficiency_evidence;
 pub mod experiment_guard;
@@ -103,6 +104,7 @@ mod omp_workflow_access;
 pub mod portable_evidence;
 mod project_setup;
 pub mod reader_generation;
+pub mod rejected_usage_guard;
 pub mod relay_guard;
 mod replay_checkpoint;
 mod run_control;
@@ -247,6 +249,7 @@ impl Store {
                 || f.file_name() == currency_api_resolution_guard::FILE_NAME
                 || f.file_name() == management_source_guard::FILE_NAME
                 || f.file_name() == relay_guard::FILE_NAME
+                || f.file_name() == rejected_usage_guard::FILE_NAME
                 || f.file_name() == experiment_guard::FILE_NAME
                 || f.file_name() == experiment_guard::LEGACY_FILE_NAME
             {
@@ -471,6 +474,7 @@ impl Store {
             verification_jobs: vec![],
             verification_detail: None,
             omp_files: None,
+            omp_restore: None,
             omp_jobs: vec![],
             omp_stop_issues: vec![],
             worker_observation: None,

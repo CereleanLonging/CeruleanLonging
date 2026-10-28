@@ -10,6 +10,28 @@ impl RuntimeHost {
         &self,
         command: &Command,
     ) -> Option<Result<Snapshot, String>> {
+        #[cfg(windows)]
+        {
+            self.omp_restore_request_with_readback(command, |host, project, task, attempt, call| {
+                host.omp_files_view(project, task, attempt, 0, Some(call))
+            })
+        }
+        #[cfg(not(windows))]
+        {
+            matches!(
+                command,
+                Command::ReadOmpFiles { .. } | Command::RestoreOmpFile { .. }
+            )
+            .then(|| Err("文件还原需要Windows核心".into()))
+        }
+    }
+
+    #[cfg(windows)]
+    fn omp_restore_request_with_readback(
+        &self,
+        command: &Command,
+        readback: impl FnOnce(&Self, &str, &str, &str, &str) -> Result<OmpFilesView, String>,
+    ) -> Option<Result<Snapshot, String>> {
         if !matches!(
             command,
             Command::ReadOmpFiles { .. } | Command::RestoreOmpFile { .. }
@@ -59,19 +81,30 @@ impl RuntimeHost {
                     )?;
                     #[cfg(test)]
                     eprintln!("omp restore 328 phase=restore project={project_id} task={task_id} attempt={attempt_id} call={call_id}");
-                    restore::restore_original(
+                    let receipt = restore::restore_original(
                         store, &root, task_id, attempt_id, "user", &reviewed,
                     )?;
                     #[cfg(test)]
                     eprintln!("omp restore 328 phase=post-restore-readback project={project_id} task={task_id} attempt={attempt_id} call={call_id}");
                     let mut snapshot = self.snapshot();
-                    snapshot.omp_files = Some(self.omp_files_view(
-                        project_id,
-                        task_id,
-                        attempt_id,
-                        0,
-                        Some(call_id),
-                    )?);
+                    let preview = readback(self, project_id, task_id, attempt_id, call_id);
+                    let readback_error = match preview {
+                        Ok(view) => {
+                            snapshot.omp_files = Some(view);
+                            None
+                        }
+                        Err(error) => Some(error),
+                    };
+                    snapshot.omp_restore = Some(OmpRestoreOutcome {
+                        project_id: project_id.clone(),
+                        task_id: task_id.clone(),
+                        attempt_id: attempt_id.clone(),
+                        call_id: call_id.clone(),
+                        review_digest: receipt.review_digest,
+                        restored_sha256: receipt.restored_sha256,
+                        at: receipt.at,
+                        readback_error,
+                    });
                     Ok(snapshot)
                 }
                 _ => unreachable!(),

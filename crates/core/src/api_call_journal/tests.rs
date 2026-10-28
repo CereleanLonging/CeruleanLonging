@@ -1,7 +1,7 @@
 use super::*;
 use cerulean_adapters::api_generation::{ApiTarget, ApiUsage};
 use std::sync::atomic::{AtomicUsize, Ordering};
-fn identity() -> CallIdentity {
+pub(super) fn identity() -> CallIdentity {
     CallIdentity {
         project_id: "project".into(),
         task_id: "task".into(),
@@ -19,7 +19,7 @@ fn identity() -> CallIdentity {
         },
     }
 }
-fn observation() -> ApiObservation {
+pub(super) fn observation() -> ApiObservation {
     ApiObservation {
         response_id: "response-1".into(),
         actual_model: "fixture".into(),
@@ -342,6 +342,7 @@ async fn interrupted_publication_is_conservative_at_all_eight_boundaries() {
                 }
             } else {
                 Event::Outcome {
+                    rejected_usage: None,
                     outcome: CallOutcome::Reply {
                         observation: observation(),
                     },
@@ -391,6 +392,7 @@ fn corrupt_missing_extra_and_reordered_evidence_is_rejected() {
         journal
             .publish(
                 &Event::Outcome {
+                    rejected_usage: None,
                     outcome: CallOutcome::Failure {
                         failure: ApiFailure::NotSent {},
                     },

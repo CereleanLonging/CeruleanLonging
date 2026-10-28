@@ -21,6 +21,8 @@ external-chief submit --operation <原操作ID> --session <原会话标识> --fi
                                        只提出方案，不代替用户批准；失败先读取原操作，不重发
 data-format review-management-source --from <冷备份目录> --manifest-digest <摘要> --hold-digest <摘要>
 data-format promote-management-source --from <冷备份目录> --manifest-digest <摘要> --hold-digest <摘要> --review-digest <摘要>
+data-format review-rejected-usage --from <冷备份目录> --manifest-digest <摘要> [--hold-digest <原锁定摘要>]
+data-format promote-rejected-usage --from <冷备份目录> --manifest-digest <摘要> --review-digest <摘要> [--hold-digest <原锁定摘要>]
 data-format review-relay --from <冷备份目录> --manifest-digest <摘要>
 data-format promote-relay --from <冷备份目录> --manifest-digest <摘要> --review-digest <摘要>
 data-format review-experiments --from <冷备份目录> --manifest-digest <摘要>
@@ -210,6 +212,8 @@ enum Action {
     ExternalChief(cerulean_domain::management_ingress::ExternalChiefOperation),
     ManagementSourceReview(PathBuf, String, String),
     ManagementSourcePromote(PathBuf, String, String, String),
+    RejectedUsageReview(PathBuf, String, Option<String>),
+    RejectedUsagePromote(PathBuf, String, String, Option<String>),
     RelayReview(PathBuf, String),
     RelayPromote(PathBuf, String, String),
     ExperimentsReview(PathBuf, String),
@@ -360,6 +364,17 @@ fn parse(args: &[String]) -> Result<Invocation, String> {
                 session_id: o.take("--session")?,
                 decision: json_file(&o.take("--file")?)?,
             },
+        ),
+        ("data-format", "review-rejected-usage") => Action::RejectedUsageReview(
+            o.take("--from")?.into(),
+            o.take("--manifest-digest")?,
+            o.optional("--hold-digest"),
+        ),
+        ("data-format", "promote-rejected-usage") => Action::RejectedUsagePromote(
+            o.take("--from")?.into(),
+            o.take("--manifest-digest")?,
+            o.take("--review-digest")?,
+            o.optional("--hold-digest"),
         ),
         ("data-format", "review-relay") => {
             Action::RelayReview(o.take("--from")?.into(), o.take("--manifest-digest")?)
@@ -1407,6 +1422,36 @@ async fn execute(i: Invocation) -> u8 {
             )
             .map(|v| json!(v)),
         ),
+        Action::RejectedUsageReview(from, manifest, hold) => Some(
+            match hold {
+                Some(hold) => cerulean_core::rejected_usage_guard::review_held(
+                    &i.directory,
+                    from,
+                    manifest,
+                    hold,
+                ),
+                None => cerulean_core::rejected_usage_guard::review(&i.directory, from, manifest),
+            }
+            .map(|v| json!(v)),
+        ),
+        Action::RejectedUsagePromote(from, manifest, review, hold) => Some(
+            match hold {
+                Some(hold) => cerulean_core::rejected_usage_guard::promote_held(
+                    &i.directory,
+                    from,
+                    manifest,
+                    hold,
+                    review,
+                ),
+                None => cerulean_core::rejected_usage_guard::promote(
+                    &i.directory,
+                    from,
+                    manifest,
+                    review,
+                ),
+            }
+            .map(|v| json!(v)),
+        ),
         Action::RelayReview(from, manifest) => {
             Some(cerulean_core::relay_guard::review(&i.directory, from, manifest).map(|v| json!(v)))
         }
@@ -1620,6 +1665,8 @@ async fn execute(i: Invocation) -> u8 {
                 | Action::ManagementSourcePromote(_, _, _, _)
                 | Action::RelayReview(_, _)
                 | Action::RelayPromote(_, _, _)
+                | Action::RejectedUsageReview(_, _, _)
+                | Action::RejectedUsagePromote(_, _, _, _)
                 | Action::ExperimentsReview(_, _)
                 | Action::ExperimentsPromote(_, _, _)
                 | Action::ImportRetentionReview(_, _, _, _)
