@@ -1,0 +1,13 @@
+{
+  "purpose": "One real WorkBuddy coding task and native reply parsing, followed by independent artifact checks; this does not certify real OpenAI management or full P4/P6",
+  "version": "5.7.7.0",
+  "chat": "工作台接入验证",
+  "modelLabel": "Hy3",
+  "maxMessages": 1,
+  "maxWaitSeconds": 50,
+  "projectDirectory": "D:\\test\\CeruleanLonging\\reports\\workbuddy-coding-live-20261011-01\\project",
+  "artifact": "sum.mjs",
+  "messages": [
+    "这是一次独立的工作台编程验证。只允许使用文件编辑工具创建 D:\\test\\CeruleanLonging\\reports\\workbuddy-coding-live-20261011-01\\project\\sum.mjs 这一个文件；目录已准备且文件必须原先不存在。以 ES 模块导出函数 sum(a,b)：两个参数都必须是有限的 number，否则抛出 TypeError；合法输入返回 a+b。不要读取或修改其他文件，不运行命令，不联网，不安装依赖。若工具权限不允许访问该绝对路径，请停止并说明，不能改写其他位置。完成后简短说明修改，用一个 JavaScript 代码块展示实现，最后单独一行输出标记 CL_TASK_6400123456789abcdef0123456789abcd。检查由工作台独立执行，不要声称整个项目已验收。"
+  ]
+}

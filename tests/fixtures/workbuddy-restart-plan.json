@@ -1,0 +1,11 @@
+{
+  "purpose": "One fresh message after process restart, using guarded physical send click",
+  "version": "5.7.7.0",
+  "chat": "工作台接入验证",
+  "modelLabel": "Hy3",
+  "maxMessages": 1,
+  "maxWaitSeconds": 20,
+  "messages": [
+    "这是一次工作台接入验证。请仅回复标记 CL_TASK_6200123456789abcdef0123456789abcd，不添加解释，不读取或修改文件，不调用工具，不运行命令。"
+  ]
+}

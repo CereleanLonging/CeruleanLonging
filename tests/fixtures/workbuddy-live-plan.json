@@ -1,0 +1,12 @@
+{
+  "purpose": "WorkBuddy native send and continuation verification; not durable programming acceptance",
+  "version": "5.7.7.0",
+  "chat": "工作台接入验证",
+  "modelLabel": "Hy3",
+  "maxMessages": 2,
+  "maxWaitSeconds": 20,
+  "messages": [
+    "这是一次工作台接入验证。请仅回复标记 CL_TASK_60590123456789abcdef012345678901，不添加解释，不读取或修改文件，不调用工具，不运行命令。",
+    "这是同一聊天内的第二次工作台接入验证。请仅回复标记 CL_TASK_6059fedcba9876543210fedcba987654，不添加解释，不读取或修改文件，不调用工具，不运行命令。"
+  ]
+}

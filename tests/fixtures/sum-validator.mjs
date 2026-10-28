@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import {pathToFileURL} from "node:url";
+import {resolve} from "node:path";
+const {sum}=await import(pathToFileURL(resolve("sum.mjs")).href);
+assert.equal(typeof sum,"function");
+assert.equal(sum([]),0);
+assert.equal(sum([1,2,3]),6);
+assert.equal(sum([-2,0,3]),1);
+assert.equal(sum([0.5,1.5]),2);
+const values=[1,2,3];sum(values);assert.deepEqual(values,[1,2,3]);
+assert.throws(()=>sum("123"),TypeError);
+assert.throws(()=>sum([1,"2"]),TypeError);
+assert.throws(()=>sum([NaN]),TypeError);
+assert.throws(()=>sum([Infinity]),TypeError);
+console.log("10 independent sum checks passed");

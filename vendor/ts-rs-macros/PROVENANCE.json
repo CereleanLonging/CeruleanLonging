@@ -1,0 +1,14 @@
+{
+  "package": "ts-rs-macros",
+  "version": "11.1.0",
+  "source": "registry+https://github.com/rust-lang/crates.io-index",
+  "repository": "https://github.com/Aleph-Alpha/ts-rs",
+  "upstreamCommit": "1dce5297090804082e9639d2b7d851ba815aa359",
+  "upstreamPath": "macros",
+  "archiveSha256": "ee6ff59666c9cbaec3533964505d39154dc4e0a56151fdea30a09ed0301f62e2",
+  "originalEnumSourceSha256": "bb2e9f140d5cb19393635773ca25e176a131d49671a20b0d5904b644ca4cc4db",
+  "license": "MIT",
+  "licenseSource": "https://raw.githubusercontent.com/Aleph-Alpha/ts-rs/1dce5297090804082e9639d2b7d851ba815aa359/LICENSE",
+  "licenseSha256": "db7f7f8e7236a2d0b41b855b2501b7b913caebbcda6ce498637a304ad1706ce1",
+  "patch": "Recognize serde deny_unknown_fields in enum compatibility parser, matching existing struct parser support; remove obsolete crate-level macro_use attribute rejected by Rust 1.99 while retaining required module-level macro imports and deny(unused). No runtime serde guard or diagnostic suppression changed."
+}

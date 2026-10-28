@@ -1,0 +1,1114 @@
+{
+  "source": "reports\\workbuddy-adaptation-199\\history-parser-owned\\stdout.json",
+  "sourceSha256": "97852ee9ade1c0a2e606b5c1d03c470b4406fc5c22f71505928b2a479379255f",
+  "scope": "Actual 5.8.3 topology; all non-whitelisted text replaced with generated test content",
+  "document": "42.583",
+  "version": "5.8.3.0",
+  "nodes": [
+    {
+      "id": "42.583",
+      "type": "ControlType.Document",
+      "name": "WorkBuddy"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.0.0.0",
+      "type": "ControlType.Text",
+      "name": "synthetic chat"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.0.0.0.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1",
+      "type": "ControlType.ToolBar",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1.1",
+      "type": "ControlType.Button",
+      "name": "复制"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1.1.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1.2",
+      "type": "ControlType.Button",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1.2.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1.3",
+      "type": "ControlType.Button",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.0.0.0.1.3.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.1",
+      "type": "ControlType.Text",
+      "name": "WorkBuddy"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.2",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.2.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.2.0.0",
+      "type": "ControlType.Text",
+      "name": "已完成 3s"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3.1",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3.2",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3.3",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3.4",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3.5",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.3.6",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.4",
+      "type": "ControlType.Button",
+      "name": "复制"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.4.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.5",
+      "type": "ControlType.Button",
+      "name": "点赞"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.5.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.6",
+      "type": "ControlType.Button",
+      "name": "点踩"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.6.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.7",
+      "type": "ControlType.Button",
+      "name": "朗读"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.7.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.8",
+      "type": "ControlType.Button",
+      "name": "分享"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.8.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.9",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.9.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.9.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.9.0.0.0",
+      "type": "ControlType.Button",
+      "name": "更多操作"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.9.0.0.0.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.10",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.11",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.12",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.13",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.1.0.14",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.0.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.0.0.0.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1",
+      "type": "ControlType.ToolBar",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1.1",
+      "type": "ControlType.Button",
+      "name": "复制"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1.1.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1.2",
+      "type": "ControlType.Button",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1.2.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1.3",
+      "type": "ControlType.Button",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.2.0.0.1.3.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.1",
+      "type": "ControlType.Text",
+      "name": "WorkBuddy"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.2",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.2.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.2.0.0",
+      "type": "ControlType.Text",
+      "name": "已完成 3s"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.3",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.3.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.3.1",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.3.1.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.3.2",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.1",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.1.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.2",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.3",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.3.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.4",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.5",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.5.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.6",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.7",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.7.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.8",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.9",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.9.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.10",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.11",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.11.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.12",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.13",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.13.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.14",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.15",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.15.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.16",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.17",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.17.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.18",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.19",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.19.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.4.20",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.5",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.6",
+      "type": "ControlType.Button",
+      "name": "复制"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.6.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0",
+      "type": "ControlType.Edit",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.1",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.2",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.3",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.4",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.5",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.6",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.7",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.8",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.9",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.10",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.11",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.12",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.13",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.14",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.15",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.16",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.17",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.18",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.19",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.20",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.21",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.22",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.23",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.24",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.25",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.26",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.27",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.28",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.29",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.30",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.31",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.32",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.33",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.34",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.35",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.36",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.37",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.38",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.39",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.40",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.41",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.42",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.43",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.44",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.45",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.46",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.47",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.48",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.49",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.50",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.51",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.52",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.53",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.54",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.55",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.56",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.57",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.58",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.59",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.60",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.61",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.62",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.63",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.64",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.65",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.66",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.67",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.68",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.69",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.70",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.71",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.7.0.0.72",
+      "type": "ControlType.Text",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8.0",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8.1",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8.2",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8.3",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8.4",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8.5",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.8.6",
+      "type": "ControlType.Text",
+      "name": " TERMINAL_BODY"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.9",
+      "type": "ControlType.Button",
+      "name": "复制"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.9.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.10",
+      "type": "ControlType.Button",
+      "name": "点赞"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.10.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.11",
+      "type": "ControlType.Button",
+      "name": "点踩"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.11.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.12",
+      "type": "ControlType.Button",
+      "name": "朗读"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.12.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.13",
+      "type": "ControlType.Button",
+      "name": "点击将重新生成会话和产物，请谨慎操作"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.13.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.14",
+      "type": "ControlType.Button",
+      "name": "分享"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.14.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.15",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.15.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.15.0.0",
+      "type": "ControlType.Custom",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.15.0.0.0",
+      "type": "ControlType.Button",
+      "name": "更多操作"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.15.0.0.0.0",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.16",
+      "type": "ControlType.Text",
+      "name": "synthetic footer one"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.17",
+      "type": "ControlType.Text",
+      "name": "synthetic footer two"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.18",
+      "type": "ControlType.Image",
+      "name": ""
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.19",
+      "type": "ControlType.Text",
+      "name": "synthetic text"
+    },
+    {
+      "id": "42.583.4.0.1.0.0.0.1.1.0.0.0.0.0.0.0.3.0.20",
+      "type": "ControlType.Text",
+      "name": "2026/10/11 20:15"
+    }
+  ]
+}

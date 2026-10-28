@@ -1,0 +1,1404 @@
+{
+  "schemaVersion": 1,
+  "source": "workbench-probes/src/handoff-projection.ts",
+  "sourceSha256": "f50c89eeca42c739ef3de5287db3a3cfa31868293b7f2329ab41f483aa23983e",
+  "cases": [
+    {
+      "name": "empty",
+      "events": [],
+      "options": {},
+      "expected": []
+    },
+    {
+      "name": "thirty-and-updates",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "task-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 3,
+          "messageId": "m-3",
+          "taskId": "task-3",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 4,
+          "messageId": "m-4",
+          "taskId": "task-4",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 5,
+          "messageId": "m-5",
+          "taskId": "task-5",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 6,
+          "messageId": "m-6",
+          "taskId": "task-6",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 7,
+          "messageId": "m-7",
+          "taskId": "task-7",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 8,
+          "messageId": "m-8",
+          "taskId": "task-8",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 9,
+          "messageId": "m-9",
+          "taskId": "task-9",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 10,
+          "messageId": "m-10",
+          "taskId": "task-10",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 11,
+          "messageId": "m-11",
+          "taskId": "task-11",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 12,
+          "messageId": "m-12",
+          "taskId": "task-12",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 13,
+          "messageId": "m-13",
+          "taskId": "task-13",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 14,
+          "messageId": "m-14",
+          "taskId": "task-14",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 15,
+          "messageId": "m-15",
+          "taskId": "task-15",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 16,
+          "messageId": "m-16",
+          "taskId": "task-16",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 17,
+          "messageId": "m-17",
+          "taskId": "task-17",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 18,
+          "messageId": "m-18",
+          "taskId": "task-18",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 19,
+          "messageId": "m-19",
+          "taskId": "task-19",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 20,
+          "messageId": "m-20",
+          "taskId": "task-20",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 21,
+          "messageId": "m-21",
+          "taskId": "task-21",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 22,
+          "messageId": "m-22",
+          "taskId": "task-22",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 23,
+          "messageId": "m-23",
+          "taskId": "task-23",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 24,
+          "messageId": "m-24",
+          "taskId": "task-24",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 25,
+          "messageId": "m-25",
+          "taskId": "task-25",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 26,
+          "messageId": "m-26",
+          "taskId": "task-26",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 27,
+          "messageId": "m-27",
+          "taskId": "task-27",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 28,
+          "messageId": "m-28",
+          "taskId": "task-28",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 29,
+          "messageId": "m-29",
+          "taskId": "task-29",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 30,
+          "messageId": "m-30",
+          "taskId": "task-30",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 31,
+          "messageId": "m-31",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 32,
+          "messageId": "m-32",
+          "taskId": "task-32",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 33,
+          "messageId": "m-33",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": true,
+          "eventIds": [
+            "m-1",
+            "m-2",
+            "m-3",
+            "m-4",
+            "m-5",
+            "m-6",
+            "m-7",
+            "m-8",
+            "m-9",
+            "m-10",
+            "m-11",
+            "m-12",
+            "m-13",
+            "m-14",
+            "m-15",
+            "m-16",
+            "m-17",
+            "m-18",
+            "m-19",
+            "m-20",
+            "m-21",
+            "m-22",
+            "m-23",
+            "m-24",
+            "m-25",
+            "m-26",
+            "m-27",
+            "m-28",
+            "m-29",
+            "m-30",
+            "m-31"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 1 · task\\-1\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 2 · task\\-2\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 3 · task\\-3\n\n消息：m\\-3；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 4 · task\\-4\n\n消息：m\\-4；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 5 · task\\-5\n\n消息：m\\-5；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 6 · task\\-6\n\n消息：m\\-6；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 7 · task\\-7\n\n消息：m\\-7；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 8 · task\\-8\n\n消息：m\\-8；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 9 · task\\-9\n\n消息：m\\-9；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 10 · task\\-10\n\n消息：m\\-10；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 11 · task\\-11\n\n消息：m\\-11；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 12 · task\\-12\n\n消息：m\\-12；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 13 · task\\-13\n\n消息：m\\-13；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 14 · task\\-14\n\n消息：m\\-14；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 15 · task\\-15\n\n消息：m\\-15；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 16 · task\\-16\n\n消息：m\\-16；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 17 · task\\-17\n\n消息：m\\-17；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 18 · task\\-18\n\n消息：m\\-18；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 19 · task\\-19\n\n消息：m\\-19；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 20 · task\\-20\n\n消息：m\\-20；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 21 · task\\-21\n\n消息：m\\-21；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 22 · task\\-22\n\n消息：m\\-22；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 23 · task\\-23\n\n消息：m\\-23；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 24 · task\\-24\n\n消息：m\\-24；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 25 · task\\-25\n\n消息：m\\-25；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 26 · task\\-26\n\n消息：m\\-26；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 27 · task\\-27\n\n消息：m\\-27；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 28 · task\\-28\n\n消息：m\\-28；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 29 · task\\-29\n\n消息：m\\-29；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 30 · task\\-30\n\n消息：m\\-30；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 31 · task\\-1\n\n消息：m\\-31；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n初始卷：daily/2026\\-10\\-07/handoff\\_2026\\-10\\-07\\_001\\_180000\\+0800\\.md\n\n"
+        },
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_002_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 2,
+          "sealed": false,
+          "eventIds": [
+            "m-32",
+            "m-33"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 2\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 32 · task\\-32\n\n消息：m\\-32；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 33 · task\\-1\n\n消息：m\\-33；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n初始卷：daily/2026\\-10\\-07/handoff\\_2026\\-10\\-07\\_001\\_180000\\+0800\\.md\n\n"
+        }
+      ]
+    },
+    {
+      "name": "duplicates-unordered",
+      "events": [
+        {
+          "sequence": 3,
+          "messageId": "m-3",
+          "taskId": "task-3",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "task-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": false,
+          "eventIds": [
+            "m-1",
+            "m-2",
+            "m-3"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 1 · task\\-1\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 2 · task\\-2\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 3 · task\\-3\n\n消息：m\\-3；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n"
+        }
+      ]
+    },
+    {
+      "name": "duplicate-conflict",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "conflict",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "error": "conflicting duplicate message"
+    },
+    {
+      "name": "gap",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 3,
+          "messageId": "m-3",
+          "taskId": "task-3",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "error": "ledger sequence gap or collision"
+    },
+    {
+      "name": "sequence-collision",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 1,
+          "messageId": "different",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "error": "ledger sequence gap or collision"
+    },
+    {
+      "name": "midnight-late-and-unfinished",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "open",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T15:59:59Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "closed",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T15:59:59Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "accepted",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 3,
+          "messageId": "m-3",
+          "taskId": "open",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T16:00:00Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_235959+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": true,
+          "eventIds": [
+            "m-1",
+            "m-2"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T23:59:59.000+08:00\n\n## 1 · open\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T23:59:59.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 2 · closed\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T23:59:59.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：accepted\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-08/handoff_2026-10-08_001_000000+0800.md",
+          "day": "2026-10-08",
+          "number": 1,
+          "sealed": false,
+          "eventIds": [
+            "m-3"
+          ],
+          "markdown": "# 每日交接 2026-10-08 / 1\n\n开始接收：2026-10-08T00:00:00.000+08:00\n\n跨日未完成任务：\n\n- open：running\n\n## 3 · open\n\n消息：m\\-3；执行者：worker；尝试：attempt\n\n接收：2026-10-08T00:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n跨日到达，按接收日归档。\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n初始卷：daily/2026\\-10\\-07/handoff\\_2026\\-10\\-07\\_001\\_235959\\+0800\\.md\n\n"
+        }
+      ]
+    },
+    {
+      "name": "byte-rollover",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "task-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {
+        "maxBytes": 1500
+      },
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": true,
+          "eventIds": [
+            "m-1"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 1 · task\\-1\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_002_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 2,
+          "sealed": false,
+          "eventIds": [
+            "m-2"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 2\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 2 · task\\-2\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文\n\n证据：无\n\n下一步：独立验证\n\n"
+        }
+      ]
+    },
+    {
+      "name": "oversize",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {
+        "maxBytes": 1500
+      },
+      "error": "event exceeds volume budget; store large details as artifacts"
+    },
+    {
+      "name": "literal-markdown",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "<script>& [link](file:///secret)\r\n*bold* ! ~ \\ ` # _ { } | + . -",
+          "nextAction": "独立验证",
+          "evidence": [
+            "a&b",
+            "[x](y)"
+          ]
+        }
+      ],
+      "options": {},
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": false,
+          "eventIds": [
+            "m-1"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 1 · task\\-1\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：&lt;script&gt;&amp; \\[link\\]\\(file:///secret\\) \\*bold\\* \\! \\~ \\\\ \\` \\# \\_ \\{ \\} \\| \\+ \\. \\-\n\n证据：a&amp;b；\\[x\\]\\(y\\)\n\n下一步：独立验证\n\n"
+        }
+      ]
+    },
+    {
+      "name": "invalid-path",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "../x",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "error": "invalid identifier"
+    },
+    {
+      "name": "timezone-missing",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "error": "invalid timestamp"
+    },
+    {
+      "name": "clock-regression",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "task-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T09:59:00Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "error": "receipt clock moved backwards"
+    },
+    {
+      "name": "submitted-blocked-carry",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "submitted",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "task-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "blocked",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 3,
+          "messageId": "m-3",
+          "taskId": "task-3",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "cancelled",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 4,
+          "messageId": "m-4",
+          "taskId": "task-4",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-08T00:00:00Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": true,
+          "eventIds": [
+            "m-1",
+            "m-2",
+            "m-3"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 1 · task\\-1\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：submitted\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 2 · task\\-2\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：blocked\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 3 · task\\-3\n\n消息：m\\-3；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：cancelled\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-08/handoff_2026-10-08_001_080000+0800.md",
+          "day": "2026-10-08",
+          "number": 1,
+          "sealed": false,
+          "eventIds": [
+            "m-4"
+          ],
+          "markdown": "# 每日交接 2026-10-08 / 1\n\n开始接收：2026-10-08T08:00:00.000+08:00\n\n跨日未完成任务：\n\n- task\\-1：submitted\n- task\\-2：blocked\n\n## 4 · task\\-4\n\n消息：m\\-4；执行者：worker；尝试：attempt\n\n接收：2026-10-08T08:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n跨日到达，按接收日归档。\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n"
+        }
+      ]
+    },
+    {
+      "name": "offset-and-precision",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T12:00:00.1+02:00",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "task-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.12Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {},
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": false,
+          "eventIds": [
+            "m-1",
+            "m-2"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.100+08:00\n\n## 1 · task\\-1\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.100+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 2 · task\\-2\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.120+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n"
+        }
+      ]
+    },
+    {
+      "name": "count-limit",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "task-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 3,
+          "messageId": "m-3",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 4,
+          "messageId": "m-4",
+          "taskId": "task-4",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {
+        "maxNewTasks": 1
+      },
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": true,
+          "eventIds": [
+            "m-1"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 1 · task\\-1\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_002_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 2,
+          "sealed": true,
+          "eventIds": [
+            "m-2",
+            "m-3"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 2\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 2 · task\\-2\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n## 3 · task\\-1\n\n消息：m\\-3；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n初始卷：daily/2026\\-10\\-07/handoff\\_2026\\-10\\-07\\_001\\_180000\\+0800\\.md\n\n"
+        },
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_003_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 3,
+          "sealed": false,
+          "eventIds": [
+            "m-4"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 3\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 4 · task\\-4\n\n消息：m\\-4；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：实际变更与证据\n\n证据：无\n\n下一步：独立验证\n\n"
+        }
+      ]
+    },
+    {
+      "name": "invalid-limit",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "task-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "实际变更与证据",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {
+        "maxNewTasks": 0
+      },
+      "error": "invalid limits"
+    },
+    {
+      "name": "carry-index-budget",
+      "events": [
+        {
+          "sequence": 1,
+          "messageId": "m-1",
+          "taskId": "long-task-name-0",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 2,
+          "messageId": "m-2",
+          "taskId": "long-task-name-1",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 3,
+          "messageId": "m-3",
+          "taskId": "long-task-name-2",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 4,
+          "messageId": "m-4",
+          "taskId": "long-task-name-3",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 5,
+          "messageId": "m-5",
+          "taskId": "long-task-name-4",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 6,
+          "messageId": "m-6",
+          "taskId": "long-task-name-5",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 7,
+          "messageId": "m-7",
+          "taskId": "long-task-name-6",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 8,
+          "messageId": "m-8",
+          "taskId": "long-task-name-7",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 9,
+          "messageId": "m-9",
+          "taskId": "long-task-name-8",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 10,
+          "messageId": "m-10",
+          "taskId": "long-task-name-9",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 11,
+          "messageId": "m-11",
+          "taskId": "long-task-name-10",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 12,
+          "messageId": "m-12",
+          "taskId": "long-task-name-11",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-07T10:00:00.000Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        },
+        {
+          "sequence": 13,
+          "messageId": "m-13",
+          "taskId": "task-13",
+          "attemptId": "attempt",
+          "actor": "worker",
+          "receivedAt": "2026-10-08T00:00:00Z",
+          "occurredAt": "2026-10-07T10:00:00.000Z",
+          "status": "running",
+          "summary": "",
+          "nextAction": "独立验证",
+          "evidence": []
+        }
+      ],
+      "options": {
+        "maxBytes": 950
+      },
+      "expected": [
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_001_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 1,
+          "sealed": true,
+          "eventIds": [
+            "m-1",
+            "m-2",
+            "m-3"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 1\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 1 · long\\-task\\-name\\-0\n\n消息：m\\-1；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 2 · long\\-task\\-name\\-1\n\n消息：m\\-2；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 3 · long\\-task\\-name\\-2\n\n消息：m\\-3；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_002_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 2,
+          "sealed": true,
+          "eventIds": [
+            "m-4",
+            "m-5",
+            "m-6"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 2\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 4 · long\\-task\\-name\\-3\n\n消息：m\\-4；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 5 · long\\-task\\-name\\-4\n\n消息：m\\-5；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 6 · long\\-task\\-name\\-5\n\n消息：m\\-6；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_003_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 3,
+          "sealed": true,
+          "eventIds": [
+            "m-7",
+            "m-8",
+            "m-9"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 3\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 7 · long\\-task\\-name\\-6\n\n消息：m\\-7；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 8 · long\\-task\\-name\\-7\n\n消息：m\\-8；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 9 · long\\-task\\-name\\-8\n\n消息：m\\-9；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-07/handoff_2026-10-07_004_180000+0800.md",
+          "day": "2026-10-07",
+          "number": 4,
+          "sealed": true,
+          "eventIds": [
+            "m-10",
+            "m-11",
+            "m-12"
+          ],
+          "markdown": "# 每日交接 2026-10-07 / 4\n\n开始接收：2026-10-07T18:00:00.000+08:00\n\n## 10 · long\\-task\\-name\\-9\n\n消息：m\\-10；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 11 · long\\-task\\-name\\-10\n\n消息：m\\-11；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n## 12 · long\\-task\\-name\\-11\n\n消息：m\\-12；执行者：worker；尝试：attempt\n\n接收：2026-10-07T18:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n"
+        },
+        {
+          "path": "daily/2026-10-08/handoff_2026-10-08_001_080000+0800.md",
+          "day": "2026-10-08",
+          "number": 1,
+          "sealed": false,
+          "eventIds": [
+            "m-13"
+          ],
+          "markdown": "# 每日交接 2026-10-08 / 1\n\n开始接收：2026-10-08T08:00:00.000+08:00\n\n跨日未完成任务：12 个；完整列表从事件账本重建。\n\n## 13 · task\\-13\n\n消息：m\\-13；执行者：worker；尝试：attempt\n\n接收：2026-10-08T08:00:00.000+08:00；发生：2026\\-10\\-07T10:00:00\\.000Z；状态：running\n\n跨日到达，按接收日归档。\n\n内容：\n\n证据：无\n\n下一步：独立验证\n\n"
+        }
+      ]
+    }
+  ]
+}

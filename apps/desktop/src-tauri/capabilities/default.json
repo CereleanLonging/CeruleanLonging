@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Main window core IPC and normal window close",
+  "windows": ["main", "experiment-*"],
+  "permissions": ["core:default", "core:window:allow-close"]
+}

@@ -1,0 +1,68 @@
+.omp-file-restore {
+  margin-top: 20px;
+}
+.file-attempts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.omp-file-restore ul {
+  list-style: none;
+  padding: 0;
+}
+.omp-file-restore li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #dce1e8;
+}
+.file-detail {
+  margin-top: 20px;
+}
+.file-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.file-preview {
+  min-width: 0;
+  border: 1px solid #dce1e8;
+  border-radius: 8px;
+  padding: 12px;
+}
+.file-preview h4 {
+  margin: 0 0 8px;
+}
+.file-preview pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 13px;
+}
+.omp-file-restore code {
+  overflow-wrap: anywhere;
+}
+.omp-file-restore dialog {
+  width: min(900px, 90vw);
+  max-height: 85vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #dce1e8;
+  border-radius: 12px;
+}
+.omp-file-restore dialog::backdrop {
+  background: #10172880;
+}
+.omp-file-restore input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+@media (max-width: 700px) {
+  .file-preview-grid {
+    grid-template-columns: 1fr;
+  }
+}

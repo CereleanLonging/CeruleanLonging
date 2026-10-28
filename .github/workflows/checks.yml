@@ -1,0 +1,28 @@
+name: CeruleanLonging checks
+on: [push, pull_request]
+jobs:
+  windows-foundation:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
+      - run: npm ci
+      - run: ./scripts/check.ps1
+      - name: Check generated contract drift
+        run: git diff --exit-code -- apps/desktop/src/contracts.ts
+      - name: Build core and desktop
+        run: npm run desktop:build
+      - name: Rust lint and sidecar isolation
+        run: |
+          cargo build -p cerulean-core --locked
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $coreBefore = (Get-FileHash target/debug/cerulean-core.exe).Hash
+          cargo clippy --workspace --all-targets --features custom-protocol --locked -- -D warnings
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ((Get-FileHash target/debug/cerulean-core.exe).Hash -ne $coreBefore) { throw 'Desktop build replaced Cargo core binary' }
+          npm run test:ipc

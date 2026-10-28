@@ -1,0 +1,692 @@
+[
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "codex",
+    "name": "Codex",
+    "note": "已接入受控编程与持久记录；真实主副指挥完整链仍待验收",
+    "status": "partial",
+    "transport": "Agent / app-server"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "omp",
+    "name": "OMP",
+    "note": "已接入后台调度与文件工具；真实模型编程仍待验收",
+    "status": "partial",
+    "transport": "Agent / RPC"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "qoder",
+    "name": "Qoder",
+    "note": "已接窗口发现与用户会话关联；原型 GLM 配置 20/20，产品发送仍待接入",
+    "status": "prototype",
+    "transport": "现有桌面会话"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "workbuddy",
+    "name": "WorkBuddy",
+    "note": "已接窗口发现与用户会话关联；原型 20/20，内容指纹不等于供应商会话ID",
+    "status": "prototype",
+    "transport": "现有桌面会话"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "openai",
+    "name": "OpenAI / GPT",
+    "note": "主副指挥限定 OpenAI；已接官方 API 与独立凭证，真实链路待验收",
+    "status": "partial",
+    "transport": "API / 工作台 CLI"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "anthropic",
+    "name": "Claude",
+    "note": "已接 API 凭证、文件工具与持续调度；真实供应商链和 CLI 待验收",
+    "status": "partial",
+    "transport": "API / 工作台 CLI"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "note": "已接 API 与 OMP 编程调度；真实供应商链和 CLI 待验收",
+    "status": "partial",
+    "transport": "API / 工作台 CLI"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "qwen",
+    "name": "Qwen",
+    "note": "已接分地域 API、文件工具与持续调度；真实供应商链和 CLI 待验收",
+    "status": "partial",
+    "transport": "API / 工作台 CLI"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "kimi",
+    "name": "Kimi",
+    "note": "已接中国站 API、文件工具与持续调度；真实供应商链和 CLI 待验收",
+    "status": "partial",
+    "transport": "API / 工作台 CLI"
+  },
+  {
+    "capabilities": [
+      {
+        "capability": "discover",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "bind",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "send",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "observe",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "reconcile",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "cancel",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "resume",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "usage",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "approval",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      },
+      {
+        "capability": "tools",
+        "evidenceSha256": null,
+        "state": "unverified",
+        "testedVersion": null
+      }
+    ],
+    "id": "grok",
+    "name": "xAI Grok",
+    "note": "已接官方 API、文件工具与持续调度；真实供应商链待验收",
+    "status": "partial",
+    "transport": "API"
+  }
+]

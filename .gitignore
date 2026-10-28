@@ -1,0 +1,12 @@
+node_modules/
+target/
+dist/
+.local/
+reports/*
+!reports/.gitkeep
+*.log
+.env
+.env.*
+!.env.example
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/gen/

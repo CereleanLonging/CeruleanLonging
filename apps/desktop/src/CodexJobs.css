@@ -1,0 +1,81 @@
+.codex-job {
+  margin-bottom: 16px;
+}
+.codex-job .section-heading {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.codex-job code,
+.codex-job p {
+  overflow-wrap: anywhere;
+}
+.unsent-assignment-action {
+  border-top: 1px solid #e5eaee;
+  margin-top: 12px;
+  padding-top: 8px;
+}
+dialog.unsent-assignment-dialog {
+  box-sizing: border-box;
+  margin: auto;
+  border: 1px solid #d6e3e9;
+  color: #2a4253;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+}
+dialog.unsent-assignment-dialog::backdrop {
+  background: #11243370;
+  backdrop-filter: blur(3px);
+}
+.unsent-assignment-dialog dd {
+  margin: 4px 0 12px;
+  overflow-wrap: anywhere;
+}
+.unsent-assignment-dialog dt {
+  color: #617c8d;
+  font-size: 12px;
+}
+.unsent-assignment-dialog textarea {
+  box-sizing: border-box;
+}
+.unsent-assignment-dialog p {
+  overflow-wrap: anywhere;
+}
+.unsent-assignment-dialog [role="alert"] {
+  color: #9a432f;
+  font-size: 12px;
+}
+.unsent-assignment-dialog .modal-actions {
+  flex-wrap: wrap;
+}
+.codex-record-identity {
+  margin: 12px 0;
+  font-size: 12px;
+  color: #617c8d;
+}
+.codex-record-identity summary {
+  cursor: pointer;
+}
+.codex-record-identity p {
+  margin: 8px 0;
+}
+.codex-cancellation-action {
+  border-top: 1px solid #e5eaee;
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.codex-cancellation-status,
+.codex-request-notice {
+  background: #f0f5f7;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+.codex-cancellation-target {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 6px 12px;
+}
+.codex-cancellation-target dt,
+.codex-cancellation-target dd {
+  margin: 0;
+  font-size: 12px;
+}

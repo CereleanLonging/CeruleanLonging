@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CeruleanLonging",
+  "mainBinaryName": "CeruleanLonging",
+  "version": "0.1.30",
+  "identifier": "local.ceruleanlonging.workbench",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../../../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "CeruleanLonging",
+        "width": 1280,
+        "height": 840,
+        "minWidth": 940,
+        "minHeight": 650
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "resources": {
+      "../../../third-party/SQLITE-NOTICES.txt": "SQLITE-NOTICES.txt",
+      "../../../third-party/THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt",
+      "../../../third-party/RUST-LIBRARY-COPYRIGHT.html": "RUST-LIBRARY-COPYRIGHT.html",
+      "../../../third-party/THIRD-PARTY-SOURCES.zip": "THIRD-PARTY-SOURCES.zip",
+      "../../../third-party/THIRD-PARTY-MANIFEST.json": "THIRD-PARTY-MANIFEST.json"
+    },
+    "windows": {
+      "allowDowngrades": false,
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "installer/hooks.nsh",
+        "languages": [
+          "SimpChinese",
+          "English"
+        ],
+        "displayLanguageSelector": true
+      }
+    },
+    "externalBin": [
+      "binaries/cerulean-runtime"
+    ],
+    "icon": [
+      "icons/icon.ico",
+      "icons/32x32.png",
+      "icons/128x128.png"
+    ]
+  }
+}

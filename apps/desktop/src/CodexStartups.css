@@ -1,0 +1,19 @@
+.startup-row, .startup-detail { margin-bottom: 16px; }
+.codex-startups .section-heading { gap: 12px; flex-wrap: wrap; }
+.codex-startups p, .codex-startups code { overflow-wrap: anywhere; }
+.startup-fields { font-size: 12px; line-height: 1.8; }
+.startup-fields dt { color: #617c8d; }
+.startup-fields dd { margin: 3px 0 10px; overflow-wrap: anywhere; }
+.startup-fields-compact { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 5px 12px; }
+.startup-fields-compact dt, .startup-fields-compact dd { margin: 0; }
+.startup-detail { border-color: #9cb7c5; }
+.startup-reason { border-top: 1px solid #e5eaee; margin-top: 14px; padding-top: 12px; }
+.startup-reason h4 { font-size: 13px; }
+.startup-reason p, .startup-text { white-space: pre-wrap; }
+.startup-stale { color: #8a5c1b; background: #faf4e8; padding: 12px; font-size: 12px; }
+.startup-feedback { font-size: 12px; }
+.startup-feedback[role="alert"], .startup-dialog [role="alert"] { color: #9a432f; }
+dialog.startup-dialog { box-sizing: border-box; margin: auto; border: 1px solid #d6e3e9; color: #2a4253; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px); }
+dialog.startup-dialog::backdrop { background: #11243370; backdrop-filter: blur(3px); }
+.startup-dialog textarea { box-sizing: border-box; }
+.startup-dialog .modal-actions { flex-wrap: wrap; }

@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "scope": "Current reviewed Windows packaging inputs; not an upstream reproducible-build attestation",
+  "upstreamPluginHistoryProven": false,
+  "rust": {
+    "release": "1.99.0",
+    "commit": "b940084d7eb6a299eb4bfeb8e34901bc051e7ac4",
+    "host": "x86_64-pc-windows-msvc"
+  },
+  "configurationSha256": "b95a28e474391ef0500b24dbb0787ef617982558fe367263f9b54fdd9d8f2188",
+  "files": {
+    "repository": [
+      {
+        "path": "third-party/distribution-inputs.json",
+        "bytes": 193396,
+        "sha256": "80f759484abd5ef7db58bb4d9be4b42899de378377f5bcf4f4531970e65e2072"
+      },
+      {
+        "path": "third-party/distribution-inputs.zip",
+        "bytes": 5042064,
+        "sha256": "b107588c244595ba9eb1c646dcf21dace0e5cc261fa73bac682f701f21385087"
+      },
+      {
+        "path": "rust-toolchain.toml",
+        "bytes": 86,
+        "sha256": "2ad6f15416572b4836585087f1d4abc53b8fa2dbd616f8dacfaa587ed6714228"
+      },
+      {
+        "path": ".cargo/config.toml",
+        "bytes": 187,
+        "sha256": "fb713c6edf68a517a39b942d90085166783b3d9031bb5619051724bd11dc8b9b"
+      },
+      {
+        "path": "apps/desktop/src-tauri/installer/hooks.nsh",
+        "bytes": 5190,
+        "sha256": "177fe93028a0e1407e2c186fbae9d52357f526eb0862d3dbc5d2153601daeb70"
+      },
+      {
+        "path": "node_modules/@tauri-apps/cli-win32-x64-msvc/cli.win32-x64-msvc.node",
+        "bytes": 16134144,
+        "sha256": "1e8b1bac3289765d7938583917a6ca44545c9cbe04c0a78525ab0b671ddd0c11"
+      }
+    ],
+    "cargo-home": [
+      {
+        "path": "bin/rustc.exe",
+        "bytes": 12721664,
+        "sha256": "6f4bef66261261fcb43131be8720bab817d403a09edec7455c371974b90bdb7e"
+      },
+      {
+        "path": "bin/cargo.exe",
+        "bytes": 12721664,
+        "sha256": "6f4bef66261261fcb43131be8720bab817d403a09edec7455c371974b90bdb7e"
+      },
+      {
+        "path": "bin/rustup.exe",
+        "bytes": 12721664,
+        "sha256": "6f4bef66261261fcb43131be8720bab817d403a09edec7455c371974b90bdb7e"
+      }
+    ],
+    "rust-sysroot": [
+      {
+        "path": "bin/rustc.exe",
+        "bytes": 110592,
+        "sha256": "fc40f1c8b65095a22a48c111aadc279c26a049b7e4161e8b99ffe3eb23873e86"
+      },
+      {
+        "path": "share/doc/rust/COPYRIGHT-library.html",
+        "bytes": 1499465,
+        "sha256": "5647be074c8edf7339fd863055923a8fc80bc5610a8d4661ec3b767b9d392c27"
+      }
+    ],
+    "tauri-nsis": [
+      {
+        "path": "makensis.exe",
+        "bytes": 2560,
+        "sha256": "f497e92deb9f179f7b8f7553fcb3bd04f511bb2949e5e4a2aee80a10f7b20431"
+      },
+      {
+        "path": "Bin/makensis.exe",
+        "bytes": 468992,
+        "sha256": "42850802704ecb11163f7e0329d35ee54bd288953200d4966e226d572848cfc5"
+      },
+      {
+        "path": "Bin/zlib1.dll",
+        "bytes": 81964,
+        "sha256": "c78eab41b346598736be1196eb949660b710356ad83204f6ef5bf9585c94731e"
+      },
+      {
+        "path": "COPYING",
+        "bytes": 15632,
+        "sha256": "e7dd514003ab96cb3ddccbc028fe5c795fccf57dc41f21cfb9d4dd16ead23bf5"
+      },
+      {
+        "path": "nsisconf.nsh",
+        "bytes": 1726,
+        "sha256": "52ac64dc88816b74e8285c0b275c951df45ba6e57d35a1d5f59ad124d0eeda22"
+      },
+      {
+        "path": "Stubs/lzma_solid-x86-unicode",
+        "bytes": 38912,
+        "sha256": "a0d065b62d34be5f0aaaf7c162e101a5e25d7cd3eb10a13fdb37f91b02ebfce2"
+      },
+      {
+        "path": "Stubs/uninst",
+        "bytes": 766,
+        "sha256": "ba82bb5d90262417a18cec6631bbd8b880020eb159b45f264a9145196dfb8f3a"
+      },
+      {
+        "path": "Plugins/x86-unicode/System.dll",
+        "bytes": 12288,
+        "sha256": "8b4c47c4cf5e76ec57dd5a050d5acd832a0d532ee875d7b44f6cdaf68f90d37c"
+      },
+      {
+        "path": "Plugins/x86-unicode/nsDialogs.dll",
+        "bytes": 9728,
+        "sha256": "b1350f487692057c8ffde75dcc55287a52a3272240d4d4912f24464b27551fc0"
+      },
+      {
+        "path": "Plugins/x86-unicode/StartMenu.dll",
+        "bytes": 7680,
+        "sha256": "fe330320459637d8dd2b5d84d07925c38ec264152ffd3b1760a4d44d76536caa"
+      },
+      {
+        "path": "Plugins/x86-unicode/LangDLL.dll",
+        "bytes": 5632,
+        "sha256": "4cf25411f28f639f72156c24b0f66ea42f5aee5973f6c137d901da6ae42d5b7e"
+      },
+      {
+        "path": "Plugins/x86-unicode/NSISdl.dll",
+        "bytes": 15360,
+        "sha256": "ddf40229dd9d6b268902d8dea88c8a04aacf1af218dd29f6dcd35babc54ac08d"
+      },
+      {
+        "path": "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
+        "bytes": 34304,
+        "sha256": "5ba143b5db4a87d32d6e7802e033330aae56cbceabe0d1e3ba41948385ad4709"
+      }
+    ]
+  },
+  "limitations": [
+    "Upstream plugin dependency lock and Rust/toolchain history remain unproven",
+    "Selected compiler/cache input gate; not a complete hermetic build or exact runtime SBOM",
+    "Preflight does not replace post-build actual payload verification"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "sourceReport": "reports/workbuddy-send-live-7CgjNy",
+  "taskReviewDigest": "9a2320236cb7368fd8fe70b9c58f0b179131bbb95ba5ff202d049c3d6ad578a5",
+  "promptSha256": "dc7c6b504cb4bcfa9910fa2014d7c563662218bd684325e0d003a0accd275eba",
+  "chat": "工作台接入验证",
+  "modelLabel": "Hy3",
+  "maxClicks": 1,
+  "keyboardInput": false,
+  "secondMessage": false,
+  "description": "仅单击提交原87字符标记验证草稿，核对原进程/文档/模型/历史和完整草稿；不重输，不发送第二条。未知只读回查。"
+}
