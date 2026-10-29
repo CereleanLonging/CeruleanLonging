@@ -1,0 +1,44 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import assert from 'node:assert/strict';
+import {build} from 'vite';
+import {chromium} from 'playwright-core';
+const dir=resolve(process.env.CERULEAN_CREATION_268_UI_DIR ?? 'reports/creation-failure-268/ui');await mkdir(dir);
+const entry=join(dir,'entry.tsx');
+await writeFile(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import {ExperimentWorkbenches} from '../../../apps/desktop/src/ExperimentWorkbenches';import '../../../apps/desktop/src/style.css';const root=createRoot(document.getElementById('root'));window.calls=[];window.catalog={currentLabel:'main',currentDirectory:'D:\\\\ordinary',catalogRoot:'D:\\\\experiments',entries:[]};window.failRead=false;window.failCreate=false;window.defer=false;const client={read:async()=>{window.calls.push({kind:'read'});if(window.failRead)throw Error('read unavailable');return structuredClone(window.catalog);},create:async id=>{window.calls.push({kind:'create',id});if(window.defer)await new Promise(r=>window.release=r);if(window.failCreate){window.catalog.entries.push({id,directory:'D:/experiments/'+id+'/data',ready:!!window.partialReady,error:window.partialReady?null:'Incomplete original creation'});throw Error('creation uncertain; retain original');}const entry={id,directory:'D:\\\\experiments\\\\'+id+'\\\\data',ready:true,error:null};window.catalog.entries.push(entry);return entry;},open:async id=>{window.calls.push({kind:'open',id});}};root.render(<ExperimentWorkbenches desktop={true} client={client}/>);`);
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(dir,'bundle'),emptyOutDir:false,lib:{entry,name:'Workbench268',formats:['iife'],fileName:()=> 'ui.js'}}});
+let browser;let network=0;const errors=[];const cases=[];
+try {
+ browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+ const page=await browser.newPage({viewport:{width:1280,height:900}});page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*',r=>r.request().url()==='http://localhost/workbench268'?r.fulfill({contentType:'text/html',body:'<div id="root"></div>'}):(network++,r.abort()));
+ await page.goto('http://localhost/workbench268');await page.addScriptTag({content:await readFile(join(dir,'bundle/ui.js'),'utf8')});
+ await page.addStyleTag({content:await readFile(join(dir,'bundle/cerulean-longing.css'),'utf8')});
+ await page.getByText('日常工作台',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'实验工作台',exact:true}).click();
+ const create=page.getByRole('button',{name:'创建并启用实验保护'}), input=page.getByLabel('实验工作台编号');
+ for(const bad of ['../ordinary','exp-','exp-bad/path','exp-bad:stream','exp-tail-']){await input.fill(bad);assert(await create.isDisabled());}
+ assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='create').length),0);cases.push('invalid identifiers never submit');
+ await input.fill('exp-first');await page.evaluate(()=>window.defer=true);await create.click();
+ await page.waitForFunction(()=>window.calls.filter(c=>c.kind==='create').length===1);
+ assert(await create.isDisabled());assert(await page.getByRole('button',{name:'读取原登记'}).isDisabled());
+ await page.evaluate(()=>{window.defer=false;window.release();});await page.getByRole('button',{name:'打开 exp-first',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='create').length),1);
+ assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='open').length),0);cases.push('single creation while pending; no automatic open or model task');
+ await page.getByRole('button',{name:'打开 exp-first',exact:true}).click();await page.getByRole('status').filter({hasText:'当前工作台保持'}).waitFor();
+ await page.getByText('日常工作台',{exact:true}).waitFor();assert.deepEqual(await page.evaluate(()=>window.calls.filter(c=>c.kind==='open')),[{kind:'open',id:'exp-first'}]);cases.push('open is explicit and does not replace current view');
+ await input.fill('exp-uncertain');await page.evaluate(()=>window.failCreate=true);await create.click();await page.getByRole('alert').filter({hasText:'creation uncertain'}).waitFor();assert(await create.isDisabled());
+ await page.getByRole('button',{name:'打开 exp-uncertain',exact:true}).waitFor();assert(await page.getByRole('button',{name:'打开 exp-uncertain',exact:true}).isDisabled());cases.push('creation failure automatically reads and displays the original partial entry');
+ await page.getByRole('button',{name:'保留 exp-uncertain，填写新编号',exact:true}).click();assert.equal(await input.inputValue(),'exp-');assert(await create.isDisabled());assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='create').length),2);cases.push('keep-original action changes only proposed new identifier; no create/open/delete');
+ await page.getByRole('button',{name:'读取原登记'}).click();assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='create').length),2);cases.push('unknown creation has no retry; read original only');
+ await page.evaluate(()=>{window.failCreate=false;window.failRead=true;});await input.fill('exp-saved');await create.click();await page.getByRole('alert').filter({hasText:'创建已返回成功，列表刷新失败'}).waitFor();assert(await create.isDisabled());
+ await page.evaluate(()=>window.failRead=false);await page.getByRole('button',{name:'读取原登记'}).click();await page.getByRole('button',{name:'打开 exp-saved',exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='create').length),3);cases.push('success plus refresh failure retains success without resubmission');
+ await page.evaluate(()=>window.catalog.entries.push({id:'exp-partial',directory:'D:\\experiments\\exp-partial\\data',ready:false,error:'Incomplete creation'}));await page.getByRole('button',{name:'读取原登记'}).click();
+ assert(await page.getByRole('button',{name:'打开 exp-partial',exact:true}).isDisabled());await input.fill('exp-partial');assert(await create.isDisabled());cases.push('partial directory visible; open and recreate blocked');
+ await page.getByRole('button',{name:'打开日常工作台',exact:true}).click();await page.getByRole('status').filter({hasText:'已打开日常'}).waitFor();assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='open').at(-1).id),'main');cases.push('default workbench selected by immutable identity');
+ await page.evaluate(()=>{window.failCreate=true;window.partialReady=true;});await input.fill('exp-response-lost');await create.click();await page.getByRole('button',{name:'打开 exp-response-lost',exact:true}).waitFor();assert(await page.getByRole('button',{name:'打开 exp-response-lost',exact:true}).isEnabled());assert(await create.isDisabled());assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='open').length),2);cases.push('lost create response can reveal original ready entry; never auto-open or recreate');
+ await page.evaluate(()=>{window.partialReady=false;window.failRead=true;});await input.fill('exp-both-failed');await create.click();await page.getByRole('alert').filter({hasText:'原登记回读也未成功'}).waitFor();assert(await create.isDisabled());assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='create').length),5);await page.evaluate(()=>window.failRead=false);await page.getByRole('button',{name:'读取原登记',exact:true}).click();await page.getByRole('button',{name:'打开 exp-both-failed',exact:true}).waitFor();assert(await page.getByRole('button',{name:'打开 exp-both-failed',exact:true}).isDisabled());assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.kind==='create').length),5);cases.push('create and read errors both retained; later read does not reissue creation');
+ await page.screenshot({path:join(dir,'final.png'),fullPage:true});assert.deepEqual(errors,[]);assert.equal(network,0);
+ await writeFile(join(dir,'result.json'),JSON.stringify({passed:cases.length,cases,errors,externalNetworkRequests:network,modelCalls:0,nativeWindowsOpened:0},null,2));
+} finally {await browser?.close();}
+console.log('11 creation failure and workbench UI cases passed');

@@ -1,0 +1,80 @@
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+import { build } from 'vite';
+import { chromium } from 'playwright-core';
+if (process.env.CERULEAN_NATIVE_OWNED_JOB !== '1') throw new Error('Use the owned UI runner');
+const dir=await mkdtemp('reports/historical-product-ui-141-');
+const files=['apps/desktop/src/CurrencyHistory.tsx','apps/desktop/src/CurrencyAccounts.tsx','apps/desktop/src/HistoricalChargeForm.tsx','apps/desktop/src/HistoricalRecord.tsx','apps/desktop/src/HistoricalPages.tsx','apps/desktop/src/CurrencyBudgetFields.tsx','apps/desktop/src/contracts.ts','apps/desktop/src/style.css'];
+const hashes=async()=>Object.fromEntries(await Promise.all(files.map(async p=>[p,createHash('sha256').update(await readFile(p)).digest('hex')])));
+const before=await hashes(),cases=[],errors=[];let browser,page,networkRequests=0;
+const entry=join(dir,'entry.tsx');
+await writeFile(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import {CurrencyAccounts} from '../../apps/desktop/src/CurrencyAccounts';
+const root=createRoot(document.getElementById('root')!);
+window.sent=[];window.fail=false;window.hold=false;
+window.review=(input)=>({input,source:{scope:input.scope,digest:'a'.repeat(64),references:['management-decisions/old.0.json','management-decisions/old.1.json','management-decisions/old.4.json'],uncertainOutcomes:1},policyDigest:'p'.repeat(64),previousLedgerHead:window.state.currencyBudgets.find(a=>a.projectId===input.projectId).ledgerHead,reviewDigest:'d'.repeat(64)});
+window.render=()=>root.render(<React.StrictMode><CurrencyAccounts accounts={window.state.currencyBudgets} history={window.state.currencyHistory} accounted={window.state.currencyAccounted} query={async command=>{
+ window.sent.push(command);if(window.fail)return null;
+ const done=()=>{if(command.type==='reviewHistoricalCharge')return {...window.state,historicalChargeReview:window.review(command.input)};
+ const reviewed=window.review(command.input);window.state.currencyAccounted=[{review:reviewed,userEventDigest:'e'.repeat(64),state:'accounted'}];window.state.currencyBudgets=window.state.currencyBudgets.map(a=>({...a,chargedUsdNanos:command.input.amountUsdNanos,availableUsdNanos:9999999983,ledgerHead:'f'.repeat(64)}));window.render();return window.state;};
+ if(window.hold)return await new Promise(resolve=>{window.finish=()=>resolve(done());});return done();
+ }}/></React.StrictMode>);
+window.set=(s)=>{window.state=s;window.render();};`);
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(dir,'bundle'),emptyOutDir:false,lib:{entry,name:'HistoricalProduct',formats:['iife'],fileName:()=> 'ui.js'}}});
+try {
+ browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+ page=await browser.newPage({viewport:{width:1200,height:1100}});page.setDefaultTimeout(10000);
+ page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{networkRequests++;return r.abort();});
+ await page.setContent(`<html lang="zh-CN"><meta charset="utf-8"><style>${await readFile('apps/desktop/src/style.css','utf8')}body{padding:24px}</style><div id="root"></div></html>`);
+ await page.addScriptTag({content:await readFile(join(dir,'bundle/ui.js'),'utf8')});
+ const account={projectId:'project',revisionDigest:'a'.repeat(64),ledgerHead:'b'.repeat(64),limitUsdNanos:10000000000,chargedUsdNanos:0,reservedUsdNanos:0,availableUsdNanos:null,approvalLinked:true,healthy:true,blocked:false,unknownRequests:0,unpricedRequests:0};
+ const gap={projectId:'project',sourceId:'old',reason:'legacyManagementRequest',reference:'management-decisions/old.0.json'};
+ const base={currencyBudgets:[account],currencyHistory:[gap],currencyAccounted:[]};
+ async function reset(s=base){await page.evaluate(s=>{window.sent=[];window.fail=false;window.hold=false;window.set(s);},s);}
+ async function open(){const d=page.getByRole('region',{name:'待核算历史'}).locator('details');if(!await d.evaluate(e=>e.open))await d.locator('summary').click();await page.getByRole('button',{name:'核对 old',exact:true}).click();await page.getByRole('region',{name:'核对历史费用',exact:true}).waitFor();}
+ const form=()=>page.getByRole('region',{name:'核对历史费用',exact:true});
+ async function fill(amount='0.000000017'){await form().getByLabel('账单金额（USD）').fill(amount);await form().getByLabel('账单引用',{exact:true}).fill('controlled invoice #1');await form().getByLabel('核对说明',{exact:true}).fill('Explicit full original scope amount');}
+ const review=async()=>{await form().getByRole('button',{name:'审阅历史金额',exact:true}).click();await page.getByRole('region',{name:'确认历史金额',exact:true}).waitFor();};
+ await reset();await open();await fill();await review();
+ assert.equal(await page.evaluate(()=>window.sent.length),1);assert.equal(await page.evaluate(()=>window.sent[0].type),'reviewHistoricalCharge');
+ await form().getByText('查看本次完整来源',{exact:true}).click();assert.equal(await form().locator('li').count(),3);assert.match(await form().innerText(),/\$0\.000000017/);
+ await form().getByRole('button',{name:'取消核对'}).click();assert.equal(await page.evaluate(()=>window.sent.filter(c=>c.type==='confirmHistoricalCharge').length),0);
+ cases.push('review exposes complete source and exact amount; cancel never confirms');
+ await open();await fill();await review();await form().getByLabel('核对说明',{exact:true}).fill('changed');
+ assert.equal(await page.getByRole('region',{name:'确认历史金额',exact:true}).count(),0);cases.push('edited input invalidates prepared review');await review();
+ await page.evaluate(()=>{window.state.currencyBudgets[0].ledgerHead='c'.repeat(64);window.render();});
+ await form().getByText('账本或批准状态已变化，请重新审阅。',{exact:true}).waitFor();assert.equal(await form().getByRole('button',{name:'确认记入历史费用'}).isDisabled(),true);cases.push('account change disables old confirmation');
+ await review();await page.evaluate(()=>window.hold=true);
+ await form().getByRole('button',{name:'确认记入历史费用'}).evaluate(e=>{e.click();e.click();});
+ assert.equal(await page.evaluate(()=>window.sent.filter(c=>c.type==='confirmHistoricalCharge').length),1);
+ await form().getByText('确认已提交，正在核对结果。',{exact:true}).waitFor();
+ assert.equal(await form().getByRole('button',{name:'关闭核对'}).isDisabled(),true);
+ await page.evaluate(()=>window.finish());await page.getByRole('region',{name:'已确认历史金额'}).waitFor();
+ assert.match(await page.getByRole('region',{name:'待核算历史'}).innerText(),/共 0 条/);
+ assert.match(await page.getByRole('region',{name:'已确认历史金额'}).innerText(),/原始历史来源保留 1 条/);
+ assert.match(await page.getByRole('region',{name:'已确认历史金额'}).innerText(),/不确定项：1/);
+ cases.push('one explicit confirmation retains source and uncertainty as accounted history');
+ await reset();await open();await fill();await review();await page.evaluate(()=>window.fail=true);await form().getByRole('button',{name:'确认记入历史费用'}).click();
+ await form().getByRole('alert').waitFor();assert.equal(await page.evaluate(()=>window.sent.filter(c=>c.type==='confirmHistoricalCharge').length),1);assert.equal(await form().getByRole('button',{name:'确认记入历史费用'}).count(),0);
+ cases.push('ambiguous result preserves original review for read-only lookup without automatic resend');await form().getByRole('button',{name:'关闭核对'}).click();
+ await reset({...base,currencyHistory:[{...gap,projectId:null,reason:'reviewedManagementRecord'}]});await open();
+ assert.equal(await form().getByLabel('归属项目').inputValue(),'');assert.equal(await form().getByRole('button',{name:'审阅历史金额'}).isDisabled(),true);
+ await form().getByLabel('归属项目').selectOption('project');await fill('1e2');await form().getByRole('button',{name:'审阅历史金额'}).click();assert.equal(await page.evaluate(()=>window.sent.length),0);
+ await form().getByLabel('账单金额（USD）').fill('0');await review();assert.equal(await page.evaluate(()=>window.sent[0].input.amountUsdNanos),0);assert.equal(await page.evaluate(()=>window.sent[0].input.scope.originalProjectId),null);
+ cases.push('unattributed source requires explicit project; exact zero needs reference and explanation');await form().getByRole('button',{name:'取消核对'}).click();
+ await reset();await open();await fill();await page.evaluate(()=>window.hold=true);await form().getByRole('button',{name:'审阅历史金额'}).click();await form().getByRole('button',{name:'取消核对'}).click();await page.evaluate(()=>window.finish());
+ assert.equal(await page.getByRole('region',{name:'确认历史金额',exact:true}).count(),0);cases.push('late review response cannot reopen cancelled form');
+ const input={projectId:'project',scope:{kind:'management',operationId:'old',originalProjectId:'project'},amountUsdNanos:17,billingReference:'original invoice',explanation:'retained explanation'};
+ const record=await page.evaluate(input=>({review:window.review(input),userEventDigest:'e'.repeat(64),state:'confirmedPending'}),input);
+ await reset({...base,currencyAccounted:[record]});assert.match(await page.getByRole('region',{name:'待核算历史'}).innerText(),/共 1 条/);assert.match(await page.getByRole('region',{name:'已确认历史金额'}).innerText(),/金额发布待核对/);
+ cases.push('confirmed but unpublished amount never clears original history');
+ const many=Array.from({length:21},(_,i)=>({...record,state:'accounted',userEventDigest:`event-${i}`,review:{...record.review,input:{...input,scope:{...input.scope,operationId:`old-${i}`}}}}));
+ await reset({...base,currencyAccounted:many});const accounted=page.getByRole('region',{name:'已确认历史金额'});assert.equal(await accounted.getByRole('article').count(),20);await accounted.getByRole('button',{name:'下一页'}).click();assert.equal(await accounted.getByRole('article').count(),1);cases.push('accounted history is pageable without dropping original records');
+ await reset();await open();await fill();await review();await form().getByText('查看本次完整来源',{exact:true}).click();
+ await page.screenshot({path:join(dir,'review-desktop.png'),fullPage:true});await page.setViewportSize({width:412,height:915});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await page.screenshot({path:join(dir,'review-mobile.png'),fullPage:true});cases.push('complete review fits desktop and mobile widths');
+ assert.deepEqual(errors,[]);assert.equal(networkRequests,0);assert.deepEqual(await hashes(),before);
+ await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,sourceBefore:before,sourceAfter:await hashes(),pageErrors:errors,networkRequests,modelCalls:0,scope:'Production React component with controlled snapshots and command recording; no IPC or supplier billing',artifact:dir},null,2));console.log(JSON.stringify({status:'passed',cases:cases.length,artifact:dir}));
+}catch(e){await page?.screenshot({path:join(dir,'failure.png'),fullPage:true}).catch(()=>{});await writeFile(join(dir,'failure.json'),JSON.stringify({error:String(e),stack:e.stack,cases,errors,networkRequests},null,2));throw e;}
+finally{await browser?.close();}

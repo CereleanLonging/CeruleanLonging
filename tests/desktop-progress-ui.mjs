@@ -1,0 +1,50 @@
+// Actual production component with synthetic snapshots; no native IPC or model.
+import {readFile, writeFile, mkdtemp} from 'node:fs/promises';
+import {resolve, join} from 'node:path';
+import {build} from 'vite';
+import {chromium} from 'playwright-core';
+import assert from 'node:assert/strict';
+assert.equal(process.env.CERULEAN_NATIVE_OWNED_JOB,'1');
+const report=await mkdtemp(resolve('reports/desktop-progress-ui-'));
+const entry=join(report,'entry.tsx');
+await writeFile(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import {DesktopTasks} from '../../apps/desktop/src/DesktopTasks';const root=createRoot(document.getElementById('root'));window.commands=[];window.renderJob=job=>root.render(<DesktopTasks data={{desktopAccess:{tasks:[job],bindings:[],trials:[],checking:false},workflows:[],projectRuns:[]}} busy={false} send={async c=>{window.commands.push(c);return true;}}/>);`);
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(report,'bundle'),emptyOutDir:false,lib:{entry,name:'ProgressUI',formats:['iife'],fileName:()=> 'ui.js'}}});
+const review={id:'review',bindingId:'binding',projectId:'project',prompt:'owned test',attempt:{id:'attempt',taskId:'task',binding:{workspace:'D:\\fixture'}},observation:{capturedAt:new Date().toISOString(),modelLabel:'fixture',sessionId:null,window:{title:'Owned WorkBuddy',app:'workbuddy',version:'5.7.7.0'}}};
+const latest={statusText:'生成中',observation:{busy:true,capturedAt:new Date().toISOString()}};
+const job={review,active:true,submitted:false,retired:false,progress:{checking:false,samples:1,latest,error:null}};
+let browser,networkRequests=0,result; const errors=[],cases=[];
+try {
+  browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+  const page=await browser.newPage();page.setDefaultTimeout(10000);
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/*',route=>{networkRequests++;return route.abort();});
+  await page.setContent('<html lang="zh-CN"><meta charset="utf-8"><div id="root"></div></html>');
+  await page.addScriptTag({content:await readFile(join(report,'bundle/ui.js'),'utf8')});
+  const render=async value=>{await page.evaluate(value=>window.renderJob(value),value);};
+  await render(job);await page.getByText(/最近界面观察：生成中/).waitFor();
+  assert.match(await page.locator('[data-desktop-progress]').innerText(),/完成仍以独立验收为准/);cases.push('running sample is observation only');
+  await render({...job,progress:{...job.progress,latest:{...latest,statusText:'已完成 1s',observation:{...latest.observation,busy:false}}}});
+  await page.getByText(/最近界面观察：已完成/).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'正在执行桌面任务',exact:true}).count(),1);
+  assert.equal(await page.getByRole('heading',{name:'已独立验收并收口',exact:true}).count(),0);cases.push('completion label does not accept task');
+  await render({...job,progress:{...job.progress,error:'窗口变化'}});
+  await page.getByText(/后续观察暂不可用；这是上次结果/).waitFor();
+  assert.match(await page.locator('body').innerText(),/原任务不会因此重发或被判定失败/);
+  assert.equal(await page.getByRole('alert').count(),0);cases.push('observation error is separate and marks previous sample');
+  await render({...job,progress:{...job.progress,samples:24,error:'本次自动进度观察已达到上限，后续界面状态不再自动更新'}});
+  await page.getByText(/后续界面状态不再自动更新/).waitFor();
+  assert.match(await page.locator('[data-desktop-progress]').innerText(),/这是上次结果/);
+  assert.equal(await page.getByRole('heading',{name:'正在执行桌面任务',exact:true}).count(),1);
+  cases.push('observation limit marks old sample without failing or resending task');
+  await render({...job,progress:{checking:false,samples:0,latest:null,error:'窗口变化'}});
+  await page.waitForFunction(()=>!document.querySelector('[data-desktop-progress]'));cases.push('no invented sample after first observation failure');
+  await render({...job,active:false,submitted:true});
+  await page.getByRole('heading',{name:'交付已提交，等待验收',exact:true}).waitFor();cases.push('submitted still waits for independent acceptance');
+  await render({...job,progress:undefined});
+  await page.waitForFunction(()=>!document.querySelector('[data-desktop-progress]'));cases.push('legacy snapshot without progress still renders');
+  assert.deepEqual(await page.evaluate(()=>window.commands),[]);assert.deepEqual(errors,[]);assert.equal(networkRequests,0);
+  result={status:'passed',cases,commands:0,networkRequests,errors};
+}catch(e){result={status:'failed',cases,error:e.stack};process.exitCode=1;}
+finally{if(browser)await browser.close();}
+await writeFile(join(report,'result.json'),JSON.stringify({...result,browserClosed:!browser?.isConnected()},null,2)+'\n');
+console.log(JSON.stringify({report,...result}));

@@ -1,0 +1,38 @@
+{
+  "draft": true,
+  "published": false,
+  "languageLayout": "Chinese and English with matching sections and anchor navigation",
+  "screenshots": [
+    {
+      "asset": "assets/overview-0.1.32.png",
+      "source": "reports/host-update-0132-554/forward-gui/page.png",
+      "bytes": 69085,
+      "sha256": "cbc69822e8befbb8d28310b14bd24efde948388e0dfb63a9aee0ab10c76322be",
+      "visuallyReviewed": true,
+      "edited": false
+    },
+    {
+      "asset": "assets/integration-checks.png",
+      "source": "reports/worktree-project-form-HDGDQM/integration-config.png",
+      "bytes": 30269,
+      "sha256": "0c3d1ff6de86381c42a14bedc0c26f6197d28d987506a7afc53e7e746d9a8fcd",
+      "visuallyReviewed": true,
+      "edited": false
+    },
+    {
+      "asset": "assets/data-maintenance.png",
+      "source": "reports/reader17-maintenance-546/window-resume/reader17-controls.png",
+      "bytes": 53478,
+      "sha256": "2a1e25473c82ec5e5d767dd4b2a741505b27f12be7e7be11b654ead752fe505a",
+      "visuallyReviewed": true,
+      "edited": false
+    }
+  ],
+  "totalBytes": 167560,
+  "checks": [
+    "all three image links resolve",
+    "language and feedback anchors resolve",
+    "QQ number and publisher checked",
+    "screenshots match inspected originals"
+  ]
+}

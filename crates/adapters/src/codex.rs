@@ -928,15 +928,19 @@ impl CodexClient {
         )
     }
     pub async fn close(mut self) -> Result<(), String> {
-        let _ = self.rpc.writer.shutdown().await;
+        // ChildStdin::shutdown is a no-op on Windows. Drop the pipe handle so
+        // an idle app-server can actually observe EOF before we wait for it.
+        drop(self.rpc.writer);
         match timeout_at(Instant::now() + Duration::from_secs(2), self.child.wait()).await {
-            Ok(Ok(_)) => {}
+            Ok(Ok(status)) if status.success() => {}
+            Ok(Ok(_)) => return Err("Codex process exited unsuccessfully".into()),
             Ok(Err(_)) => return Err("Codex process wait failed".into()),
             Err(_) => {
                 self.child
                     .kill()
                     .await
                     .map_err(|_| "Codex process cleanup failed")?;
+                return Err("Codex process required forced cleanup after close timeout".into());
             }
         }
         Ok(())
@@ -947,6 +951,49 @@ impl CodexClient {
 mod tests {
     use super::*;
     use tokio::io::{duplex, split};
+
+    #[cfg(windows)]
+    async fn eof_client(exit_code: u32) -> CodexClient {
+        let shell = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+            .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        let script = format!(
+            "[Console]::Out.WriteLine('READY'); [Console]::Out.Flush(); $null = [Console]::In.ReadToEnd(); exit {exit_code}"
+        );
+        let mut command = Command::new(shell);
+        command
+            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .creation_flags(0x08000000);
+        let mut child = command.spawn().unwrap();
+        let stdin = child.stdin.take().unwrap();
+        let mut reader = BufReader::new(child.stdout.take().unwrap());
+        let mut ready = String::new();
+        timeout_at(Instant::now() + Duration::from_secs(10), reader.read_line(&mut ready))
+            .await.unwrap().unwrap();
+        assert_eq!(ready.trim(), "READY");
+        CodexClient {
+            child,
+            rpc: Transport::new(reader, stdin),
+            workspace: std::env::current_dir().unwrap().to_string_lossy().into(),
+            active: None,
+            binding: None,
+        }
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn close_releases_stdin_for_normal_eof_exit() {
+        eof_client(0).await.close().await.unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn close_reports_original_nonzero_eof_exit() {
+        assert_eq!(eof_client(7).await.close().await.unwrap_err(), "Codex process exited unsuccessfully");
+    }
 
     fn terminal_frame(status: &str) -> Vec<u8> {
         let mut frame = serde_json::to_vec(&json!({
