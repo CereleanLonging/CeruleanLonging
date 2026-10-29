@@ -1,5 +1,5 @@
 use super::*;
-use cerulean_core::{data_format, rejected_usage_guard, Store};
+use cerulean_core::{data_format, experiment_guard, Store};
 use std::{collections::BTreeMap, fs, path::Path};
 
 fn snapshot(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
@@ -20,7 +20,7 @@ fn relay_promoted_workbench_keeps_original_catalog_identity_and_pins_new_guard()
     use cerulean_core::{backup, relay_guard};
     let temp = tempfile::tempdir().unwrap();
     let catalog = temp.path().join("catalog");
-    let created = catalog::create_legacy(&catalog, "exp-relay").unwrap();
+    let created = catalog::create(&catalog, "exp-relay").unwrap();
     let catalog = fs::canonicalize(&catalog).unwrap();
     let archive = temp.path().join("cold");
     let manifest = backup::create(&created.directory, &archive)
@@ -58,7 +58,7 @@ fn new_workbench_protects_only_new_data_and_reopens_without_execution() {
         data_format::status(&created.directory)
             .unwrap()
             .minimum_reader_generation,
-        rejected_usage_guard::GENERATION
+        experiment_guard::GENERATION
     );
     assert!(!created.directory.join("credentials").exists());
     assert!(!created.directory.join("baseline-experiments").exists());
@@ -103,7 +103,7 @@ fn identity_guard_backup_and_symlink_changes_are_rejected() {
         ("exp-intent", "intent.json"),
         ("exp-review", "protection-review.json"),
         ("exp-ready", "ready.json"),
-        ("exp-guard", "data/events/00000000.reader17.json"),
+        ("exp-guard", "data/events/00000000.reader15.json"),
         ("exp-backup", "initial-cold-backup/manifest.json"),
     ] {
         catalog::create(&catalog, id).unwrap();
@@ -156,7 +156,7 @@ fn immutable_window_routes_and_pins_preserve_an_active_other_host() {
     );
     assert!(windows.directory("unknown").is_err());
     assert!(Store::open(&a.directory).is_err()); // original writer still owns its root
-    assert!(fs::write(a.directory.join(rejected_usage_guard::MARKER), b"replace").is_err());
+    assert!(fs::write(a.directory.join(experiment_guard::MARKER), b"replace").is_err());
     assert!(fs::rename(catalog.join("exp-one"), catalog.join("moved")).is_err());
     drop(active);
     drop(Store::open(&a.directory).unwrap());
@@ -183,55 +183,4 @@ fn invalid_names_never_create_or_escape_catalog() {
     }
     assert!(!catalog.exists());
     assert!(!catalog::valid_id(&format!("exp-{}", "a".repeat(45))));
-}
-
-#[test]
-fn rejected_usage_promoted_workbench_keeps_original_catalog_identity_and_pins_new_guard() {
-    use cerulean_core::{backup, rejected_usage_guard};
-    let temp = tempfile::tempdir().unwrap();
-    let catalog = temp.path().join("catalog");
-    let created = catalog::create_legacy(&catalog, "exp-rejected-usage").unwrap();
-    let catalog = fs::canonicalize(&catalog).unwrap();
-    let archive = temp.path().join("cold");
-    let manifest = backup::create(&created.directory, &archive)
-        .unwrap()
-        .manifest_digest;
-    let reviewed = rejected_usage_guard::review(&created.directory, &archive, &manifest).unwrap();
-    let before = snapshot(&catalog);
-    rejected_usage_guard::promote(&created.directory, &archive, &manifest, &reviewed.digest)
-        .unwrap();
-    let mut after = snapshot(&catalog);
-    let marker = created.directory.join(rejected_usage_guard::MARKER);
-    after.remove(&marker).unwrap();
-    assert_eq!(before, after);
-    let frozen = snapshot(&catalog);
-    for _ in 0..2 {
-        let (entry, binding) = catalog::open(&catalog, "exp-rejected-usage").unwrap();
-        assert_eq!(entry.directory, created.directory);
-        assert!(fs::OpenOptions::new().write(true).open(&marker).is_err());
-        drop(Store::open(&entry.directory).unwrap());
-        drop(binding);
-    }
-    assert_eq!(snapshot(&catalog), frozen);
-}
-
-#[test]
-fn existing_reader15_catalog_opens_without_silent_promotion() {
-    let temp = tempfile::tempdir().unwrap();
-    let catalog = temp.path().join("catalog");
-    let created = catalog::create_legacy(&catalog, "exp-legacy").unwrap();
-    let before = snapshot(&catalog);
-    let (_, binding) = catalog::open(&catalog, "exp-legacy").unwrap();
-    assert_eq!(
-        data_format::status(&created.directory)
-            .unwrap()
-            .minimum_reader_generation,
-        15
-    );
-    assert!(!created
-        .directory
-        .join(rejected_usage_guard::MARKER)
-        .exists());
-    drop(binding);
-    assert_eq!(snapshot(&catalog), before);
 }

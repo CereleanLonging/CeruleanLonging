@@ -85,8 +85,6 @@ pub(crate) fn read_inner(
         let mut reply_count = 0;
         let mut not_sent = 0;
         let mut uncertain = 0;
-        let mut rejected_measured = 0;
-        let mut response_ids = std::collections::BTreeSet::new();
         for journal in inventory.journals() {
             let id = journal.identity();
             let (outcome, usage, actual_model, response_digest) = match &journal.state().outcome {
@@ -108,17 +106,6 @@ pub(crate) fn read_inner(
                     not_sent += 1;
                     ("not-sent", None, None, None)
                 }
-                Some(CallOutcome::Failure { .. }) if journal.state().rejected_usage.is_some() => {
-                    let measured = journal.state().rejected_usage.as_ref().unwrap();
-                    measured.validate(&id.fingerprint)?;
-                    rejected_measured += 1;
-                    (
-                        "rejected-with-observed-usage",
-                        Some(measured.usage.clone()),
-                        Some(measured.actual_model.clone()),
-                        Some(digest(&measured.response_id)?),
-                    )
-                }
                 Some(CallOutcome::Failure { .. }) => {
                     uncertain += 1;
                     ("failure-remote-usage-unknown", None, None, None)
@@ -128,15 +115,6 @@ pub(crate) fn read_inner(
                     ("intent-without-outcome", None, None, None)
                 }
             };
-            if let Some(response) = &response_digest {
-                require(
-                    response_ids.insert((
-                        id.fingerprint.target.provider().id().to_owned(),
-                        response.clone(),
-                    )),
-                    "duplicate API response identity; usage cannot be summed",
-                )?;
-            }
             calls.push(json!({
                 "identity":id, "journalHead":journal.head(), "outcome":outcome,
                 "usage":usage, "actualModel":actual_model,
@@ -187,13 +165,13 @@ pub(crate) fn read_inner(
             })
             .transpose()?;
         Ok(json!({
-            "schema":if rejected_measured > 0 { 2 } else { 1 }, "kind":"original-worker-and-verification-evidence",
+            "schema":1, "kind":"original-worker-and-verification-evidence",
             "projectId":project, "revisionDigest":expected_revision,
             "ledgerHead":expected_head, "ledgerEventCount":history.len(),
             "firstLedgerEventAt":history.first().map(|e| &e.body.received_at),
             "lastLedgerEventAt":last.body.received_at,
             "taskStates":store.state().tasks, "apiCalls":calls,
-            "apiIntentCount":reply_count+not_sent+uncertain+rejected_measured,
+            "apiIntentCount":reply_count+not_sent+uncertain,
             "apiReplies":reply_count, "apiNotSent":not_sent,
             "apiUncertainRemoteUsage":uncertain, "verifications":verifications,
             "ledgerAndApiChainsVerified":true, "recordedVerificationFilesVerified":true,

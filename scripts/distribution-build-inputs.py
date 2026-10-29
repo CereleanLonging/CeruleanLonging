@@ -22,8 +22,6 @@ REQUIRED = {
         'third-party/distribution-inputs.json', 'third-party/distribution-inputs.zip',
         'rust-toolchain.toml', '.cargo/config.toml',
         'apps/desktop/src-tauri/installer/hooks.nsh',
-        'apps/desktop/src-tauri/installer/template.nsi',
-        'apps/desktop/src-tauri/installer/LICENSE-MIT.tauri',
         'node_modules/@tauri-apps/cli-win32-x64-msvc/cli.win32-x64-msvc.node',
     ),
     'cargo-home': ('bin/rustc.exe', 'bin/cargo.exe', 'bin/rustup.exe'),

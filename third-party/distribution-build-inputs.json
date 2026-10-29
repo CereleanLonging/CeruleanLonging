@@ -7,18 +7,18 @@
     "commit": "b940084d7eb6a299eb4bfeb8e34901bc051e7ac4",
     "host": "x86_64-pc-windows-msvc"
   },
-  "configurationSha256": "658c49524bf153e241d3c4d4437769da239e11eba2a8280ed0ff5e7ff48cf0d1",
+  "configurationSha256": "b95a28e474391ef0500b24dbb0787ef617982558fe367263f9b54fdd9d8f2188",
   "files": {
     "repository": [
       {
         "path": "third-party/distribution-inputs.json",
-        "bytes": 200517,
-        "sha256": "4810995a8b9d1b7e1198bc4ae2b3ecddc5b74a7262f96147f7a8ae85dd834921"
+        "bytes": 193396,
+        "sha256": "80f759484abd5ef7db58bb4d9be4b42899de378377f5bcf4f4531970e65e2072"
       },
       {
         "path": "third-party/distribution-inputs.zip",
-        "bytes": 5060155,
-        "sha256": "714e1ba87d974fb5a5b217937279a0a7dfdac844addee25fcc53e4b8a54620be"
+        "bytes": 5042064,
+        "sha256": "b107588c244595ba9eb1c646dcf21dace0e5cc261fa73bac682f701f21385087"
       },
       {
         "path": "rust-toolchain.toml",
@@ -39,16 +39,6 @@
         "path": "node_modules/@tauri-apps/cli-win32-x64-msvc/cli.win32-x64-msvc.node",
         "bytes": 16134144,
         "sha256": "1e8b1bac3289765d7938583917a6ca44545c9cbe04c0a78525ab0b671ddd0c11"
-      },
-      {
-        "path": "apps/desktop/src-tauri/installer/template.nsi",
-        "bytes": 33415,
-        "sha256": "2d8fc55cb76686501d606e7459a803018b465094518ef35e7cabc1db46c5f30d"
-      },
-      {
-        "path": "apps/desktop/src-tauri/installer/LICENSE-MIT.tauri",
-        "bytes": 1090,
-        "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
       }
     ],
     "cargo-home": [

@@ -55,7 +55,7 @@ fn original_evidence(mut value: Value) -> Value {
 async fn synthetic(data: &Path, spec: &RunSpec, mode: &str) -> (Result<Terminal, String>, usize) {
     let (_tx, mut rx) = oneshot::channel();
     let mut sends = 0;
-    let result = execute::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(
+    let result = execute(
         data,
         &digest(spec).unwrap(),
         approval(spec),
@@ -133,12 +133,7 @@ async fn gateway_324_a6_fixture(root: &Path) -> (PathBuf, RunSpec, Value) {
     let workflow = data.join("workflows").join(&s.plan.project.id);
     let (_keep, mut cancel) = oneshot::channel();
     let mut sends = 0;
-    let terminal = execute::<
-        Result<
-            cerulean_adapters::api_generation::ApiReply,
-            cerulean_adapters::api_generation::ApiFailure,
-        >,
-    >(
+    let terminal = execute(
         &data,
         &digest(&s).unwrap(),
         approval(&s),
@@ -208,7 +203,7 @@ async fn gateway_324_a6_fixture(root: &Path) -> (PathBuf, RunSpec, Value) {
         crate::data_format::status(&data)
             .unwrap()
             .minimum_reader_generation,
-        17
+        16
     );
     let expected = original_evidence(inspect(&data, &digest(&s).unwrap()).unwrap());
     (data, s, expected)
@@ -305,7 +300,7 @@ async fn seed_change_blocks_before_credentials_intent_and_requests() {
     )
     .unwrap();
     let (_tx, mut rx) = oneshot::channel();
-    let result = execute::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(
+    let result = execute(
         &data,
         &digest(&s).unwrap(),
         approval(&s),
@@ -327,7 +322,7 @@ async fn wrong_approval_and_active_lock_cannot_start() {
     let mut bad = approval(&s);
     bad.spec_digest = "0".repeat(64);
     let (_tx, mut rx) = oneshot::channel();
-    assert!(execute::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(
+    assert!(execute(
         &data,
         &digest(&s).unwrap(),
         bad,
@@ -367,7 +362,7 @@ async fn credential_failure_has_terminal_without_send_and_blocks_retry() {
     let s = spec(dir.path());
     let data = prepared(dir.path(), &s);
     let (_tx, mut rx) = oneshot::channel();
-    let end = execute::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(
+    let end = execute(
         &data,
         &digest(&s).unwrap(),
         approval(&s),
@@ -528,7 +523,7 @@ fn gateway_324_check_api_compatibility_restore() {
         crate::data_format::status(&data)
             .unwrap()
             .minimum_reader_generation,
-        17
+        16
     );
     crate::api_execution::publish(
         &case,
@@ -541,6 +536,3 @@ fn gateway_324_check_api_compatibility_restore() {
     )
     .unwrap();
 }
-
-#[path = "rejected_usage_baseline.rs"]
-mod rejected_usage_baseline;

@@ -1,19 +1,5 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-/// Request-local receipt of a completed restore, independent of a later preview.
-/// The digest describes the file at completion, not its current contents.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct OmpRestoreOutcome {
-    pub project_id: String,
-    pub task_id: String,
-    pub attempt_id: String,
-    pub call_id: String,
-    pub review_digest: String,
-    pub restored_sha256: Option<String>,
-    pub at: String,
-    pub readback_error: Option<String>,
-}
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FilePreview {

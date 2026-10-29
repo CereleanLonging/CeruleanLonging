@@ -45,10 +45,10 @@ fn a6api_prepare_keeps_real_empty_cold_backup_and_unapproved_readback() {
         crate::data_format::status(&data)
             .unwrap()
             .minimum_reader_generation,
-        17
+        16
     );
     let backup = crate::backup::verify(&archive).unwrap();
-    let guard_bytes = fs::read(data.join(crate::rejected_usage_guard::MARKER)).unwrap();
+    let guard_bytes = fs::read(data.join(crate::relay_guard::MARKER)).unwrap();
     let guard: Value = serde_json::from_slice(&guard_bytes).unwrap();
     assert_eq!(guard["sourceBackupDigest"], backup.manifest_digest);
     assert_eq!(guard["sourceReaderGeneration"], 1);
@@ -90,10 +90,11 @@ fn a6api_prepare_keeps_real_empty_cold_backup_and_unapproved_readback() {
 }
 
 #[test]
-fn deepseek_prepare_creates_reader17_backup_and_preserves_unrelated_reader16_sibling() {
+fn deepseek_prepare_does_not_create_a_relay_guard_or_backup() {
     let temp = tempfile::tempdir().unwrap();
     let spec = spec(temp.path(), false);
     let data = PathBuf::from(&spec.data_root);
+    // An unrelated reserved-name sibling must not affect the old DeepSeek path.
     let sibling = temp.path().join("data.reader16-cold-backup");
     fs::write(&sibling, b"unrelated-original-file").unwrap();
     prepare(&data, spec.clone()).unwrap();
@@ -101,10 +102,9 @@ fn deepseek_prepare_creates_reader17_backup_and_preserves_unrelated_reader16_sib
         crate::data_format::status(&data)
             .unwrap()
             .minimum_reader_generation,
-        17
+        1
     );
-    assert!(data.join(crate::rejected_usage_guard::MARKER).exists());
-    crate::backup::verify(&temp.path().join("data.reader17-cold-backup")).unwrap();
+    assert!(!data.join("events").exists());
     assert_eq!(fs::read(sibling).unwrap(), b"unrelated-original-file");
     assert_eq!(
         inspect(&data, &digest(&spec).unwrap()).unwrap()["status"],
@@ -118,7 +118,7 @@ fn relay_backup_collisions_are_rejected_before_creating_data() {
         let temp = tempfile::tempdir().unwrap();
         let spec = spec(temp.path(), true);
         let data = PathBuf::from(&spec.data_root);
-        let archive = temp.path().join("data.reader17-cold-backup");
+        let archive = temp.path().join("data.reader16-cold-backup");
         if directory {
             fs::create_dir(&archive).unwrap();
             fs::write(archive.join("keep.txt"), b"preexisting").unwrap();
@@ -146,7 +146,7 @@ fn existing_or_interrupted_roots_are_not_promoted_or_reused() {
         if interrupted {
             fs::create_dir(data.join("events")).unwrap();
             drop(lock(&data, true).unwrap());
-            crate::backup::create(&data, &temp.path().join("data.reader17-cold-backup")).unwrap();
+            crate::backup::create(&data, &temp.path().join("data.reader16-cold-backup")).unwrap();
         } else {
             fs::write(data.join("original.txt"), b"preexisting-data").unwrap();
         }
@@ -169,7 +169,7 @@ fn missing_guard_is_not_recreated_by_inspection_or_repreparation() {
     let spec = spec(temp.path(), true);
     let data = PathBuf::from(&spec.data_root);
     prepare(&data, spec.clone()).unwrap();
-    fs::remove_file(data.join(crate::rejected_usage_guard::MARKER)).unwrap();
+    fs::remove_file(data.join(crate::relay_guard::MARKER)).unwrap();
     let before = snapshot(temp.path());
     assert!(inspect(&data, &digest(&spec).unwrap())
         .unwrap_err()
@@ -223,11 +223,11 @@ pub(super) fn checkpoint(root: &Path, phase: &str) -> Result<(), String> {
             fs::write(root.join("events/other-writer.json"), b"{}").map_err(|e| e.to_string())?;
         }
         Interference::AfterPromotionGuard => {
-            let path = root.join(crate::rejected_usage_guard::MARKER);
+            let path = root.join(crate::relay_guard::MARKER);
             let mut guard: Value =
                 serde_json::from_slice(&fs::read(&path).map_err(|e| e.to_string())?)
                     .map_err(|e| e.to_string())?;
-            // Still structurally valid for reader17, but no longer the exact
+            // Still structurally valid for reader16, but no longer the exact
             // guard returned by this operation's promotion of this cold backup.
             guard["sourceBackupDigest"] = "c".repeat(64).into();
             fs::write(path, serde_json::to_vec(&guard).map_err(|e| e.to_string())?)
@@ -272,7 +272,7 @@ fn relay_new_root_changes_before_backup_are_preserved_without_promotion() {
             error.contains("cold backup is no longer the empty new root"),
             "{error}"
         );
-        let archive = temp.path().join("data.reader17-cold-backup");
+        let archive = temp.path().join("data.reader16-cold-backup");
         crate::backup::verify(&archive).unwrap();
         let relative = match selected {
             Interference::BeforeBackupRoot => "other-writer.txt",
@@ -289,7 +289,7 @@ fn relay_new_root_changes_before_backup_are_preserved_without_promotion() {
                 .minimum_reader_generation,
             1
         );
-        assert!(!data.join(crate::rejected_usage_guard::MARKER).exists());
+        assert!(!data.join(crate::relay_guard::MARKER).exists());
         assert!(!data.join("run-spec.json").exists());
         assert!(!data.join("prepared.json").exists());
         let before = snapshot(temp.path());
@@ -314,16 +314,16 @@ fn relay_new_root_changes_after_promotion_are_preserved_without_preparation() {
                 || error.contains("guard or event inventory changed"),
             "{error}"
         );
-        let archive = temp.path().join("data.reader17-cold-backup");
+        let archive = temp.path().join("data.reader16-cold-backup");
         let backup = crate::backup::verify(&archive).unwrap();
         require_empty_relay_backup(&archive, &backup.manifest_digest).unwrap();
-        // reader17 alone is insufficient: these interrupted roots must never
+        // reader16 alone is insufficient: these interrupted roots must never
         // receive RunSpec/Prepared or an automatic retry after an intervening write.
         assert_eq!(
             crate::data_format::status(&data)
                 .unwrap()
                 .minimum_reader_generation,
-            17
+            16
         );
         match selected {
             Interference::AfterPromotionRoot => assert_eq!(
@@ -336,7 +336,7 @@ fn relay_new_root_changes_after_promotion_are_preserved_without_preparation() {
             ),
             Interference::AfterPromotionGuard => {
                 let guard: Value = serde_json::from_slice(
-                    &fs::read(data.join(crate::rejected_usage_guard::MARKER)).unwrap(),
+                    &fs::read(data.join(crate::relay_guard::MARKER)).unwrap(),
                 )
                 .unwrap();
                 assert_eq!(guard["sourceBackupDigest"], "c".repeat(64));

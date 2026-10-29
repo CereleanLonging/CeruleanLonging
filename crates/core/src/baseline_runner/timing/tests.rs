@@ -104,10 +104,7 @@ async fn full_baseline_clock_and_execution_activity_bind_original_accept() {
     let mut calls = 0;
     let end =
         t
-            .execute::<Result<
-                cerulean_adapters::api_generation::ApiReply,
-                cerulean_adapters::api_generation::ApiFailure,
-            >>(
+            .execute(
                 "synthetic-fixture",
                 client,
                 &mut async |_: &ApiClient,
@@ -147,10 +144,7 @@ async fn full_baseline_clock_and_execution_activity_bind_original_accept() {
     assert!(t.finish().is_err());
     assert!(
         t
-            .execute::<Result<
-                cerulean_adapters::api_generation::ApiReply,
-                cerulean_adapters::api_generation::ApiFailure,
-            >>(
+            .execute(
                 "synthetic-fixture",
                 |_| panic!("no credential read on repeat"),
                 &mut async |_: &ApiClient,
@@ -221,10 +215,7 @@ async fn cancellation_before_native_intent_has_known_stop_and_no_credentials() {
     tx.send(()).unwrap();
     assert!(
         t
-            .execute::<Result<
-                cerulean_adapters::api_generation::ApiReply,
-                cerulean_adapters::api_generation::ApiFailure,
-            >>(
+            .execute(
                 "synthetic-fixture",
                 |_| panic!("cancel must precede credentials"),
                 &mut async |_: &ApiClient,
@@ -290,7 +281,7 @@ async fn failed_start_observer_retains_original_intent_and_blocks_credentials() 
     let spec = authorize(&mut t);
     let root = area("S05").join("data");
     let (_tx, mut rx) = oneshot::channel();
-    let terminal = super::super::execute_observed::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(
+    let terminal = super::super::execute_observed(
         &root,
         &digest(&spec).unwrap(),
         approval(&spec),

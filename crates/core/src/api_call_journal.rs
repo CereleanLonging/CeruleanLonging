@@ -2,8 +2,7 @@
 //! filesystem or budget permission. Reopening never authorizes another send.
 use crate::host::ordinary;
 use cerulean_adapters::api_generation::{
-    ApiClient, ApiFailure, ApiObservation, ApiReply, PreparedRequest, RejectedUsage,
-    RequestFingerprint,
+    ApiClient, ApiFailure, ApiObservation, ApiReply, PreparedRequest, RequestFingerprint,
 };
 use cerulean_domain::execution::{digest, identifier, require, sha256, timestamp};
 use fs2::FileExt;
@@ -71,7 +70,6 @@ pub enum CallOutcome {
 pub struct CallState {
     pub intent_recorded: bool,
     pub outcome: Option<CallOutcome>,
-    pub rejected_usage: Option<RejectedUsage>,
     pub scoped_request: Option<ApiScopedBinding>,
     pub scoped_response: Option<Box<ApiScopedResponse>>,
     pub response_head: Option<String>,
@@ -100,10 +98,7 @@ impl CallState {
                 )?;
                 self.intent_recorded = true;
             }
-            Event::Outcome {
-                outcome,
-                rejected_usage,
-            } => {
+            Event::Outcome { outcome } => {
                 require(
                     self.intent_recorded && self.outcome.is_none() && self.scoped_request.is_none(),
                     "API outcome order invalid",
@@ -118,20 +113,6 @@ impl CallState {
                     )?,
                     _ => {}
                 }
-                if let Some(usage) = rejected_usage {
-                    require(
-                        matches!(
-                            outcome,
-                            CallOutcome::Failure {
-                                failure: ApiFailure::InvalidResponse {}
-                                    | ApiFailure::ResponseRejected { .. }
-                            }
-                        ),
-                        "usage requires a rejected response",
-                    )?;
-                    usage.validate(&expected.fingerprint)?;
-                }
-                self.rejected_usage = rejected_usage.clone();
                 self.outcome = Some(outcome.clone());
             }
         }
@@ -156,18 +137,7 @@ enum Event {
     },
     Outcome {
         outcome: CallOutcome,
-        #[serde(
-            default,
-            skip_serializing_if = "Option::is_none",
-            deserialize_with = "non_null_rejected_usage"
-        )]
-        rejected_usage: Option<RejectedUsage>,
     },
-}
-fn non_null_rejected_usage<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<RejectedUsage>, D::Error> {
-    RejectedUsage::deserialize(deserializer).map(Some)
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -379,26 +349,8 @@ impl ApiCallJournal {
         cancel: &mut tokio::sync::oneshot::Receiver<()>,
     ) -> Result<Result<ApiReply, ApiFailure>, String> {
         let fingerprint = prepared.fingerprint().clone();
-        // Preserve the old no-send outcome without requiring an upgrade merely
-        // to record a cancellation already received before any HTTP dispatch.
-        if !matches!(
-            cancel.try_recv(),
-            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
-        ) {
-            return self
-                .execute_reply(&fingerprint, || async { Err(ApiFailure::NotSent {}) })
-                .await;
-        }
-        self.execute_attempt(
-            &fingerprint,
-            None,
-            async |gateway: &mut cerulean_adapters::api_generation::GatewayObserver<'_>| {
-                client
-                    .send_measured_with_gateway(prepared, cancel, gateway)
-                    .await
-            },
-        )
-        .await
+        self.execute_reply(&fingerprint, || client.send(prepared, cancel))
+            .await
     }
     pub(crate) async fn execute_reply<F: Future<Output = Result<ApiReply, ApiFailure>>>(
         &mut self,
@@ -442,13 +394,7 @@ impl ApiCallJournal {
             },
         };
         // No reply/tool proposal is released until this publication succeeds.
-        self.publish(
-            &Event::Outcome {
-                outcome,
-                rejected_usage: None,
-            },
-            |_| Ok(()),
-        )?;
+        self.publish(&Event::Outcome { outcome }, |_| Ok(()))?;
         Ok(result.map(|(reply, _)| reply))
     }
     fn publish(
@@ -523,6 +469,3 @@ pub(crate) fn fixture_rehash_record(value: serde_json::Value) -> Vec<u8> {
     record.hash = digest(&record.body).unwrap();
     serde_json::to_vec(&record).unwrap()
 }
-
-#[cfg(all(test, windows))]
-pub(crate) mod measured_tests;

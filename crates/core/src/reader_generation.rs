@@ -55,8 +55,7 @@ pub(crate) fn observe(root: &Path, status: &mut Status) -> Result<(), String> {
     crate::currency_api_resolution_guard::observe(root, status)?;
     crate::management_source_guard::observe(root, status)?;
     crate::experiment_guard::observe(root, status)?;
-    crate::relay_guard::observe(root, status)?;
-    crate::rejected_usage_guard::observe(root, status)
+    crate::relay_guard::observe(root, status)
 }
 fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
     match fs::read_dir(root.join("events")) {
@@ -79,7 +78,6 @@ fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
                     && name != crate::currency_api_resolution_guard::FILE_NAME
                     && name != crate::management_source_guard::FILE_NAME
                     && name != crate::relay_guard::FILE_NAME
-                    && name != crate::rejected_usage_guard::FILE_NAME
                     && name != crate::experiment_guard::FILE_NAME
                     && name != crate::experiment_guard::LEGACY_FILE_NAME
                 {
@@ -206,7 +204,6 @@ pub(crate) fn require_workflow_context(
 // Inspect only protocol-owned fields, never arbitrary task text or business JSON.
 // This preflight does not repair records or create directories/journals.
 pub(crate) fn reject_unprotected(root: &Path) -> Result<(), String> {
-    crate::rejected_usage_guard::reject_unprotected(root)?;
     crate::experiment_guard::reject_unprotected(root)?;
     reject_legacy_unprotected(root)
 }

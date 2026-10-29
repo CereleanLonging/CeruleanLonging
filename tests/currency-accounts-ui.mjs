@@ -1,0 +1,73 @@
+// Product account component; controlled snapshots only, no native IPC/provider.
+import {readFile,writeFile,mkdtemp} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+import {build} from 'vite';
+import {chromium} from 'playwright-core';
+assert.equal(process.env.CERULEAN_NATIVE_OWNED_JOB,'1');
+const dir=await mkdtemp(resolve('reports/currency-history-ui-137-'));
+const files=['CurrencyAccounts.tsx','CurrencyHistory.tsx','CurrencyBudgetFields.tsx','App.tsx','contracts.ts'].map(n=>'apps/desktop/src/'+n);
+async function hashes(){return Object.fromEntries(await Promise.all(files.map(async p=>[p,createHash('sha256').update(await readFile(p)).digest('hex')])));}
+const before=await hashes(),cases=[],errors=[];let networkRequests=0,browser,page;
+const entry=join(dir,'entry.tsx');
+await writeFile(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import {CurrencyAccounts} from '../../apps/desktop/src/CurrencyAccounts';const root=createRoot(document.getElementById('root')!);window.renderAccounts=(accounts,history=[])=>root.render(<CurrencyAccounts accounts={accounts} history={history}/>);window.renderAccounts([]);`);
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(dir,'bundle'),emptyOutDir:false,lib:{entry,name:'CurrencyAccounts',formats:['iife'],fileName:()=> 'ui.js'}}});
+try {
+ browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+ page=await browser.newPage({viewport:{width:1200,height:1200}});page.setDefaultTimeout(10000);
+ page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>{networkRequests++;return r.abort();});
+ await page.setContent(`<html lang="zh-CN"><meta charset="utf-8"><style>${await readFile('apps/desktop/src/style.css','utf8')}body{padding:24px}</style><div id="root"></div></html>`);
+ await page.addScriptTag({content:await readFile(join(dir,'bundle/ui.js'),'utf8')});
+ assert.equal(await page.getByRole('region',{name:'项目累计金额账本'}).count(),0);cases.push('legacy project has no invented zero-balance account');
+ const ready={projectId:'linked',revisionDigest:'a'.repeat(64),ledgerHead:'b'.repeat(64),limitUsdNanos:12345678901,chargedUsdNanos:100000001,reservedUsdNanos:2345678900,availableUsdNanos:9900000000,approvalLinked:true,healthy:true,blocked:false,unknownRequests:2,unpricedRequests:0};
+ const pending={...ready,projectId:'pending',approvalLinked:false,availableUsdNanos:null};
+ const blocked={...ready,projectId:'blocked',chargedUsdNanos:0,availableUsdNanos:null,blocked:true,healthy:false,unpricedRequests:1};
+ await page.evaluate(v=>window.renderAccounts(v),[ready,pending,blocked]);
+ const linked=page.getByRole('article',{name:'项目 linked 金额'});
+ await linked.waitFor();const text=await linked.innerText();
+ for(const value of ['$12.345678901','$0.100000001','$2.3456789','$9.9','结果未确定的请求：2'])assert.ok(text.includes(value),value);
+ assert.equal(await linked.getByRole('alert').count(),0);cases.push('linked account preserves exact cents and nanodollars with separate held reservations');
+ const p=page.getByRole('article',{name:'项目 pending 金额'});
+ assert.match(await p.innerText(),/待核对，暂不可用/);assert.match(await p.getByRole('status').innerText(),/尚未关联，不允许执行/);cases.push('unlinked approval is unavailable rather than free credit');
+ const b=page.getByRole('article',{name:'项目 blocked 金额'});
+ assert.equal(await b.getByRole('alert').count(),2);assert.match(await b.innerText(),/已核算为零不代表请求免费/);assert.match(await b.innerText(),/无法定价的请求：1/);cases.push('failed publication and unpriced charges remain explicit blocks with unknown availability');
+ await linked.getByText('查看原账本引用',{exact:true}).click();assert.match(await linked.innerText(),new RegExp('b'.repeat(64)));cases.push('original revision and ledger references available without any action');
+
+ const gap={projectId:'linked',sourceId:'old-planning',reason:'legacyManagementRequest',reference:'management-decisions/old-planning.0.json'};
+ await page.evaluate(({ready,gap})=>window.renderAccounts([ready],[gap]),{ready,gap});
+ await page.getByRole('region',{name:'待核算历史'}).waitFor();
+ assert.match(await linked.innerText(),/待核对，暂不可用/);assert.match(await linked.innerText(),/\$0\.100000001/);
+ await page.getByText('查看待核算来源',{exact:true}).click();
+ assert.match(await page.getByRole('region',{name:'待核算历史'}).innerText(),/旧管理请求缺少完整计费依据/);
+ cases.push('legacy history hides availability while keeping original accounted fees unchanged');
+ await page.evaluate(({ready,gap})=>window.renderAccounts([ready],[{...gap,projectId:'different'}]),{ready,gap});
+ await page.waitForFunction(()=>document.querySelector('[aria-label="项目 linked 金额"]').textContent.includes('$9.9'));
+ cases.push('a known different project is not charged or blocked by unrelated history');
+ await page.evaluate(({ready,gap})=>window.renderAccounts([ready,{...ready,projectId:'second'}],[{...gap,projectId:null,reason:'reviewedManagementRecord'}]),{ready,gap});
+ await page.waitForFunction(()=>document.querySelector('[aria-label="待核算历史"]').textContent.includes('未分摊费用'));
+ for(const name of ['linked','second'])assert.match(await page.getByRole('article',{name:`项目 ${name} 金额`}).innerText(),/待核对，暂不可用/);
+ cases.push('unattributed reviewed evidence stays global without invented allocation');
+ await page.evaluate(ready=>window.renderAccounts([ready],null),ready);
+ await page.waitForFunction(()=>document.body.textContent.includes('历史费用清单暂不可用'));
+ assert.match(await linked.innerText(),/待核对，暂不可用/);cases.push('older or unavailable history is unknown, never an empty clean history');
+ const many=Array.from({length:21},(_,i)=>({...gap,sourceId:`scope-${i}`,reason:i===20?'apiWithoutBudget':'managementWithoutBudget',reference:`workflow:project:original-${i}`}));
+ await page.evaluate(many=>window.renderAccounts([],many),many);
+ const history=page.getByRole('region',{name:'待核算历史'});await history.getByText('查看待核算来源',{exact:true}).click();
+ assert.equal(await history.locator('li').count(),20);await history.getByRole('button',{name:'下一页'}).click();
+ assert.equal(await history.locator('li').count(),1);assert.match(await history.innerText(),/scope-20/);assert.match(await history.innerText(),/历史 API 执行未采用金额预算/);
+ assert.equal(await page.getByRole('region',{name:'项目累计金额账本'}).count(),0);cases.push('all history is pageable without creating an account for unbudgeted work');
+ await page.evaluate(({ready,gap})=>window.renderAccounts([ready],[gap,{...gap,projectId:null,sourceId:'reviewed-intent',reason:'reviewedManagementRecord',reference:'management-decisions/reviewed-intent.0.pending'},{...gap,sourceId:'old-api-attempt',reason:'apiWithoutBudget',reference:'workflow:linked:'+ 'f'.repeat(64)}]),{ready,gap});
+ await page.waitForFunction(()=>document.querySelector('[aria-label="待核算历史"]').textContent.includes('共 3 条'));
+ await page.screenshot({path:join(dir,'currency-history-desktop.png'),fullPage:true});
+ await page.setViewportSize({width:412,height:915});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await page.screenshot({path:join(dir,'currency-history-mobile.png'),fullPage:true});cases.push('history and retained charges fit a narrow viewport');
+ await page.screenshot({path:join(dir,'currency-accounts.png'),fullPage:true});
+ assert.deepEqual(errors,[]);assert.equal(networkRequests,0);const after=await hashes();assert.deepEqual(after,before);
+ await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,scope:'production currency account React component with controlled snapshots; no IPC or actual supplier charges',sourceBefore:before,sourceAfter:after,pageErrors:errors,networkRequests,modelCalls:0,artifact:dir},null,2));
+ console.log(JSON.stringify({status:'passed',cases:cases.length,artifact:dir}));
+} catch(e) {
+ await page?.screenshot({path:join(dir,'failure.png'),fullPage:true}).catch(()=>{});
+ await writeFile(join(dir,'failure.json'),JSON.stringify({error:String(e),stack:e.stack,cases,errors,networkRequests},null,2));throw e;
+} finally {await browser?.close();}

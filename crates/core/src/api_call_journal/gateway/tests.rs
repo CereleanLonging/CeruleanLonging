@@ -62,10 +62,7 @@ async fn gateway_324_api_success_and_http_failure_link_original_and_reopen_witho
         let fp = prepared.fingerprint().clone();
         let mut journal = ApiCallJournal::open(&path, &id).unwrap();
         let result = journal
-            .execute_reply_with_gateway::<Result<
-                cerulean_adapters::api_generation::ApiReply,
-                cerulean_adapters::api_generation::ApiFailure,
-            >>(
+            .execute_reply_with_gateway(
                 &fp,
                 base.path(),
                 async |observe: &mut GatewayObserver<'_>| {
@@ -118,10 +115,7 @@ async fn gateway_324_api_success_and_http_failure_link_original_and_reopen_witho
             review
         );
         assert!(recovered
-            .execute_reply_with_gateway::<Result<
-                cerulean_adapters::api_generation::ApiReply,
-                cerulean_adapters::api_generation::ApiFailure,
-            >>(
+            .execute_reply_with_gateway(
                 &fp,
                 base.path(),
                 async |_observe: &mut GatewayObserver<'_>| {
@@ -144,10 +138,7 @@ async fn gateway_324_api_dropped_future_keeps_original_unknown_and_header_only()
     let captured = std::cell::Cell::new(false);
     let result = tokio::time::timeout(
         std::time::Duration::from_millis(20),
-        journal.execute_reply_with_gateway::<Result<
-            cerulean_adapters::api_generation::ApiReply,
-            cerulean_adapters::api_generation::ApiFailure,
-        >>(
+        journal.execute_reply_with_gateway(
             &fp,
             base.path(),
             async |observe: &mut GatewayObserver<'_>| {
@@ -192,10 +183,7 @@ async fn gateway_324_auxiliary_write_failure_does_not_change_original_reply_or_f
         let fp = prepared.fingerprint().clone();
         let mut journal = ApiCallJournal::open(&path, &id).unwrap();
         let result = journal
-            .execute_reply_with_gateway::<Result<
-                cerulean_adapters::api_generation::ApiReply,
-                cerulean_adapters::api_generation::ApiFailure,
-            >>(
+            .execute_reply_with_gateway(
                 &fp,
                 base.path(),
                 async |observe: &mut GatewayObserver<'_>| {
@@ -228,10 +216,7 @@ async fn gateway_324_outcome_publication_failure_preserves_header_and_withholds_
     let fp = prepared.fingerprint().clone();
     let mut journal = ApiCallJournal::open(&path, &id).unwrap();
     let result = journal
-        .execute_reply_with_gateway::<Result<
-            cerulean_adapters::api_generation::ApiReply,
-            cerulean_adapters::api_generation::ApiFailure,
-        >>(
+        .execute_reply_with_gateway(
             &fp,
             base.path(),
             async |observe: &mut GatewayObserver<'_>| {

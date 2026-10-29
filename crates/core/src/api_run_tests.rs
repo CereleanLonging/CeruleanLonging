@@ -161,7 +161,6 @@ fn configured_inputs(
     budget: u32,
     isolated: bool,
 ) -> RuntimeHost {
-    api_host_tests::protect_new_api_fixture(root);
     let (mut host, draft) = project_planning::tests::fixture(root);
     let provider = target.provider();
     let mut draft = api_project_tests::draft_for(draft, adapter, target);

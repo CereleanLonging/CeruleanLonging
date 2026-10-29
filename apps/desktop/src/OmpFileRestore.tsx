@@ -140,24 +140,9 @@ export function OmpFileRestore({
       });
       setReview(null);
       setAck(false);
-      const outcome = next?.ompRestore;
-      const confirmed = outcome &&
-        outcome.projectId === review.projectId &&
-        outcome.taskId === review.taskId &&
-        outcome.attemptId === review.attemptId &&
-        outcome.callId === review.callId &&
-        outcome.reviewDigest === review.evidenceDigest;
-      if (confirmed) {
-        const value = next?.ompFiles;
-        const previewMatches = !outcome.readbackError && value &&
-          value.projectId === review.projectId &&
-          value.taskId === review.taskId &&
-          value.attemptId === review.attemptId &&
-          value.detail?.callId === review.callId;
-        setView(previewMatches ? value : null);
-        setMessage(previewMatches
-          ? "文件还原已记录。任务仍保持待核对状态。"
-          : "文件还原已完成并记录，但当前文件预览暂不可用。请重新读取记录；不要重复还原。任务仍待核对。");
+      if (next?.ompFiles) {
+        setView(next.ompFiles);
+        setMessage("文件还原已记录。任务仍保持待核对状态。");
       } else {
         setView((v) => (v ? { ...v, detail: null } : null));
         setMessage("还原未确认完成。请重新读取记录，核对当前文件和还原结果。");

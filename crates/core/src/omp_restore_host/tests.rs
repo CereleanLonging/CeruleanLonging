@@ -2,9 +2,6 @@ use super::*;
 use crate::omp_file_tools::tests::{dispatch_event, request};
 use cerulean_adapters::omp_transport::worker::{host_calls::HostService, WorkerEvent};
 async fn seed(root: &Path) -> RuntimeHost {
-    seed_fixture(root, false).await
-}
-async fn seed_fixture(root: &Path, settled_write_setup: bool) -> RuntimeHost {
     fs::create_dir(root.join("seed")).unwrap();
     let (original, mut plan) = crate::omp_execution::tests::assigned(&root.join("seed"), false);
     drop(original);
@@ -82,13 +79,6 @@ async fn seed_fixture(root: &Path, settled_write_setup: bool) -> RuntimeHost {
         })
         .unwrap();
     drop(prompt);
-    if settled_write_setup {
-        // This controlled fault fixture starts only after setup publications
-        // finish. The original concurrent fixture and production stay unchanged.
-        store
-            .wait_for_projections(std::time::Duration::from_secs(30))
-            .unwrap();
-    }
     let mut files = crate::omp_file_tools::OmpFileTools::create(
         &plan,
         store.approval().unwrap(),
@@ -219,22 +209,18 @@ async fn user_commands_bind_preview_reject_stale_digest_restore_and_reopen_witho
         restore_command(detail.evidence_digest.as_ref().unwrap()),
     );
     assert!(response.error.is_none(), "{:?}", response.error);
-    let snapshot = response.result.unwrap();
-    let outcome = snapshot.omp_restore.unwrap();
     assert_eq!(
-        outcome.review_digest,
-        *detail.evidence_digest.as_ref().unwrap()
+        response
+            .result
+            .unwrap()
+            .omp_files
+            .unwrap()
+            .detail
+            .unwrap()
+            .restore_status
+            .as_deref(),
+        Some("restored")
     );
-    assert_eq!(outcome.restored_sha256, detail.original_sha256);
-    if let Some(view) = snapshot.omp_files {
-        assert!(outcome.readback_error.is_none());
-        assert_eq!(
-            view.detail.unwrap().restore_status.as_deref(),
-            Some("restored")
-        );
-    } else {
-        assert!(outcome.readback_error.is_some());
-    }
     assert_eq!(
         fs::read_to_string(&path).unwrap(),
         "Original reviewed source\n"
@@ -256,103 +242,6 @@ async fn user_commands_bind_preview_reject_stale_digest_restore_and_reopen_witho
         TaskState::Unknown
     );
 }
-#[tokio::test]
-async fn completed_restore_survives_failed_readback_without_replay() {
-    let retained = OmpRestore328RetainOnFailure(Some(tempfile::tempdir().unwrap()));
-    let root = retained.0.as_ref().unwrap();
-    let host = seed_fixture(root.path(), true).await;
-    // Isolate the injected result-handling fault from unrelated asynchronous
-    // fixture setup. Production restore does not gain a projection barrier.
-    host.projects["project"]
-        .wait_for_projections(std::time::Duration::from_secs(30))
-        .unwrap();
-    let read = host.omp_restore_request(&read_command()).unwrap().unwrap();
-    let detail = read.omp_files.unwrap().detail.unwrap();
-    let digest = detail.evidence_digest.as_ref().unwrap();
-    let command = restore_command(digest);
-    let history = host.projects["project"].history().len();
-    let path =
-        Path::new(&host.projects["project"].revision().unwrap().project.root).join("result.txt");
-    let calls = std::cell::Cell::new(0);
-    let snapshot = host
-        .omp_restore_request_with_readback(&command, |_, _, _, _, _| {
-            calls.set(calls.get() + 1);
-            assert_eq!(
-                fs::read_to_string(&path).unwrap(),
-                "Original reviewed source\n"
-            );
-            Err("injected post-restore preview failure".into())
-        })
-        .unwrap()
-        .unwrap();
-    assert_eq!(calls.get(), 1);
-    assert!(snapshot.omp_files.is_none());
-    let outcome = snapshot.omp_restore.unwrap();
-    assert_eq!(outcome.project_id, "project");
-    assert_eq!(outcome.task_id, "task");
-    assert_eq!(outcome.attempt_id, "attempt");
-    assert_eq!(outcome.call_id, "write-1");
-    assert_eq!(outcome.review_digest, *digest);
-    assert_eq!(outcome.restored_sha256, detail.original_sha256);
-    assert_eq!(
-        outcome.readback_error.as_deref(),
-        Some("injected post-restore preview failure")
-    );
-    assert!(!outcome.at.is_empty());
-    assert_eq!(host.projects["project"].history().len(), history);
-    assert!(host.snapshot().omp_restore.is_none());
-    assert_eq!(
-        host.projects["project"].state().tasks["task"].state,
-        TaskState::Unknown
-    );
-    assert!(host
-        .omp_restore_request_with_readback(&command, |_, _, _, _, _| {
-            panic!("rejected restore must not reach post-restore readback")
-        })
-        .unwrap()
-        .is_err());
-    assert_eq!(
-        fs::read_to_string(&path).unwrap(),
-        "Original reviewed source\n"
-    );
-    drop(host);
-    let reopened = RuntimeHost::open(&root.path().join("data")).unwrap();
-    let view = reopened
-        .omp_restore_request(&read_command())
-        .unwrap()
-        .unwrap();
-    let detail = view.omp_files.unwrap().detail.unwrap();
-    assert_eq!(detail.restore_status.as_deref(), Some("restored"));
-    assert!(detail.evidence_digest.is_none());
-    assert!(view.omp_restore.is_none());
-    assert_eq!(reopened.projects["project"].history().len(), history);
-}
-
-#[tokio::test]
-async fn rejected_restore_never_emits_completion_or_reads_preview() {
-    let root = tempfile::tempdir().unwrap();
-    let host = seed(root.path()).await;
-    host.projects["project"]
-        .wait_for_projections(std::time::Duration::from_secs(30))
-        .unwrap();
-    let path =
-        Path::new(&host.projects["project"].revision().unwrap().project.root).join("result.txt");
-    let result = host
-        .omp_restore_request_with_readback(&restore_command(&"0".repeat(64)), |_, _, _, _, _| {
-            panic!("stale review must not reach post-restore readback")
-        })
-        .unwrap();
-    assert_eq!(
-        result.unwrap_err(),
-        "文件或复核证据已变化，请重新读取并确认"
-    );
-    assert_eq!(
-        fs::read_to_string(path).unwrap(),
-        "Interrupted task version\n"
-    );
-    assert!(host.snapshot().omp_restore.is_none());
-}
-
 #[tokio::test]
 async fn foreign_scope_untrusted_paths_and_unreviewed_mutation_are_rejected() {
     let root = tempfile::tempdir().unwrap();

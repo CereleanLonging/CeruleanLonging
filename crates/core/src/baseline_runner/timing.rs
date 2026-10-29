@@ -396,16 +396,14 @@ impl TimedBaseline {
                             gateway: &mut cerulean_adapters::api_generation::GatewayObserver<
                     '_,
                 >| {
-                    client
-                        .send_measured_with_gateway(prepared, cancel, gateway)
-                        .await
+                    client.send_with_gateway(prepared, cancel, gateway).await
                 },
                 cancel,
                 verification_cancel,
             )
             .await
     }
-    async fn execute<O: cerulean_adapters::api_generation::ApiAttemptResult>(
+    async fn execute(
         &mut self,
         transport: &str,
         make_client: impl FnOnce(&RunSpec) -> Result<ApiClient, String>,
@@ -414,7 +412,7 @@ impl TimedBaseline {
             PreparedRequest,
             &mut oneshot::Receiver<()>,
             &mut cerulean_adapters::api_generation::GatewayObserver<'_>,
-        ) -> O,
+        ) -> Result<ApiReply, ApiFailure>,
         cancel: &mut oneshot::Receiver<()>,
         verification_cancel: &AtomicBool,
     ) -> Result<Terminal, String> {

@@ -1,8 +1,5 @@
 //! Approved API worker loop. Trusted host only: HTTP output is a tool proposal,
 //! and only original sealed artifacts may be submitted or recovered.
-#[cfg(test)]
-use cerulean_adapters::api_generation::ApiFailure;
-
 use crate::workflow_access::WorkflowAccess;
 use crate::{
     api_call_journal::{ApiCallJournal, CallIdentity, CallOutcome},
@@ -13,7 +10,7 @@ use crate::{
     scheduler::{CommandContext, DurableWorkflow},
 };
 use cerulean_adapters::api_generation::{
-    ApiClient, ApiMessage, ApiReply, ApiRequest, PreparedRequest,
+    ApiClient, ApiFailure, ApiMessage, ApiReply, ApiRequest, PreparedRequest,
 };
 use cerulean_domain::{
     api_worker::ApiWorkerSelection,
@@ -455,17 +452,14 @@ pub async fn dispatch_with_files(
         task,
         id,
         cancel,
-        &mut async |prepared, cancellation, gateway: &mut cerulean_adapters::api_generation::GatewayObserver<'_>| client.send_measured_with_gateway(prepared, cancellation, gateway).await,
+        &mut async |prepared, cancellation, gateway: &mut cerulean_adapters::api_generation::GatewayObserver<'_>| client.send_with_gateway(prepared, cancellation, gateway).await,
         &mut |_| Ok(()),
         &mut |_| {},
     )
     .await
 }
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn dispatch_inner<
-    S: WorkflowAccess,
-    O: cerulean_adapters::api_generation::ApiAttemptResult,
->(
+pub(crate) async fn dispatch_inner<S: WorkflowAccess>(
     store: &mut S,
     client: &ApiClient,
     task: &str,
@@ -475,7 +469,7 @@ pub(crate) async fn dispatch_inner<
         PreparedRequest,
         &mut oneshot::Receiver<()>,
         &mut cerulean_adapters::api_generation::GatewayObserver<'_>,
-    ) -> O,
+    ) -> Result<ApiReply, ApiFailure>,
     observe: &mut impl FnMut(&str) -> Result<(), String>,
     progress: &mut impl FnMut(&S),
 ) -> Result<(), String> {
@@ -515,12 +509,11 @@ pub(crate) struct LegacyDriver<'a, F> {
     pub(crate) send: &'a mut F,
 }
 impl<
-        O: cerulean_adapters::api_generation::ApiAttemptResult,
         F: AsyncFnMut(
             PreparedRequest,
             &mut oneshot::Receiver<()>,
             &mut cerulean_adapters::api_generation::GatewayObserver<'_>,
-        ) -> O,
+        ) -> Result<ApiReply, ApiFailure>,
     > RoundDriver for LegacyDriver<'_, F>
 {
     fn scoped(&self) -> bool {
@@ -864,6 +857,5 @@ pub fn recover_terminal(store: &mut DurableWorkflow, task: &str, id: &str) -> Re
     let completion = load(&root, "completion.json")?;
     apply_completion(store, &plan, &attempt, &identity, &root, completion)
 }
-
 #[cfg(test)]
 pub(crate) mod tests;

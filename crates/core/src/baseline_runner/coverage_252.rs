@@ -47,7 +47,7 @@ async fn missing_single_workload_accepts_and_reopens() {
     }
     let (_tx, mut rx) = oneshot::channel();
     let mut sends = 0;
-    let end = execute::<Result<cerulean_adapters::api_generation::ApiReply, cerulean_adapters::api_generation::ApiFailure>>(
+    let end = execute(
         data,
         &selected,
         authorization(&spec),
@@ -82,12 +82,7 @@ async fn missing_single_workload_accepts_and_reopens() {
         assert_eq!(inspect(data, &selected).unwrap()["taskState"], "accepted");
         let (_tx, mut cancel) = oneshot::channel();
         assert!(
-            execute::<
-                Result<
-                    cerulean_adapters::api_generation::ApiReply,
-                    cerulean_adapters::api_generation::ApiFailure,
-                >,
-            >(
+            execute(
                 data,
                 &selected,
                 authorization(&spec),

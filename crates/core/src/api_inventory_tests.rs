@@ -1230,6 +1230,3 @@ async fn historical_active_monetary_attempt_cannot_bypass_original_reservation()
     assert_eq!(host.currency_accounts["project"].state(), &money);
     assert_eq!(snapshot(&data), before);
 }
-
-#[path = "rejected_usage_export_tests.rs"]
-mod rejected_usage_export_tests;

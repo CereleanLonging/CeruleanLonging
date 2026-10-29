@@ -73,7 +73,7 @@ fn validate_intent(value: &Value, root: &Path, transaction: &Path, hold: &str) -
             && value["controllerReaderGeneration"]
                 .as_u64()
                 .is_some_and(|generation| {
-                    (3..=u64::from(crate::rejected_usage_guard::GENERATION)).contains(&generation)
+                    (3..=u64::from(crate::relay_guard::GENERATION)).contains(&generation)
                 }));
     if !schema_valid
         || string(value, "ownerSid")? != io(crate::ipc::current_sid())?
@@ -645,7 +645,7 @@ mod tests {
             (1, Some(3)),
             (2, None),
             (2, Some(2)),
-            (2, Some(crate::rejected_usage_guard::GENERATION + 1)),
+            (2, Some(crate::relay_guard::GENERATION + 1)),
             (99, Some(3)),
         ] {
             let mut bad = f.intent.clone();
@@ -703,7 +703,7 @@ mod tests {
         let mut f = Fixture::new();
         f.intent["schema"] = 2.into();
         for value in [
-            serde_json::json!(crate::rejected_usage_guard::GENERATION + 1),
+            serde_json::json!(crate::relay_guard::GENERATION + 1),
             serde_json::json!("5"),
             serde_json::json!(5.5),
         ] {
@@ -727,7 +727,7 @@ mod tests {
         let mut f = Fixture::new();
         f.intent["schema"] = 2.into();
         for value in [
-            serde_json::json!(crate::rejected_usage_guard::GENERATION + 1),
+            serde_json::json!(crate::relay_guard::GENERATION + 1),
             serde_json::json!("6"),
             serde_json::json!(6.5),
         ] {
@@ -751,7 +751,7 @@ mod tests {
         let mut f = Fixture::new();
         f.intent["schema"] = 2.into();
         for value in [
-            serde_json::json!(crate::rejected_usage_guard::GENERATION + 1),
+            serde_json::json!(crate::relay_guard::GENERATION + 1),
             serde_json::json!("7"),
             serde_json::json!(7.5),
         ] {
@@ -775,7 +775,7 @@ mod tests {
         let mut f = Fixture::new();
         f.intent["schema"] = 2.into();
         for value in [
-            serde_json::json!(crate::rejected_usage_guard::GENERATION + 1),
+            serde_json::json!(crate::relay_guard::GENERATION + 1),
             serde_json::json!("8"),
             serde_json::json!(8.5),
         ] {
@@ -799,7 +799,7 @@ mod tests {
         let mut f = Fixture::new();
         f.intent["schema"] = 2.into();
         for value in [
-            serde_json::json!(crate::rejected_usage_guard::GENERATION + 1),
+            serde_json::json!(crate::relay_guard::GENERATION + 1),
             serde_json::json!("9"),
             serde_json::json!(9.5),
         ] {
@@ -823,7 +823,7 @@ mod tests {
         let mut f = Fixture::new();
         f.intent["schema"] = 2.into();
         for value in [
-            serde_json::json!(crate::rejected_usage_guard::GENERATION + 1),
+            serde_json::json!(crate::relay_guard::GENERATION + 1),
             serde_json::json!("10"),
             serde_json::json!(10.5),
         ] {
@@ -856,13 +856,13 @@ mod tests {
     }
     #[test]
     fn reader14_reservation_preserves_contract_and_refuses_future_or_string_generation() {
-        api_reader_reservation(crate::rejected_usage_guard::GENERATION);
+        api_reader_reservation(crate::relay_guard::GENERATION);
     }
     fn api_reader_reservation(generation: u32) {
         let mut f = Fixture::new();
         f.intent["schema"] = 2.into();
         for value in [
-            serde_json::json!(crate::rejected_usage_guard::GENERATION + 1),
+            serde_json::json!(crate::relay_guard::GENERATION + 1),
             serde_json::json!(generation.to_string()),
             serde_json::json!(f64::from(generation) + 0.5),
         ] {

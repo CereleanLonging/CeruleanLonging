@@ -125,15 +125,6 @@ pub(super) fn require_guard(root: &Path) -> Result<(), String> {
 pub(super) fn require_event(root: &Path, event: &Event) -> Result<(), String> {
     if matches!(
         event,
-        Event::Outcome {
-            rejected_usage: Some(_),
-            ..
-        }
-    ) {
-        crate::rejected_usage_guard::require_round(root)?;
-    }
-    if matches!(
-        event,
         Event::ScopedIntent { .. } | Event::ScopedOutcome { .. } | Event::FeeAck { .. }
     ) {
         require_guard(root)?;

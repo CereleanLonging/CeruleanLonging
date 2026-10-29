@@ -124,7 +124,7 @@ fn replace(
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => return Err(format!("projection inspection failed: {e}")),
         }
-        match crate::directory_publication::replace(temp, destination) {
+        match fs::rename(temp, destination) {
             Ok(()) => return Ok(()),
             Err(e)
                 if cfg!(windows) && e.raw_os_error() == Some(32) && Instant::now() < deadline =>
@@ -146,77 +146,6 @@ fn replace(
 mod tests {
     use super::*;
     use std::{fs::OpenOptions, os::windows::fs::OpenOptionsExt};
-
-    #[test]
-    fn directory_publication_retained_pin_still_blocks_and_release_preserves_bytes() {
-        let root = tempfile::tempdir().unwrap();
-        let destination = root.path().join("state.json");
-        let temp = root.path().join("state.tmp");
-        fs::write(&destination, b"old").unwrap();
-        fs::write(&temp, b"next").unwrap();
-        let mut pin = Some(crate::omp_file_tools::pin_directory(root.path()).unwrap());
-        let error = replace(&temp, &destination, Instant::now(), || panic!("expired")).unwrap_err();
-        assert!(error.contains("os error 32"), "{error}");
-        assert_eq!(fs::read(&destination).unwrap(), b"old");
-        assert_eq!(fs::read(&temp).unwrap(), b"next");
-        let mut blocked = 0;
-        replace(
-            &temp,
-            &destination,
-            Instant::now() + Duration::from_secs(1),
-            || {
-                blocked += 1;
-                assert_eq!(fs::read(&destination).unwrap(), b"old");
-                drop(pin.take());
-            },
-        )
-        .unwrap();
-        assert_eq!(blocked, 1);
-        assert_eq!(fs::read(&destination).unwrap(), b"next");
-        assert!(!temp.exists());
-    }
-
-    #[test]
-    fn directory_publication_concurrent_real_pin_and_projection_paths() {
-        let root = tempfile::tempdir().unwrap();
-        let destination = root.path().join("state.json");
-        let temp = root.path().join("state.tmp");
-        fs::write(&destination, b"initial").unwrap();
-        let start = std::sync::Barrier::new(2);
-        std::thread::scope(|scope| {
-            let reader = scope.spawn(|| {
-                start.wait();
-                for _ in 0..20_000 {
-                    drop(crate::omp_file_tools::pin_directory(root.path()).unwrap());
-                }
-            });
-            start.wait();
-            for sequence in 0..128 {
-                fs::write(&temp, sequence.to_string()).unwrap();
-                publish(&temp, &destination).unwrap();
-                assert_eq!(
-                    fs::read_to_string(&destination).unwrap(),
-                    sequence.to_string()
-                );
-            }
-            reader.join().unwrap();
-        });
-        assert_eq!(fs::read(&destination).unwrap(), b"127");
-    }
-
-    #[test]
-    fn directory_publication_foreign_writer_still_refuses_pin() {
-        let root = tempfile::tempdir().unwrap();
-        let external = OpenOptions::new()
-            .access_mode(2) // FILE_ADD_FILE on a directory
-            .share_mode(7)
-            .custom_flags(0x02200000)
-            .open(root.path())
-            .unwrap();
-        assert!(crate::omp_file_tools::pin_directory(root.path()).is_err());
-        drop(external);
-        drop(crate::omp_file_tools::pin_directory(root.path()).unwrap());
-    }
 
     #[test]
     fn real_sharing_conflict_preserves_old_projection_until_release_or_timeout() {

@@ -49,23 +49,11 @@ impl ApiCallJournal {
     }
     /// Root is the existing run/attempt evidence directory, never rounds or a round.
     /// Header publication errors are ignored; synchronous IO may delay HTTP processing.
-    pub(crate) async fn execute_reply_with_gateway<
-        O: cerulean_adapters::api_generation::ApiAttemptResult,
-    >(
+    pub(crate) async fn execute_reply_with_gateway(
         &mut self,
         fingerprint: &RequestFingerprint,
         evidence_base: &Path,
-        send: impl AsyncFnOnce(&mut GatewayObserver<'_>) -> O,
-    ) -> Result<Result<ApiReply, ApiFailure>, String> {
-        self.execute_attempt(fingerprint, Some(evidence_base), send)
-            .await
-    }
-    /// The standalone journal API has no run-root authority for gateway files.
-    pub(super) async fn execute_attempt<O: cerulean_adapters::api_generation::ApiAttemptResult>(
-        &mut self,
-        fingerprint: &RequestFingerprint,
-        evidence_base: Option<&Path>,
-        send: impl AsyncFnOnce(&mut GatewayObserver<'_>) -> O,
+        send: impl AsyncFnOnce(&mut GatewayObserver<'_>) -> Result<ApiReply, ApiFailure>,
     ) -> Result<Result<ApiReply, ApiFailure>, String> {
         require(
             !self.read_only && !self.poisoned && !self.state.intent_recorded,
@@ -75,29 +63,23 @@ impl ApiCallJournal {
             fingerprint == &self.expected.fingerprint,
             "API prepared request differs from bound intent",
         )?;
-        if O::REJECTED_USAGE {
-            crate::rejected_usage_guard::require_round(&self.root)?;
-        }
         self.publish(
             &Event::Intent {
                 identity: self.expected.clone(),
             },
             |_| Ok(()),
         )?;
-        let mut gateway = evidence_base.and_then(|base| {
-            self.gateway_binding()
-                .ok()
-                .flatten()
-                .map(|binding| GatewayAttempt::new(base, binding))
-        });
-        let attempt = send(&mut |headers| {
+        let mut gateway = self
+            .gateway_binding()
+            .ok()
+            .flatten()
+            .map(|binding| GatewayAttempt::new(evidence_base, binding));
+        let result = send(&mut |headers| {
             if let Some(capture) = &mut gateway {
                 capture.headers(headers);
             }
         })
-        .await
-        .into();
-        let result = attempt.result;
+        .await;
         let outcome = match &result {
             Ok(reply) => CallOutcome::Reply {
                 observation: reply.observation().clone(),
@@ -109,13 +91,7 @@ impl ApiCallJournal {
         // No proposal escapes until the original authoritative response is durable.
         // An earlier headers record remains useful if publication fails or this
         // future is dropped, but never permits retries or repairs the journal.
-        self.publish(
-            &Event::Outcome {
-                outcome,
-                rejected_usage: attempt.rejected_usage,
-            },
-            |_| Ok(()),
-        )?;
+        self.publish(&Event::Outcome { outcome }, |_| Ok(()))?;
         if let (Some(capture), Ok(Some(source))) = (gateway, self.gateway_source()) {
             let _ = capture.finish(source);
         }
