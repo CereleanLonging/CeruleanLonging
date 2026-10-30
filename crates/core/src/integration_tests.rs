@@ -39,6 +39,8 @@ mod native_team_lifecycle_261;
 mod omp_parallel;
 #[path = "integration_tests/parallel.rs"]
 mod parallel;
+#[path = "integration_tests/preserved_shutdown.rs"]
+mod preserved_shutdown;
 #[path = "integration_tests/profiles.rs"]
 mod profiles;
 #[path = "integration_tests/scoped_currency.rs"]

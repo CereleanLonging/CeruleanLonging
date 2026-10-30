@@ -15,6 +15,8 @@ const HELP: &str = r#"CeruleanLonging 工作台 CLI
 cerulean-runtime.exe --workbench --data-dir <核心数据目录> <命令> [选项]
 
 service start | service stop            启动/连接同一核心；有未决任务时停止被拒绝
+service review-preserved-stop
+service stop-preserving --review-digest <原审阅摘要>  保存未决记录并关闭；不取消或重发任务
 external-chief prepare --project <项目ID> --setup-digest <配置摘要> --session <当前Codex会话标识>
 external-chief read --operation <原操作ID>
 external-chief submit --operation <原操作ID> --session <原会话标识> --file <完整决策JSON>
@@ -258,6 +260,8 @@ enum Action {
     ScopedExecutionPromote(PathBuf, String, String, String),
     ApiCurrencyPromote(PathBuf, String, String, String),
     ApiFeeResolutionPromote(PathBuf, String, String, String),
+    PreservedShutdownReview,
+    PreservedShutdown(String),
     UpgradeReview,
     UpgradePrepare(String),
     UpgradeStatus,
@@ -946,6 +950,8 @@ fn parse(args: &[String]) -> Result<Invocation, String> {
         }
         ("service", "start") => Action::Start,
         ("service", "stop") => Action::Stop,
+        ("service", "review-preserved-stop") => Action::PreservedShutdownReview,
+        ("service", "stop-preserving") => Action::PreservedShutdown(o.take("--review-digest")?),
         ("credentials", "set") => Action::SetKey(provider(&o.take("--provider")?)?),
         _ => Action::Request(Box::new(match (family, verb) {
             ("status", "") => Command::Snapshot,
@@ -1621,7 +1627,10 @@ async fn execute(i: Invocation) -> u8 {
         chrono::Utc::now().timestamp_micros()
     );
     let start = matches!(i.action, Action::Start);
-    let wait_stop = matches!(i.action, Action::UpgradePrepare(_));
+    let wait_stop = matches!(
+        i.action,
+        Action::UpgradePrepare(_) | Action::PreservedShutdown(_)
+    );
     let operation = match i.action {
         Action::ExternalChief(operation) => UserOperation::ExternalChief {
             id: id.clone(),
@@ -1632,6 +1641,15 @@ async fn execute(i: Invocation) -> u8 {
             id: id.clone(),
             protocol_version: PROTOCOL_VERSION,
             query,
+        },
+        Action::PreservedShutdownReview => UserOperation::ReviewPreservedShutdown {
+            id: id.clone(),
+            protocol_version: PROTOCOL_VERSION,
+        },
+        Action::PreservedShutdown(review_digest) => UserOperation::PreserveShutdown {
+            id: id.clone(),
+            protocol_version: PROTOCOL_VERSION,
+            review_digest,
         },
         Action::UpgradeReview => UserOperation::ReviewUpgrade {
             id: id.clone(),
@@ -1709,6 +1727,8 @@ async fn execute(i: Invocation) -> u8 {
                 | Action::ApiFeeResolutionPromote(_, _, _, _)
                 | Action::DataFormatReview(_, _, _)
                 | Action::DataFormatMigrate(_, _, _, _)
+                | Action::PreservedShutdownReview
+                | Action::PreservedShutdown(_)
                 | Action::UpgradeReview
                 | Action::UpgradePrepare(_)
                 | Action::UpgradeStatus
@@ -1812,7 +1832,7 @@ async fn execute(i: Invocation) -> u8 {
             _ => return error(4, "invalidResponse", "核心未返回快照；未重发"),
         }
     };
-    let value = json!({"ok":true,"requestId":id,"serverPid":server_pid,"stopping":reply.stopping,"result":result,"commandReceipt":reply.command_receipt,"externalChiefResult":external_chief_result,"workspaceResult":workspace_result,"historicalResult":historical_result,"countResolutionResult":count_resolution_result,"upgradeReview":reply.upgrade_review,"upgradeHold":reply.upgrade_hold});
+    let value = json!({"ok":true,"requestId":id,"serverPid":server_pid,"stopping":reply.stopping,"result":result,"commandReceipt":reply.command_receipt,"externalChiefResult":external_chief_result,"workspaceResult":workspace_result,"historicalResult":historical_result,"countResolutionResult":count_resolution_result,"preservationReview":reply.preservation_review,"upgradeReview":reply.upgrade_review,"upgradeHold":reply.upgrade_hold});
     use std::io::Write;
     let mut output = std::io::stdout().lock();
     if serde_json::to_writer(&mut output, &value).is_err()
@@ -1857,6 +1877,23 @@ mod tests {
                 panic!("project registration command expected");
             };
             assert_eq!(project.timezone, expected);
+        }
+    }
+    #[test]
+    fn preserved_shutdown_cli_requires_original_review_digest() {
+        assert!(matches!(
+            invocation("service review-preserved-stop").unwrap().action,
+            Action::PreservedShutdownReview
+        ));
+        assert!(
+            matches!(invocation("service stop-preserving --review-digest original").unwrap().action, Action::PreservedShutdown(d) if d == "original")
+        );
+        for input in [
+            "service stop-preserving",
+            "service stop-preserving --force true",
+            "service review-preserved-stop --approve true",
+        ] {
+            assert!(invocation(input).is_err());
         }
     }
     #[test]

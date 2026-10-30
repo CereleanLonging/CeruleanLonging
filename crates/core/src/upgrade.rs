@@ -100,7 +100,7 @@ pub(crate) fn review(host: &mut ServiceHost) -> Result<(UpgradeReview, Snapshot)
     result.digest = digest(&result)?;
     Ok((result, snapshot))
 }
-fn runtime_hash() -> Result<String, String> {
+pub(crate) fn runtime_hash() -> Result<String, String> {
     static HASH: std::sync::OnceLock<Result<String, String>> = std::sync::OnceLock::new();
     HASH.get_or_init(|| {
         let path = std::env::current_exe().map_err(|e| e.to_string())?;

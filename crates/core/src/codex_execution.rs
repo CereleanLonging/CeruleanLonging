@@ -10,6 +10,19 @@ use cerulean_adapters::codex::{
 use cerulean_domain::{execution::*, workflow::*};
 use std::time::Duration;
 
+fn require_supported_terminal(terminal: &Terminal, thread: &str, turn: &str) -> Result<(), String> {
+    require(
+        terminal.thread_id == thread && terminal.turn_id == turn,
+        "Codex terminal thread or turn differs from the original dispatch; retain unknown",
+    )?;
+    match terminal.status.as_str() {
+        "completed" | "interrupted" => Ok(()),
+        "failed" => Err("Codex reported a failed turn; original attempt and artifacts retained, no automatic retry".into()),
+        // Never quote an untrusted status or provider error body in product logs.
+        _ => Err("Codex terminal status is unsupported; retain original unknown attempt".into()),
+    }
+}
+
 /// Opaque access to a scoped native worker. The resident host retains the journal.
 pub struct WorkerWorkflow<'a> {
     pub(crate) store: &'a mut dyn CodexWorkflowAccess,
@@ -523,12 +536,7 @@ pub(crate) async fn dispatch_inner<C: WorkerChannel, S: CodexWorkflowAccess>(
                 channel.interrupt(&binding.thread_id, &turn).await?
             }
         };
-        require(
-            terminal.thread_id == binding.thread_id
-                && terminal.turn_id == turn
-                && matches!(terminal.status.as_str(), "completed" | "interrupted"),
-            "Codex terminal is not a bound supported outcome",
-        )?;
+        require_supported_terminal(&terminal, &binding.thread_id, &turn)?;
         let anchors = store.started_cancellation_anchors(task, id).ok();
         let proof = channel
             .read_evidence(
@@ -670,4 +678,35 @@ fn record_empty_cancellation(
             ..Default::default()
         },
     )
+}
+
+#[cfg(test)]
+mod terminal_diagnostics_tests {
+    use super::*;
+    #[test]
+    fn preserved_shutdown_terminal_failure_diagnostic_keeps_identity_and_untrusted_text_private() {
+        let mut terminal = Terminal {
+            thread_id: "original-thread".into(),
+            turn_id: "original-turn".into(),
+            status: "failed".into(),
+        };
+        let error =
+            require_supported_terminal(&terminal, "original-thread", "original-turn").unwrap_err();
+        assert!(error.contains("failed turn") && error.contains("no automatic retry"));
+        assert!(
+            require_supported_terminal(&terminal, "other", "original-turn")
+                .unwrap_err()
+                .contains("differs")
+        );
+        terminal.status = "private-provider-body-sentinel".into();
+        let error =
+            require_supported_terminal(&terminal, "original-thread", "original-turn").unwrap_err();
+        assert!(error.contains("unsupported") && !error.contains("sentinel"));
+        for status in ["completed", "interrupted"] {
+            terminal.status = status.into();
+            assert!(
+                require_supported_terminal(&terminal, "original-thread", "original-turn").is_ok()
+            );
+        }
+    }
 }

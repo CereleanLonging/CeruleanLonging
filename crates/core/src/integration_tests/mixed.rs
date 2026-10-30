@@ -71,6 +71,24 @@ fn mixed_host_options_scoped(
     supervision: bool,
     scoped: bool,
 ) -> RuntimeHost {
+    mixed_host_complete(root, runtime, order, parallel, supervision, scoped, false)
+}
+pub(super) fn mixed_host_external(
+    root: &Path,
+    runtime: &Path,
+    order: [ProjectWorkerAdapter; 3],
+) -> RuntimeHost {
+    mixed_host_complete(root, runtime, order, true, false, false, true)
+}
+fn mixed_host_complete(
+    root: &Path,
+    runtime: &Path,
+    order: [ProjectWorkerAdapter; 3],
+    parallel: bool,
+    supervision: bool,
+    scoped: bool,
+    external: bool,
+) -> RuntimeHost {
     if scoped {
         crate::reader_generation::tests::promote_fixture(&root.join("data"));
     }
@@ -96,6 +114,7 @@ fn mixed_host_options_scoped(
         std::env::var_os("CERULEAN_OMP_FIXTURE_EXE").expect("explicit offline OMP fixture"),
     );
     assert_eq!(omp.file_name().unwrap(), "omp_offline_worker_fixture.exe");
+    let mut selected = None;
     let mut host = configured_with(root, "mixed-cli-api", |draft| {
         if supervision {
             assert!(order.iter().all(|a| *a == ProjectWorkerAdapter::Codex));
@@ -172,7 +191,32 @@ fn mixed_host_options_scoped(
                 },
             });
         }
+        if external {
+            selected = Some(draft.clone());
+        }
     });
+    if external {
+        use cerulean_domain::project_setup::{ChiefSource, DeputySource, ManagementSources};
+        drop(host);
+        crate::management_source_guard::tests::promote_fixture(&root.join("data"));
+        // Current API dispatch requires measured/rejected-usage protection.
+        // Opt this NEW fixture in through the ordinary cold-backup promotion;
+        // do not weaken the production guard or change an existing run.
+        crate::rejected_usage_guard::tests::promote_fixture(
+            &root.join("data"),
+            &root.join("reader17-before-dispatch-backup"),
+        );
+        host = RuntimeHost::open(&root.join("data")).unwrap();
+        let mut draft = selected.unwrap();
+        draft.management_sources = Some(ManagementSources {
+            chief: ChiefSource::CodexSession {
+                session_id: "current-session".into(),
+            },
+            deputy: DeputySource::OpenAi {},
+        });
+        draft.chief_model = "external-codex-session".into();
+        host.configure_project(draft).unwrap();
+    }
     host.set_provider_key(
         CredentialProvider::DeepSeek,
         Some(

@@ -267,6 +267,15 @@ pub enum UserOperation {
         protocol_version: u32,
         operation: cerulean_domain::management_ingress::ExternalChiefOperation,
     },
+    ReviewPreservedShutdown {
+        id: String,
+        protocol_version: u32,
+    },
+    PreserveShutdown {
+        id: String,
+        protocol_version: u32,
+        review_digest: String,
+    },
     ReviewUpgrade {
         id: String,
         protocol_version: u32,
@@ -324,11 +333,14 @@ pub struct ServiceReply {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upgrade_review: Option<crate::upgrade::UpgradeReview>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preservation_review: Option<crate::preserve_shutdown::PreservationReview>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upgrade_hold: Option<crate::upgrade::HoldStatus>,
 }
 struct ServiceState {
     host: ServiceHost,
     stopping: bool,
+    preservation_review: Option<crate::preserve_shutdown::PreservationReview>,
 }
 impl ServiceState {
     fn reply(&self, response: Response) -> ServiceReply {
@@ -341,6 +353,7 @@ impl ServiceState {
             response,
             stopping: self.stopping,
             upgrade_review: None,
+            preservation_review: None,
             upgrade_hold: None,
         }
     }
@@ -365,6 +378,8 @@ impl ServiceState {
             | UserOperation::Shutdown { id, .. }
             | UserOperation::RestartDataDiagnostics { id, .. }
             | UserOperation::RestartReviewedStops { id, .. }
+            | UserOperation::ReviewPreservedShutdown { id, .. }
+            | UserOperation::PreserveShutdown { id, .. }
             | UserOperation::ReviewUpgrade { id, .. }
             | UserOperation::PrepareUpgrade { id, .. } => id.clone(),
         };
@@ -513,6 +528,14 @@ impl ServiceState {
                 let response = self.host.handle(request);
                 self.reply(response)
             }
+            UserOperation::ReviewPreservedShutdown {
+                protocol_version, ..
+            } => self.preserve_shutdown(id, protocol_version, None),
+            UserOperation::PreserveShutdown {
+                protocol_version,
+                review_digest,
+                ..
+            } => self.preserve_shutdown(id, protocol_version, Some(review_digest)),
             UserOperation::ReviewUpgrade {
                 protocol_version, ..
             } => self.upgrade(id, protocol_version, None),
@@ -559,6 +582,61 @@ impl ServiceState {
             }
         }
     }
+    fn preserve_shutdown(
+        &mut self,
+        id: String,
+        protocol: u32,
+        expected: Option<String>,
+    ) -> ServiceReply {
+        if protocol != PROTOCOL_VERSION {
+            return self.error(id, "protocolMismatch", "核心协议版本不匹配");
+        }
+        let reviewed_at = if let Some(expected) = &expected {
+            let Some(prior) = self.preservation_review.take() else {
+                return self.error(
+                    id,
+                    "preservationReviewRequired",
+                    "请先在当前核心审阅未决记录",
+                );
+            };
+            if &prior.digest != expected {
+                return self.error(
+                    id,
+                    "preservationReviewChanged",
+                    "审阅已失效，请重新核对原记录",
+                );
+            }
+            prior.reviewed_at
+        } else {
+            self.preservation_review = None;
+            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true)
+        };
+        let review = match crate::preserve_shutdown::review(&self.host, reviewed_at) {
+            Ok(review) => review,
+            Err(message) => return self.error(id, "preservedShutdownRejected", &message),
+        };
+        if let Some(expected) = expected {
+            if review.digest != expected {
+                return self.error(
+                    id,
+                    "preservationReviewChanged",
+                    "记录或活动已变化，请重新审阅",
+                );
+            }
+            // Same serialized service lock as all mutations and scheduler ticks.
+            // No journal write, model send, acceptance or outcome conversion.
+            self.stopping = true;
+        } else {
+            self.preservation_review = Some(review.clone());
+        }
+        let mut reply = self.reply(Response {
+            id,
+            result: None,
+            error: None,
+        });
+        reply.preservation_review = Some(review);
+        reply
+    }
     fn upgrade(&mut self, id: String, protocol: u32, expected: Option<String>) -> ServiceReply {
         if protocol != PROTOCOL_VERSION {
             return self.error(id, "protocolMismatch", "核心协议版本不匹配");
@@ -597,6 +675,7 @@ impl ServiceState {
             },
             stopping: self.stopping,
             upgrade_review: Some(review),
+            preservation_review: None,
             upgrade_hold: hold,
         }
     }
@@ -673,6 +752,7 @@ fn bounded_reply_bytes(reply: &ServiceReply) -> Result<Vec<u8>, String> {
         },
         stopping: reply.stopping,
         upgrade_review: None,
+            preservation_review: None,
         upgrade_hold: None,
     }).map_err(|e| e.to_string())
 }
@@ -691,6 +771,7 @@ async fn serve_mode(directory: &Path, host: ServiceHost) -> Result<(), String> {
     let store = Arc::new(Mutex::new(ServiceState {
         host,
         stopping: false,
+        preservation_review: None,
     }));
     let name = endpoint(directory).map_err(|e| e.to_string())?;
     let sid = current_sid().map_err(|e| e.to_string())?;
@@ -938,6 +1019,11 @@ impl Client {
     pub async fn call(mut self, operation: UserOperation) -> Result<ServiceReply, String> {
         let expect_receipt = matches!(&operation, UserOperation::Command { .. });
         let expect_external = matches!(&operation, UserOperation::ExternalChief { .. });
+        let expect_preservation = matches!(
+            &operation,
+            UserOperation::ReviewPreservedShutdown { .. } | UserOperation::PreserveShutdown { .. }
+        );
+        let preserving_stop = matches!(&operation, UserOperation::PreserveShutdown { .. });
         let id = match &operation {
             UserOperation::Request { request }
             | UserOperation::Command { request }
@@ -947,6 +1033,8 @@ impl Client {
             | UserOperation::Workspace { id, .. }
             | UserOperation::Shutdown { id, .. }
             | UserOperation::RestartReviewedStops { id, .. }
+            | UserOperation::ReviewPreservedShutdown { id, .. }
+            | UserOperation::PreserveShutdown { id, .. }
             | UserOperation::ReviewUpgrade { id, .. }
             | UserOperation::PrepareUpgrade { id, .. }
             | UserOperation::RestartDataDiagnostics { id, .. } => id.clone(),
@@ -966,7 +1054,8 @@ impl Client {
                     || reply.response.result.is_some()
                     || reply.workspace.is_some()
                     || reply.historical.is_some()
-                    || reply.count_resolution.is_some())
+                    || reply.count_resolution.is_some()
+                    || reply.preservation_review.is_some())
             {
                 return Err("command receipt missing or inconsistent; not resent".into());
             }
@@ -979,9 +1068,31 @@ impl Client {
                             || reply.historical.is_some()
                             || reply.count_resolution.is_some()
                             || reply.upgrade_review.is_some()
-                            || reply.upgrade_hold.is_some())))
+                            || reply.upgrade_hold.is_some()
+                            || reply.preservation_review.is_some())))
             {
                 return Err("external chief response missing or inconsistent; not resent".into());
+            }
+            if reply.response.error.is_none()
+                && (expect_preservation != reply.preservation_review.is_some()
+                    || (expect_preservation
+                        && (reply.stopping != preserving_stop
+                            || reply
+                                .preservation_review
+                                .as_ref()
+                                .is_none_or(|r| r.server_pid != self.server_pid)
+                            || reply.response.result.is_some()
+                            || reply.command_receipt.is_some()
+                            || reply.workspace.is_some()
+                            || reply.historical.is_some()
+                            || reply.count_resolution.is_some()
+                            || reply.external_chief.is_some()
+                            || reply.upgrade_review.is_some()
+                            || reply.upgrade_hold.is_some())))
+            {
+                return Err(
+                    "preserved shutdown response missing or inconsistent; not resent".into(),
+                );
             }
             Ok(reply)
         })
@@ -1455,6 +1566,7 @@ mod tests {
                 count_resolution: None,
                 stopping: false,
                 upgrade_review: None,
+                preservation_review: None,
                 upgrade_hold: None,
             };
             let bytes = serde_json::to_vec(&reply).unwrap();
@@ -1535,10 +1647,220 @@ mod tests {
         assert!(*stopped.borrow());
         assert!(state.stopping);
     }
+    #[test]
+    fn preserved_shutdown_ipc_requires_fresh_review_and_fences_all_requests() {
+        let root = tempfile::tempdir().unwrap();
+        let host = crate::host::preserve_shutdown_host::tests::fixture(root.path());
+        let mut state = ServiceState {
+            host: ServiceHost::Ready(Box::new(host)),
+            stopping: false,
+            preservation_review: None,
+        };
+        let review = |id: &str| UserOperation::ReviewPreservedShutdown {
+            id: id.into(),
+            protocol_version: PROTOCOL_VERSION,
+        };
+        let stop = |digest: String| UserOperation::PreserveShutdown {
+            id: "preserve-stop".into(),
+            protocol_version: PROTOCOL_VERSION,
+            review_digest: digest,
+        };
+        assert_eq!(
+            state
+                .apply(stop("a".repeat(64)))
+                .response
+                .error
+                .unwrap()
+                .code,
+            "preservationReviewRequired"
+        );
+        let original = state.apply(review("original")).preservation_review.unwrap();
+        assert_eq!(original.unknown_tasks, 1);
+        // A changed authoritative base ledger makes the review stale.
+        let changed = state.apply(UserOperation::Request {
+            request: Request {
+                id: "change".into(),
+                protocol_version: PROTOCOL_VERSION,
+                command: Command::CreatePlan {
+                    title: "local metadata changed".into(),
+                    tasks: vec!["no execution".into()],
+                },
+            },
+        });
+        assert!(changed.response.error.is_none());
+        assert_eq!(
+            state
+                .apply(stop(original.digest))
+                .response
+                .error
+                .unwrap()
+                .code,
+            "preservationReviewChanged"
+        );
+        assert!(!state.stopping);
+        let fresh = state.apply(review("fresh")).preservation_review.unwrap();
+        let before = serde_json::to_value(state.host.snapshot()).unwrap();
+        // Read-only review cannot grant ordinary stop or upgrade authorization.
+        assert!(!state.host.can_shutdown());
+        assert!(!crate::upgrade::review(&mut state.host).unwrap().0.ready);
+        let stopped = state.apply(stop(fresh.digest));
+        assert!(stopped.response.error.is_none() && stopped.stopping);
+        assert_eq!(serde_json::to_value(state.host.snapshot()).unwrap(), before);
+        assert_eq!(
+            state
+                .apply(review("after-stop"))
+                .response
+                .error
+                .unwrap()
+                .code,
+            "coreStopping"
+        );
+        drop(state);
+        let mut reopened = ServiceState {
+            host: ServiceHost::open(&root.path().join("data")).unwrap(),
+            stopping: false,
+            preservation_review: None,
+        };
+        assert_eq!(
+            reopened
+                .apply(stop(stopped.preservation_review.unwrap().digest))
+                .response
+                .error
+                .unwrap()
+                .code,
+            "preservationReviewRequired"
+        );
+    }
+    #[tokio::test]
+    #[ignore = "owned synthetic service child; requires its parent-provided directory"]
+    async fn preserved_shutdown_owned_service() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("CERULEAN_PRESERVE_NATIVE_ROOT").expect("owned fixture directory"),
+        );
+        let data = root.join("data");
+        // The parent creates the fixture before connecting. Directory existence
+        // is not a readiness marker: Client::connect also creates this directory.
+        let host = crate::host::RuntimeHost::open(&data).unwrap();
+        crate::derived_index::wait_for_test_projections(&data);
+        // A failed test cannot leave a resident fixture indefinitely. Timeout is
+        // a test failure, never a claimed normal product shutdown.
+        tokio::time::timeout(Duration::from_secs(45), serve_host(&data, host))
+            .await
+            .expect("owned fixture did not receive reviewed shutdown")
+            .unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "real named pipe, child handles and repeated cold recovery; zero model calls"]
+    async fn preserved_shutdown_native_process_exit_and_cold_reopen() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("CERULEAN_PRESERVE_NATIVE_ROOT")
+                .expect("new retained evidence directory"),
+        );
+        assert!(!root.exists());
+        std::fs::create_dir(&root).unwrap();
+        drop(crate::host::preserve_shutdown_host::tests::fixture(&root));
+        let executable = std::env::current_exe().unwrap();
+        let mut original_data = None;
+        for round in 0..2 {
+            let mut command = std::process::Command::new(&executable);
+            command
+                .args([
+                    "--exact",
+                    "ipc::tests::preserved_shutdown_owned_service",
+                    "--ignored",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env("CERULEAN_PRESERVE_NATIVE_ROOT", &root)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped());
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+            let child = command.spawn().unwrap();
+            let pid = child.id();
+            let data = root.join("data");
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+            let connection = loop {
+                match Client::connect(&data).await {
+                    Ok(c) => break c,
+                    Err(_) => {
+                        assert!(
+                            tokio::time::Instant::now() < deadline,
+                            "fixture startup not observed"
+                        );
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                }
+            };
+            assert_eq!(connection.server_pid, pid);
+            let rejected = connection
+                .call(UserOperation::Shutdown {
+                    id: "ordinary-stop".into(),
+                    protocol_version: PROTOCOL_VERSION,
+                })
+                .await
+                .unwrap();
+            assert_eq!(
+                rejected.response.error.as_ref().map(|e| e.code.as_str()),
+                Some("unresolvedTasks")
+            );
+            assert!(!rejected.stopping);
+            let reviewed = Client::connect(&data)
+                .await
+                .unwrap()
+                .call(UserOperation::ReviewPreservedShutdown {
+                    id: "review-original".into(),
+                    protocol_version: PROTOCOL_VERSION,
+                })
+                .await
+                .unwrap();
+            assert!(
+                reviewed.response.error.is_none(),
+                "{:?}",
+                reviewed.response.error
+            );
+            let proof = reviewed.preservation_review.unwrap();
+            assert_eq!(proof.unknown_tasks, 1);
+            let stopped = Client::connect(&data)
+                .await
+                .unwrap()
+                .call_and_wait_stop(UserOperation::PreserveShutdown {
+                    id: "stop-original".into(),
+                    protocol_version: PROTOCOL_VERSION,
+                    review_digest: proof.digest,
+                })
+                .await
+                .unwrap();
+            assert!(stopped.stopping && stopped.response.error.is_none());
+            let output = child.wait_with_output().unwrap();
+            std::fs::write(root.join(format!("child-{round}.stdout")), &output.stdout).unwrap();
+            std::fs::write(root.join(format!("child-{round}.stderr")), &output.stderr).unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+            let cold = crate::reader_generation::tests::snapshot(&data);
+            if let Some(before) = &original_data {
+                assert_eq!(before, &cold);
+            } else {
+                original_data = Some(cold);
+            }
+            assert_eq!(
+                std::fs::read_to_string(root.join("project/sum.mjs")).unwrap(),
+                "export const partial = 1;\n"
+            );
+            println!("preserved native round={round}: original PID observed, normal exit0, pipes EOF, original Unknown and files retained, no redispatch");
+        }
+    }
     fn upgrade_state(root: &Path) -> ServiceState {
         ServiceState {
             host: ServiceHost::open(root).unwrap(),
             stopping: false,
+            preservation_review: None,
         }
     }
     #[test]

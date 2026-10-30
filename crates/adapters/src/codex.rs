@@ -971,8 +971,13 @@ mod tests {
         let stdin = child.stdin.take().unwrap();
         let mut reader = BufReader::new(child.stdout.take().unwrap());
         let mut ready = String::new();
-        timeout_at(Instant::now() + Duration::from_secs(10), reader.read_line(&mut ready))
-            .await.unwrap().unwrap();
+        timeout_at(
+            Instant::now() + Duration::from_secs(10),
+            reader.read_line(&mut ready),
+        )
+        .await
+        .unwrap()
+        .unwrap();
         assert_eq!(ready.trim(), "READY");
         CodexClient {
             child,
@@ -992,7 +997,10 @@ mod tests {
     #[cfg(windows)]
     #[tokio::test]
     async fn close_reports_original_nonzero_eof_exit() {
-        assert_eq!(eof_client(7).await.close().await.unwrap_err(), "Codex process exited unsuccessfully");
+        assert_eq!(
+            eof_client(7).await.close().await.unwrap_err(),
+            "Codex process exited unsuccessfully"
+        );
     }
 
     fn terminal_frame(status: &str) -> Vec<u8> {

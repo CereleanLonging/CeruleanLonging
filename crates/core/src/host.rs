@@ -166,6 +166,9 @@ mod omp_tool_checkpoint_host;
 #[cfg(all(test, windows))]
 #[path = "planning_budget_tests.rs"]
 mod planning_budget_tests;
+#[cfg(windows)]
+#[path = "preserve_shutdown_host.rs"]
+pub(crate) mod preserve_shutdown_host;
 #[cfg(all(test, windows))]
 #[path = "project_dag_tests.rs"]
 mod project_dag_tests;

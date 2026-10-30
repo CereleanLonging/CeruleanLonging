@@ -232,6 +232,8 @@ fn main() {
                     }
                     fs::write(bin.join(format!("gated-{task}")), thread).unwrap();
                     let release = bin.join(format!("release-{task}"));
+                    let fail = bin.join(format!("fail-{task}")).exists();
+                    let terminal_record = bin.join(format!("{thread}.json"));
                     let cancelled = cancelled.clone();
                     let thread = thread.clone();
                     std::thread::spawn(move || {
@@ -246,9 +248,18 @@ fn main() {
                             std::thread::sleep(std::time::Duration::from_millis(5));
                         }
                         if !cancelled.load(std::sync::atomic::Ordering::Acquire) {
+                            let status = if fail { "failed" } else { "completed" };
+                            if fail {
+                                let mut saved: Value =
+                                    serde_json::from_slice(&fs::read(&terminal_record).unwrap())
+                                        .unwrap();
+                                saved["status"] = json!(status);
+                                fs::write(&terminal_record, serde_json::to_vec(&saved).unwrap())
+                                    .unwrap();
+                            }
                             send(
                                 &mut io::stdout(),
-                                json!({"method":"turn/completed","params":{"threadId":thread,"turn":{"id":turn,"status":"completed"}}}),
+                                json!({"method":"turn/completed","params":{"threadId":thread,"turn":{"id":turn,"status":status}}}),
                             );
                         }
                     });

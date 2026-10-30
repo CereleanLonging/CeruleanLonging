@@ -102,6 +102,8 @@ pub mod omp_tool_journal;
 mod omp_workflow_access;
 #[cfg(windows)]
 pub mod portable_evidence;
+#[cfg(windows)]
+pub mod preserve_shutdown;
 mod project_setup;
 pub mod reader_generation;
 pub mod rejected_usage_guard;
