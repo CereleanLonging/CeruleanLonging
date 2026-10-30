@@ -45,7 +45,7 @@ test("resident survives disconnects, shares client state, rejects duplicate serv
     assert.equal(create.pid,approved.pid);
     const duplicate=start(dir);const [exitCode]=await once(duplicate.child,"exit");assert.notEqual(exitCode,0);assert.match(duplicate.errors(),/active|lock|writer|另一个/i);
     const cli=spawn(binary,["--request","--data-dir",dir],{windowsHide:true,stdio:["pipe","pipe","pipe"]});
-    let output="";cli.stdout.on("data",b=>output+=b);const cliExit=once(cli,"exit");cli.stdin.end(JSON.stringify({id:"cli",protocolVersion:1,command:{type:"snapshot"}}));assert.equal((await cliExit)[0],0);
+    let output="",cliError="";cli.stdout.on("data",b=>output+=b);cli.stderr.on("data",b=>cliError+=b);const cliExit=once(cli,"close");cli.stdin.end(JSON.stringify({id:"cli",protocolVersion:1,command:{type:"snapshot"}}));assert.equal((await cliExit)[0],0,cliError);
     assert.equal(JSON.parse(output).response.result.plans[0].approved,true);
     await stop(server,name);assert.equal(server.child.exitCode,0);
     server=start(dir);const reopened=await ready(server,name);assert.notEqual(reopened.greeting.serverPid,create.pid);reopened.socket.destroy();
@@ -69,6 +69,34 @@ test("malformed, oversized, stale protocol and role injection requests cannot mu
     const snapshot=await request(name,"parallel",{type:"snapshot"});assert.equal(snapshot.reply.response.result.events.length,0);slow.socket.destroy();
     await writeFile(join(dir,"review.json"),JSON.stringify({status:"passed",staleProtocolRejected:true,oversizeRejected:true,roleInjectionRejected:true,slowClientIsolated:true,events:0,modelCalls:0},null,2));
   } finally {slow?.socket.destroy();await stop(server,name);}
+});
+
+test("legacy clients reject malformed and oversized requests and stop the original service",{timeout:30000},async()=>{
+  const dir=await root(),name=endpoint(dir),server=start(dir);
+  async function cli(mode,input="") {
+    const child=spawn(binary,[mode,"--data-dir",dir],{windowsHide:true,stdio:["pipe","pipe","pipe"]});
+    let output="",errors="";
+    child.stdout.on("data",b=>output+=b);
+    child.stderr.on("data",b=>errors+=b);
+    const closed=once(child,"close");child.stdin.end(input);
+    return {code:(await closed)[0],output,errors};
+  }
+  try {
+    const first=await ready(server,name);first.socket.destroy();
+    for(const input of ["{", "x".repeat(65537)]) {
+      const result=await cli("--request",input);
+      assert.equal(result.code,1,result.errors);
+      assert.equal(result.output,"");
+    }
+    const rejected=await cli("--request",JSON.stringify({id:"stale-cli",protocolVersion:999,command:{type:"snapshot"}}));
+    assert.equal(rejected.code,1,rejected.errors);
+    assert.ok(JSON.parse(rejected.output).response.error);
+    const state=await request(name,"unchanged",{type:"snapshot"});
+    assert.equal(state.pid,server.child.pid);assert.equal(state.reply.response.result.events.length,0);
+    const stopped=once(server.child,"exit"),result=await cli("--stop");
+    assert.equal(result.code,0,result.errors);assert.equal(JSON.parse(result.output).stopping,true);
+    assert.equal((await stopped)[0],0,server.errors());
+  } finally {await stop(server,name);}
 });
 
 test("damaged startup serves locked read-only diagnostics and explicit recheck preserves evidence",{timeout:30000},async()=>{

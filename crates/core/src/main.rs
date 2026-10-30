@@ -81,45 +81,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", cerulean_core::ipc::endpoint(&directory)?);
             return Ok(());
         }
+        if args[0] != "--serve" {
+            // Match the workbench CLI's bounded, joined client stack. Full
+            // snapshot decoding exceeds Windows' 1 MiB main stack in debug
+            // builds, including through this legacy request entry point.
+            let stop = args[0] == "--stop";
+            let client = std::thread::Builder::new()
+                .name("resident-cli".into())
+                .stack_size(8 * 1024 * 1024)
+                .spawn(move || resident_client(directory, stop))?;
+            client
+                .join()
+                .map_err(|_| {
+                    io::Error::other(
+                        "resident CLI thread failed; result unknown, request not resent",
+                    )
+                })?
+                .map_err(io::Error::other)?;
+            return Ok(());
+        }
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
             .build()?;
         runtime
-            .block_on(async {
-                use cerulean_core::ipc::{Client, UserOperation};
-                if args[0] == "--serve" {
-                    return cerulean_core::ipc::serve(&directory).await;
-                }
-                let operation = if args[0] == "--stop" {
-                    UserOperation::Shutdown {
-                        id: "stop".into(),
-                        protocol_version: cerulean_domain::PROTOCOL_VERSION,
-                    }
-                } else {
-                    let mut bytes = Vec::new();
-                    std::io::stdin()
-                        .lock()
-                        .take(65537)
-                        .read_to_end(&mut bytes)
-                        .map_err(|e| e.to_string())?;
-                    if bytes.len() > 65536 {
-                        return Err("request too large".into());
-                    }
-                    UserOperation::Request {
-                        request: serde_json::from_slice(&bytes).map_err(|e| e.to_string())?,
-                    }
-                };
-                let reply = Client::connect(&directory).await?.call(operation).await?;
-                println!(
-                    "{}",
-                    serde_json::to_string(&reply).map_err(|e| e.to_string())?
-                );
-                if reply.response.error.is_some() {
-                    return Err("service rejected request".into());
-                }
-                Ok(())
-            })
+            .block_on(cerulean_core::ipc::serve(&directory))
             .map_err(io::Error::other)?;
         return Ok(());
     }
@@ -157,4 +143,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         output.flush()?;
     }
     Ok(())
+}
+
+#[cfg(windows)]
+fn resident_client(directory: PathBuf, stop: bool) -> Result<(), String> {
+    use cerulean_core::ipc::{Client, UserOperation};
+    let operation = if stop {
+        UserOperation::Shutdown {
+            id: "stop".into(),
+            protocol_version: cerulean_domain::PROTOCOL_VERSION,
+        }
+    } else {
+        let mut bytes = Vec::new();
+        std::io::stdin()
+            .lock()
+            .take(65537)
+            .read_to_end(&mut bytes)
+            .map_err(|e| e.to_string())?;
+        if bytes.len() > 65536 {
+            return Err("request too large".into());
+        }
+        UserOperation::Request {
+            request: serde_json::from_slice(&bytes).map_err(|e| e.to_string())?,
+        }
+    };
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
+    runtime.block_on(Box::pin(async {
+        let reply = Client::connect(&directory).await?.call(operation).await?;
+        println!(
+            "{}",
+            serde_json::to_string(&reply).map_err(|e| e.to_string())?
+        );
+        if reply.response.error.is_some() {
+            return Err("service rejected request".into());
+        }
+        Ok(())
+    }))
 }
