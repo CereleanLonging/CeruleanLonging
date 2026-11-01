@@ -751,17 +751,58 @@ fn seed_native_verification_details() {
 }
 #[cfg(windows)]
 fn complete_detail_verification(host: &mut RuntimeHost) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(12);
+    let snapshot = host.snapshot();
+    let execution_seconds = snapshot.workflows[0]
+        .revision
+        .as_ref()
+        .expect("detail fixture has an approved revision")
+        .policy
+        .max_seconds;
+    // Observe the full approved fixture budget, plus bounded local publication
+    // overhead. The former12-second wait was shorter than an allowed30-second
+    // check. This changes no verifier stage or product execution deadline.
+    let wait = std::time::Duration::from_secs(u64::from(execution_seconds) + 30);
+    let deadline = std::time::Instant::now() + wait;
     loop {
         host.poll_verifications();
+        let snapshot = host.snapshot();
+        let job = &snapshot.verification_jobs[0];
         if !matches!(
-            host.snapshot().verification_jobs[0].state,
+            job.state,
             VerificationState::Running | VerificationState::Cancelling
         ) {
             break;
         }
-        assert!(std::time::Instant::now() < deadline);
+        assert!(
+            std::time::Instant::now() < deadline,
+            "verification did not settle within {wait:?}; latest job: {job:?}"
+        );
         std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+#[cfg(windows)]
+#[test]
+fn detail_completion_wait_allows_a_valid_checker_beyond_twelve_seconds() {
+    let (root, mut host, _, pins) = async_fixture("detail-delayed-success");
+    let started = std::time::Instant::now();
+    host.start_verification("project", "stage-check", "task", "attempt", pins)
+        .unwrap();
+    complete_detail_verification(&mut host);
+    assert!(started.elapsed() >= std::time::Duration::from_secs(14));
+    let snapshot = host.snapshot();
+    assert_eq!(
+        snapshot.verification_jobs[0].state,
+        VerificationState::Succeeded
+    );
+    assert!(snapshot.workflows[0].state.tasks["task"].verified);
+    let evidence = root
+        .path()
+        .join("data/workflows/project/verification/stage-check");
+    for stage in ["check", "second"] {
+        assert_eq!(
+            fs::read_to_string(evidence.join(format!("{stage}-temp/validator-count"))).unwrap(),
+            "one"
+        );
     }
 }
 #[cfg(windows)]
@@ -3066,6 +3107,11 @@ fn real_validator_fixture() {
         || (mode == "detail-slow-second" && !first)
     {
         std::thread::sleep(std::time::Duration::from_secs(30));
+    }
+    if mode == "detail-delayed-success" && !first {
+        // Valid work within the second check's existing 30-second limit.
+        // The helper must not fail early at its historical 12-second wait.
+        std::thread::sleep(std::time::Duration::from_secs(14));
     }
     fs::write(temp.join("validator-count"), "one").unwrap();
     println!("independent fixture validation passed");
