@@ -315,6 +315,34 @@ pub enum UserOperation {
         protocol_version: u32,
     },
 }
+fn response_deadline(operation: &UserOperation) -> Duration {
+    // Local evidence preparation can rehash several large pinned tools twice.
+    // This never extends a provider request, handshake, or ordinary query.
+    match operation {
+        UserOperation::Workspace {
+            query:
+                cerulean_domain::workspace::WorkspaceQuery::VerificationRecheckReview { .. }
+                | cerulean_domain::workspace::WorkspaceQuery::VerificationRecheckDispositionReview {
+                    ..
+                },
+            ..
+        } => Duration::from_secs(60),
+        UserOperation::Request { request } | UserOperation::Command { request }
+            if matches!(
+                request.command,
+                Command::ReviewVerificationRecheckDisposition { .. }
+                    | Command::RetireVerificationRecheck { .. }
+                    | Command::ReviewVerificationRecheck { .. }
+                    | Command::ApproveVerificationRecheck { .. }
+                    | Command::StartVerificationRecheck { .. }
+                    | Command::RecoverVerificationRecheck { .. }
+            ) =>
+        {
+            Duration::from_secs(60)
+        }
+        _ => DEADLINE,
+    }
+}
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ServiceReply {
@@ -698,23 +726,30 @@ async fn handle(
     if process_sid(client_pid).map_err(|e| e.to_string())? != sid {
         return Err("client user mismatch".into());
     }
-    write_frame(
-        &mut pipe,
-        &Greeting {
-            product: PRODUCT_NAME.into(),
-            protocol_version: PROTOCOL_VERSION,
-            server_pid: std::process::id(),
-            owner_sid: sid.into(),
-        },
-        REQUEST_LIMIT,
-    )
-    .await?;
-    let operation: UserOperation = read_frame(&mut pipe, REQUEST_LIMIT).await?;
-    let reply = store.lock().await.apply(operation);
-    // Commit the stop barrier before awaiting delivery: a lost ACK cannot leave
-    // an upgrade-prepared process accepting requests indefinitely.
-    send_reply(&mut pipe, &reply, &stop).await?;
-    Ok(())
+    let operation: UserOperation = timeout(DEADLINE, async {
+        write_frame(
+            &mut pipe,
+            &Greeting {
+                product: PRODUCT_NAME.into(),
+                protocol_version: PROTOCOL_VERSION,
+                server_pid: std::process::id(),
+                owner_sid: sid.into(),
+            },
+            REQUEST_LIMIT,
+        )
+        .await?;
+        read_frame(&mut pipe, REQUEST_LIMIT).await
+    })
+    .await
+    .map_err(|_| "service input timed out")??;
+    timeout(response_deadline(&operation), async {
+        let reply = store.lock().await.apply(operation);
+        // Commit the stop barrier before awaiting delivery: a lost ACK cannot
+        // leave an upgrade-prepared process accepting requests indefinitely.
+        send_reply(&mut pipe, &reply, &stop).await
+    })
+    .await
+    .map_err(|_| "service response timed out")?
 }
 async fn send_reply<W: AsyncWrite + Unpin>(
     writer: &mut W,
@@ -792,7 +827,7 @@ async fn serve_mode(directory: &Path, host: ServiceHost) -> Result<(), String> {
                 let owner=sid.clone();let store=store.clone();let stop=stop_tx.clone();
                 clients.spawn(async move {
                     let _permit=permit;
-                    let _ = timeout(DEADLINE,handle(pipe,&owner,store,stop)).await;
+                    let _ = handle(pipe,&owner,store,stop).await;
                 });
             }
             Some(_) = clients.join_next(), if !clients.is_empty() => {}
@@ -1017,6 +1052,7 @@ impl Client {
         Ok(Self { pipe, server_pid })
     }
     pub async fn call(mut self, operation: UserOperation) -> Result<ServiceReply, String> {
+        let deadline = response_deadline(&operation);
         let expect_receipt = matches!(&operation, UserOperation::Command { .. });
         let expect_external = matches!(&operation, UserOperation::ExternalChief { .. });
         let expect_preservation = matches!(
@@ -1039,7 +1075,7 @@ impl Client {
             | UserOperation::PrepareUpgrade { id, .. }
             | UserOperation::RestartDataDiagnostics { id, .. } => id.clone(),
         };
-        timeout(DEADLINE, async {
+        timeout(deadline, async {
             write_frame(&mut self.pipe, &operation, REQUEST_LIMIT).await?;
             let reply: ServiceReply = read_frame(&mut self.pipe, RESPONSE_LIMIT).await?;
             if reply.response.id != id {
@@ -1131,6 +1167,71 @@ mod external_chief_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_recheck_review_workspace_query_extends_response_deadline() {
+        use cerulean_domain::workspace::WorkspaceQuery;
+        let op = |query| UserOperation::Workspace {
+            id: "deadline".into(),
+            protocol_version: PROTOCOL_VERSION,
+            query,
+        };
+        assert_eq!(
+            response_deadline(&op(WorkspaceQuery::VerificationRecheckReview {
+                input: Box::new(cerulean_domain::verification_recheck::RecheckRequest {
+                    project_id: "p".into(),
+                    original_operation_id: "original".into(),
+                    replacement_checks: vec![],
+                    reason: "selector only".into(),
+                }),
+            })),
+            Duration::from_secs(60)
+        );
+        assert_eq!(
+            response_deadline(&op(WorkspaceQuery::VerificationRecheckDispositionReview {
+                project_id: "p".into(),
+                operation_id: "old".into(),
+                reason: "retire".into(),
+            })),
+            Duration::from_secs(60)
+        );
+        let request = UserOperation::Request {
+            request: Request {
+                id: "review".into(),
+                protocol_version: PROTOCOL_VERSION,
+                command: Command::ReviewVerificationRecheckDisposition {
+                    project_id: "p".into(),
+                    operation_id: "old".into(),
+                    reason: "retire".into(),
+                },
+            },
+        };
+        assert_eq!(response_deadline(&request), Duration::from_secs(60));
+        for query in [
+            WorkspaceQuery::Overview,
+            WorkspaceQuery::CurrentVerificationRecheck {
+                project_id: "p".into(),
+            },
+            WorkspaceQuery::VerificationRecheckInputs {
+                project_id: "p".into(),
+                original_operation_id: "original".into(),
+            },
+            WorkspaceQuery::RegisteredValidator {
+                id: "tool".into(),
+                digest: "a".repeat(64),
+            },
+            WorkspaceQuery::VerificationRechecks {
+                project_id: "p".into(),
+                offset: 0,
+                revision: None,
+            },
+            WorkspaceQuery::VerificationRecheck {
+                project_id: "p".into(),
+                operation_id: "original".into(),
+            },
+        ] {
+            assert_eq!(response_deadline(&op(query)), Duration::from_secs(15));
+        }
+    }
     #[test]
     fn connection_failure_preserves_absent_busy_and_identity_facts() {
         for code in [2, 231, 5] {
@@ -1310,6 +1411,39 @@ mod tests {
         assert_eq!(view.mode, WorkspaceMode::Diagnostic);
         assert_eq!(view.project_count, None);
         for query in [
+            WorkspaceQuery::CurrentVerificationRecheck {
+                project_id: "project".into(),
+            },
+            WorkspaceQuery::VerificationRecheckInputs {
+                project_id: "project".into(),
+                original_operation_id: "original".into(),
+            },
+            WorkspaceQuery::RegisteredValidator {
+                id: "tool".into(),
+                digest: "a".repeat(64),
+            },
+            WorkspaceQuery::VerificationRechecks {
+                project_id: "project".into(),
+                offset: 0,
+                revision: None,
+            },
+            WorkspaceQuery::VerificationRecheck {
+                project_id: "project".into(),
+                operation_id: "original".into(),
+            },
+            WorkspaceQuery::VerificationRecheckReview {
+                input: Box::new(cerulean_domain::verification_recheck::RecheckRequest {
+                    project_id: "project".into(),
+                    original_operation_id: "original".into(),
+                    replacement_checks: vec![],
+                    reason: "diagnostic guard".into(),
+                }),
+            },
+            WorkspaceQuery::VerificationRecheckDispositionReview {
+                project_id: "project".into(),
+                operation_id: "original".into(),
+                reason: "retain".into(),
+            },
             WorkspaceQuery::Recovery {
                 project_id: "project".into(),
                 offset: 0,

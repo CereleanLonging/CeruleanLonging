@@ -11,6 +11,10 @@ impl RuntimeHost {
     #[cfg(windows)]
     fn prepare_verification_recovery(&self, job: &VerificationJob) -> Result<Prepared, String> {
         require(
+            !self.is_verification_recheck(&job.project_id, &job.operation_id),
+            "请使用独立复验原结果核对",
+        )?;
+        require(
             job.state == VerificationState::Unknown,
             "仅待对账验收可补记",
         )?;
@@ -156,6 +160,10 @@ impl RuntimeHost {
             identifier(operation)?;
             sha256(wanted)?;
             let key = (project.to_string(), operation.to_string());
+            require(
+                !self.is_verification_recheck(project, operation),
+                "请使用独立复验原结果核对",
+            )?;
             let mut job = self.jobs.get(&key).ok_or("验收操作不存在")?.clone();
             let audit = format!("authenticated local-user verification recovery:{wanted}");
             // A Verify commit is authoritative even when its job projection write failed.

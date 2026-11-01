@@ -150,10 +150,7 @@ impl DurableWorkflow {
         let (receipt, artifacts) = self
             .completed_artifacts(task, attempt)
             .ok_or("dependency artifacts missing")?;
-        let report = self
-            .verification(task, attempt)
-            .ok_or("dependency verification missing")?;
-        report.require_pass(plan, artifacts, &self.config.core_id)?;
+        let report = self.verified_report(task, attempt)?;
         let seal = report
             .source_snapshot
             .as_ref()

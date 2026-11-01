@@ -772,3 +772,10 @@ form .primary {
 .currency-history button { min-height: 44px; padding: .6rem .9rem; margin: .4rem .4rem .4rem 0; border: 1px solid var(--border); border-radius: 8px; background: white; color: #243548; }
 .currency-history button.history-confirm { background: var(--blue); color: white; }
 .currency-history fieldset button { justify-self: start; }
+
+/* Dialogs in the dark sidebar use the light content palette explicitly. */
+.experiment-workbench-dialog { color: #243548; }
+.experiment-workbench-dialog p { color: #496273; }
+.experiment-workbench-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.experiment-workbench-dialog button { white-space: normal; text-align: left; }
+.experiment-workbench-dialog > article { margin: 16px 0; }

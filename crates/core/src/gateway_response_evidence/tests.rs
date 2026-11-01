@@ -3,6 +3,7 @@ use cerulean_adapters::api_generation::gateway::{GatewayRequestId, GatewayReques
 
 fn binding() -> Binding {
     Binding {
+        endpoint: None,
         lane: Lane::Worker,
         project_id: "project".into(),
         local_id: "local-request".into(),
@@ -25,6 +26,54 @@ fn source() -> CompletionSource {
         outcome: Outcome::Reply {},
         body_response_id: Some("body-different-324".into()),
     }
+}
+
+#[test]
+fn relay_vip_gateway_binding_preserves_com_bytes_and_rejects_cross_origin_records() {
+    use cerulean_domain::{api_worker::ApiTarget, credentials::ProviderEndpoint};
+    let original = binding();
+    let legacy = serde_json::json!({
+        "lane":"worker", "projectId":original.project_id, "localId":original.local_id,
+        "requestDigest":original.request_digest, "intentHash":original.intent_hash
+    });
+    assert_eq!(serde_json::to_value(&original).unwrap(), legacy);
+    assert_eq!(serde_json::from_value::<Binding>(legacy).unwrap(), original);
+    let mut vip = original.clone();
+    vip.endpoint = Binding::endpoint_override(&ApiTarget::Provider {
+        endpoint: ProviderEndpoint::A6ApiVip {},
+    })
+    .unwrap();
+    assert_eq!(vip.endpoint(), VIP_ENDPOINT);
+    assert_ne!(vip.stem().unwrap(), original.stem().unwrap());
+    assert!(Binding::endpoint_override(&ApiTarget::OpenAi {}).is_err());
+    let mut invalid = vip.clone();
+    invalid.endpoint = Some(ENDPOINT.into());
+    assert!(invalid.validate().is_err());
+    invalid.endpoint = Some("https://different.invalid/v1/chat/completions".into());
+    assert!(invalid.validate().is_err());
+    let mut record = HeaderRecord {
+        schema: 1,
+        provider: "a6api".into(),
+        endpoint: VIP_ENDPOINT.into(),
+        binding: vip.clone(),
+        observed_at: chrono::Utc::now().to_rfc3339(),
+        observation: headers(),
+    };
+    assert!(record.validate(&vip).is_ok());
+    assert!(record.validate(&original).is_err());
+    record.endpoint = ENDPOINT.into();
+    assert!(record.validate(&vip).is_err());
+    let root = tempfile::tempdir().unwrap();
+    let mut attempt = GatewayAttempt::new(root.path(), vip.clone());
+    attempt.headers(&headers());
+    let completion = source();
+    attempt.finish(completion.clone()).unwrap();
+    assert_eq!(
+        read(root.path(), &vip, Some(&completion)).unwrap().status,
+        "linked"
+    );
+    // Different endpoint identity cannot pick up the .vip header evidence.
+    assert_ne!(read(root.path(), &original, None).unwrap().status, "linked");
 }
 
 #[test]

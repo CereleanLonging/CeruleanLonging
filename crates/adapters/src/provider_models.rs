@@ -16,6 +16,7 @@ pub fn endpoint(target: &ProviderEndpoint) -> Result<String, String> {
         ProviderEndpoint::Anthropic {} => "https://api.anthropic.com/v1/models?limit=200".into(),
         ProviderEndpoint::KimiChina {} => "https://api.moonshot.cn/v1/models".into(),
         ProviderEndpoint::A6Api {} => "https://api.a6api.com/v1/models".into(),
+        ProviderEndpoint::A6ApiVip {} => "https://api.a6api.vip/v1/models".into(),
         ProviderEndpoint::Grok {} => "https://api.x.ai/v1/models".into(),
         ProviderEndpoint::QwenBeijing { workspace_id } => {
             require(!workspace_id.is_empty() && workspace_id.len() <= 63 && workspace_id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') && !workspace_id.starts_with('-') && !workspace_id.ends_with('-'), "请输入有效的百炼北京业务空间 ID（字母、数字及中划线）")?;

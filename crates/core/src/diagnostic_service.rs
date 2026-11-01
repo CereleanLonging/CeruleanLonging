@@ -51,6 +51,13 @@ impl ServiceHost {
                     host.base.workspace_plans(query)
                 }
                 WorkspaceQuery::Projects { .. }
+                | WorkspaceQuery::VerificationRechecks { .. }
+                | WorkspaceQuery::CurrentVerificationRecheck { .. }
+                | WorkspaceQuery::VerificationRecheckInputs { .. }
+                | WorkspaceQuery::RegisteredValidator { .. }
+                | WorkspaceQuery::VerificationRecheck { .. }
+                | WorkspaceQuery::VerificationRecheckDispositionReview { .. }
+                | WorkspaceQuery::VerificationRecheckReview { .. }
                 | WorkspaceQuery::History { .. }
                 | WorkspaceQuery::HistoryEntry { .. }
                 | WorkspaceQuery::Configurations { .. }

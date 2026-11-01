@@ -21,9 +21,23 @@ external-chief prepare --project <项目ID> --setup-digest <配置摘要> --sess
 external-chief read --operation <原操作ID>
 external-chief submit --operation <原操作ID> --session <原会话标识> --file <完整决策JSON>
                                        只提出方案，不代替用户批准；失败先读取原操作，不重发
+
+verification-recheck review-disposition --project <项目ID> --operation <原复验ID> --reason <原因>
+verification-recheck retire --file <原处置审阅result JSON> --event-operation <独立处置ID>
+                                       处置仅结束原复验批准，不验收产物；回执未知用show查原事件，不重新提交
+verification-recheck review --file <RecheckRequest JSON>
+verification-recheck approve --file <原审阅result JSON> --approval-operation <独立批准ID> --operation <单次复验ID>
+verification-recheck show --project <项目ID> --operation <原复验ID>
+verification-recheck start --project <项目ID> --operation <已批准复验ID>
+verification-recheck cancel --project <项目ID> --operation <原复验ID>
+verification-recheck recover --project <项目ID> --operation <原复验ID>
+                                       review仅审阅；approve仅批准并暂停后续调度；start才执行一次本地检查
+                                       show核对原批准/启动状态；recover仅补记原结果，取消或通信失败不得重跑
 data-format review-management-source --from <冷备份目录> --manifest-digest <摘要> --hold-digest <摘要>
 data-format promote-management-source --from <冷备份目录> --manifest-digest <摘要> --hold-digest <摘要> --review-digest <摘要>
 data-format review-rejected-usage --from <冷备份目录> --manifest-digest <摘要> [--hold-digest <原锁定摘要>]
+data-format review-verification-recheck --from <冷备份目录> --manifest-digest <摘要> [--hold-digest <原锁定摘要>]
+data-format promote-verification-recheck --from <冷备份目录> --manifest-digest <摘要> --review-digest <摘要> [--hold-digest <原锁定摘要>]
 data-format promote-rejected-usage --from <冷备份目录> --manifest-digest <摘要> --review-digest <摘要> [--hold-digest <原锁定摘要>]
 data-format review-relay --from <冷备份目录> --manifest-digest <摘要>
 data-format promote-relay --from <冷备份目录> --manifest-digest <摘要> --review-digest <摘要>
@@ -207,6 +221,9 @@ enum View {
     Full,
     Providers,
     Project(String),
+    VerificationRecheckDispositionReview,
+    VerificationRecheckReview,
+    VerificationRecheckStatus,
 }
 enum Action {
     EvidenceArchiveCreate(PathBuf, String, PathBuf),
@@ -216,6 +233,8 @@ enum Action {
     ManagementSourcePromote(PathBuf, String, String, String),
     RejectedUsageReview(PathBuf, String, Option<String>),
     RejectedUsagePromote(PathBuf, String, String, Option<String>),
+    VerificationRecheckReview(PathBuf, String, Option<String>),
+    VerificationRecheckPromote(PathBuf, String, String, Option<String>),
     RelayReview(PathBuf, String),
     RelayPromote(PathBuf, String, String),
     ExperimentsReview(PathBuf, String),
@@ -368,6 +387,17 @@ fn parse(args: &[String]) -> Result<Invocation, String> {
                 session_id: o.take("--session")?,
                 decision: json_file(&o.take("--file")?)?,
             },
+        ),
+        ("data-format", "review-verification-recheck") => Action::VerificationRecheckReview(
+            o.take("--from")?.into(),
+            o.take("--manifest-digest")?,
+            o.optional("--hold-digest"),
+        ),
+        ("data-format", "promote-verification-recheck") => Action::VerificationRecheckPromote(
+            o.take("--from")?.into(),
+            o.take("--manifest-digest")?,
+            o.take("--review-digest")?,
+            o.optional("--hold-digest"),
         ),
         ("data-format", "review-rejected-usage") => Action::RejectedUsageReview(
             o.take("--from")?.into(),
@@ -1168,6 +1198,48 @@ fn parse(args: &[String]) -> Result<Invocation, String> {
                 project_id: o.take("--project")?,
                 operation_id: o.take("--operation")?,
             },
+            ("verification-recheck", "review-disposition") => {
+                view = View::VerificationRecheckDispositionReview;
+                Command::ReviewVerificationRecheckDisposition {
+                    project_id: o.take("--project")?,
+                    operation_id: o.take("--operation")?,
+                    reason: o.take("--reason")?,
+                }
+            }
+            ("verification-recheck", "retire") => Command::RetireVerificationRecheck {
+                review: Box::new(json_file(&o.take("--file")?)?),
+                event_operation_id: o.take("--event-operation")?,
+            },
+            ("verification-recheck", "review") => {
+                view = View::VerificationRecheckReview;
+                Command::ReviewVerificationRecheck {
+                    input: Box::new(json_file(&o.take("--file")?)?),
+                }
+            }
+            ("verification-recheck", "approve") => Command::ApproveVerificationRecheck {
+                review: Box::new(json_file(&o.take("--file")?)?),
+                approval_operation_id: o.take("--approval-operation")?,
+                operation_id: o.take("--operation")?,
+            },
+            ("verification-recheck", "show") => {
+                view = View::VerificationRecheckStatus;
+                Command::ReadVerificationRecheck {
+                    project_id: o.take("--project")?,
+                    operation_id: o.take("--operation")?,
+                }
+            }
+            ("verification-recheck", "start") => Command::StartVerificationRecheck {
+                project_id: o.take("--project")?,
+                operation_id: o.take("--operation")?,
+            },
+            ("verification-recheck", "cancel") => Command::CancelVerificationRecheck {
+                project_id: o.take("--project")?,
+                operation_id: o.take("--operation")?,
+            },
+            ("verification-recheck", "recover") => Command::RecoverVerificationRecheck {
+                project_id: o.take("--project")?,
+                operation_id: o.take("--operation")?,
+            },
             ("verification", "recover") => Command::RecoverVerification {
                 project_id: o.take("--project")?,
                 operation_id: o.take("--operation")?,
@@ -1428,6 +1500,38 @@ async fn execute(i: Invocation) -> u8 {
             )
             .map(|v| json!(v)),
         ),
+        Action::VerificationRecheckReview(from, manifest, hold) => Some(
+            match hold {
+                Some(hold) => cerulean_core::verification_recheck_guard::review_held(
+                    &i.directory,
+                    from,
+                    manifest,
+                    hold,
+                ),
+                None => {
+                    cerulean_core::verification_recheck_guard::review(&i.directory, from, manifest)
+                }
+            }
+            .map(|v| json!(v)),
+        ),
+        Action::VerificationRecheckPromote(from, manifest, review, hold) => Some(
+            match hold {
+                Some(hold) => cerulean_core::verification_recheck_guard::promote_held(
+                    &i.directory,
+                    from,
+                    manifest,
+                    hold,
+                    review,
+                ),
+                None => cerulean_core::verification_recheck_guard::promote(
+                    &i.directory,
+                    from,
+                    manifest,
+                    review,
+                ),
+            }
+            .map(|v| json!(v)),
+        ),
         Action::RejectedUsageReview(from, manifest, hold) => Some(
             match hold {
                 Some(hold) => cerulean_core::rejected_usage_guard::review_held(
@@ -1685,6 +1789,8 @@ async fn execute(i: Invocation) -> u8 {
                 | Action::RelayPromote(_, _, _)
                 | Action::RejectedUsageReview(_, _, _)
                 | Action::RejectedUsagePromote(_, _, _, _)
+                | Action::VerificationRecheckReview(_, _, _)
+                | Action::VerificationRecheckPromote(_, _, _, _)
                 | Action::ExperimentsReview(_, _)
                 | Action::ExperimentsPromote(_, _, _)
                 | Action::ImportRetentionReview(_, _, _, _)
@@ -1796,11 +1902,15 @@ async fn execute(i: Invocation) -> u8 {
         Box::pin(client.call(operation)).await
     } {
         Ok(r) => r,
-        Err(_) => {
+        Err(reason) => {
             return error(
                 4,
                 "resultUnknown",
-                "通信中断，结果可能已入账；未重发。请先查询 status 和原任务记录",
+                if reason == "service request timed out; not resent" {
+                    "等待核心响应超时，结果可能已入账；未重发。请先查询 status 和原任务记录"
+                } else {
+                    "通信中断，结果可能已入账；未重发。请先查询 status 和原任务记录"
+                },
             )
         }
     };
@@ -1829,6 +1939,20 @@ async fn execute(i: Invocation) -> u8 {
                 Ok(v) => v,
                 Err(e) => return error(3, "projectNotFound", &e),
             },
+            (View::VerificationRecheckDispositionReview, Some(s)) => {
+                match s.verification_recheck_disposition_review {
+                    Some(review) => json!(review),
+                    None => return error(4, "invalidResponse", "核心未返回原处置审阅；未重发"),
+                }
+            }
+            (View::VerificationRecheckReview, Some(s)) => match s.verification_recheck_review {
+                Some(review) => json!(review),
+                None => return error(4, "invalidResponse", "核心未返回复验审阅；未重发"),
+            },
+            (View::VerificationRecheckStatus, Some(s)) => match s.verification_recheck_status {
+                Some(status) => json!(status),
+                None => return error(4, "invalidResponse", "核心未返回原复验状态；未重发"),
+            },
             _ => return error(4, "invalidResponse", "核心未返回快照；未重发"),
         }
     };
@@ -1852,6 +1976,182 @@ async fn execute(i: Invocation) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn verification_recheck_cli_keeps_review_approval_and_launch_separate() {
+        use cerulean_domain::verification_recheck::{RecheckRequest, RecheckReview};
+        let temp = tempfile::tempdir().unwrap();
+        let input = temp.path().join("request.json");
+        let review_path = temp.path().join("review.json");
+        let request = RecheckRequest {
+            project_id: "project".into(),
+            original_operation_id: "failed".into(),
+            replacement_checks: vec![],
+            reason: "CLI parsing fixture; not execution authority".into(),
+        };
+        std::fs::write(&input, serde_json::to_vec(&request).unwrap()).unwrap();
+        let review = RecheckReview {
+            schema_version: 1,
+            project_id: "project".into(),
+            task_id: "task".into(),
+            attempt_id: "attempt".into(),
+            original_operation_id: "failed".into(),
+            revision_digest: "r".repeat(64),
+            manifest_digest: "m".repeat(64),
+            original_report_digest: "o".repeat(64),
+            original_checks_digest: "c".repeat(64),
+            original_source_snapshot: cerulean_domain::execution::SourceSnapshot {
+                operation_id: "failed".into(),
+                manifest_sha256: "s".repeat(64),
+            },
+            ledger_head: "h".repeat(64),
+            replacement_checks: vec![],
+            reason: request.reason.clone(),
+        };
+        std::fs::write(&review_path, serde_json::to_vec(&review).unwrap()).unwrap();
+        let make = |verb: &str, path: &std::path::Path, extra: &[&str]| {
+            let mut args: Vec<String> = [
+                "--data-dir",
+                "fixture",
+                "verification-recheck",
+                verb,
+                "--file",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+            args.push(path.to_string_lossy().into());
+            args.extend(extra.iter().map(|s| (*s).to_owned()));
+            parse(&args)
+        };
+        let parsed = make("review", &input, &[]).unwrap();
+        assert!(matches!(parsed.view, View::VerificationRecheckReview));
+        assert!(
+            matches!(parsed.action, Action::Request(c) if matches!(c.as_ref(), Command::ReviewVerificationRecheck { input } if input.as_ref() == &request))
+        );
+        let parsed = make(
+            "approve",
+            &review_path,
+            &[
+                "--approval-operation",
+                "approve",
+                "--operation",
+                "new-check",
+            ],
+        )
+        .unwrap();
+        let Action::Request(command) = parsed.action else {
+            panic!("user command expected")
+        };
+        assert!(command.supports_receipt());
+        assert!(
+            matches!(*command, Command::ApproveVerificationRecheck { review: got, approval_operation_id, operation_id }
+            if *got == review && approval_operation_id == "approve" && operation_id == "new-check")
+        );
+        assert!(make("approve", &review_path, &["--operation", "new-check"]).is_err());
+        assert!(make(
+            "approve",
+            &review_path,
+            &["--approval-operation", "approve"]
+        )
+        .is_err());
+        assert!(make(
+            "start",
+            &input,
+            &["--project", "project", "--operation", "new-check"]
+        )
+        .is_err());
+        assert!(make("review", &input, &["--run", "true"]).is_err());
+        assert!(make("review", &review_path, &[]).is_err());
+        assert!(make(
+            "approve",
+            &input,
+            &[
+                "--approval-operation",
+                "approve",
+                "--operation",
+                "new-check"
+            ]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn verification_recheck_cli_queries_and_actions_require_exact_original_identity() {
+        let reviewed = invocation("verification-recheck review-disposition --project p --operation original --reason retained").unwrap();
+        assert!(matches!(
+            reviewed.view,
+            View::VerificationRecheckDispositionReview
+        ));
+        let Action::Request(c) = reviewed.action else {
+            panic!("request");
+        };
+        assert!(!c.supports_receipt());
+        for line in [
+            "verification-recheck review-disposition --project p --operation original",
+            "verification-recheck review-disposition --project p --operation original --reason r --force true",
+            "verification-recheck retire --event-operation dispose",
+        ] { assert!(invocation(line).is_err()); }
+        for (verb, wire_type) in [
+            ("show", "readVerificationRecheck"),
+            ("start", "startVerificationRecheck"),
+            ("cancel", "cancelVerificationRecheck"),
+            ("recover", "recoverVerificationRecheck"),
+        ] {
+            let parsed = invocation(&format!(
+                "verification-recheck {verb} --project p --operation original"
+            ))
+            .unwrap();
+            if verb == "show" {
+                assert!(matches!(parsed.view, View::VerificationRecheckStatus));
+            }
+            let Action::Request(command) = parsed.action else {
+                panic!("user command expected")
+            };
+            assert_eq!(command.supports_receipt(), verb != "show");
+            assert_eq!(
+                serde_json::to_value(command).unwrap(),
+                json!({"type":wire_type, "projectId":"p", "operationId":"original"})
+            );
+            for suffix in [
+                "",
+                " --project p",
+                " --operation original",
+                " --project p --operation original --retry true",
+                " --project p --project p --operation original",
+            ] {
+                assert!(invocation(&format!("verification-recheck {verb}{suffix}")).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn verification_recheck_protection_cli_keeps_cold_and_held_authority_distinct() {
+        for hold in [None, Some("hold")] {
+            let suffix = hold
+                .map(|h| format!(" --hold-digest {h}"))
+                .unwrap_or_default();
+            let Action::VerificationRecheckReview(from, manifest, got_hold) = invocation(
+                &format!("data-format review-verification-recheck --from cold --manifest-digest manifest{suffix}")
+            ).unwrap().action else { panic!("expected read-only protection review"); };
+            assert_eq!(from, PathBuf::from("cold"));
+            assert_eq!(manifest, "manifest");
+            assert_eq!(got_hold.as_deref(), hold);
+            let Action::VerificationRecheckPromote(from, manifest, digest, got_hold) = invocation(
+                &format!("data-format promote-verification-recheck --from cold --manifest-digest manifest --review-digest review{suffix}")
+            ).unwrap().action else { panic!("expected explicit protection promotion"); };
+            assert_eq!(from, PathBuf::from("cold"));
+            assert_eq!(manifest, "manifest");
+            assert_eq!(digest, "review");
+            assert_eq!(got_hold.as_deref(), hold);
+        }
+        for line in [
+            "data-format review-verification-recheck --from cold",
+            "data-format review-verification-recheck --manifest-digest manifest",
+            "data-format promote-verification-recheck --from cold --manifest-digest manifest",
+            "data-format review-verification-recheck --from cold --manifest-digest manifest --review-digest unexpected",
+            "data-format promote-verification-recheck --from cold --manifest-digest manifest --review-digest review --force",
+        ] { assert!(invocation(line).is_err(),"{line}"); }
+    }
     #[test]
     fn import_retention_cli_requires_original_selection_and_explicit_reason() {
         assert!(matches!(invocation("team-import review-retention --from backup --manifest-digest m --to receipt --reason preserve").unwrap().action,Action::ImportRetentionReview(_,_,_,_)));

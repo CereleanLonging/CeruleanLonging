@@ -1,4 +1,5 @@
 import { ManagementSourceFields } from "./ManagementSourceFields";
+import { WorkflowTemplateImport } from "./WorkflowTemplateImport";
 import { useEffect, useState } from "react";
 import { managementKeyMissing, managementModelList } from "./ManagementProviders";
 import type { AcceptanceStageDraft, Command, ProjectSetupDraft, ProjectWorkerAdapter, Snapshot, SavedProjectSetup } from "./contracts";
@@ -50,6 +51,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
       <p className="secondary">先保存需求与执行范围，再请求主指挥提出方案。方案生成后会出现在下方，审阅批准前不会派发编程任务。</p>
       <form onSubmit={async e=>{e.preventDefault();if(budgetError)return;if(resourceError(draft.resourceKeys)||(draft.profiles??[]).some(p=>resourceError(p.resourceKeys,draft.resourceKeys)))return;if(await send({type:"configureProject",draft:{...draft,resourceKeys:resourceNames(draft.resourceKeys).length?resourceNames(draft.resourceKeys):undefined,profiles:draft.profiles?.map(p=>({...p,resourceKeys:resourceNames(p.resourceKeys).length?resourceNames(p.resourceKeys):undefined})),projectId,artifactPaths:artifacts.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),validatorId:stages[0]?.validatorId??"",checkArgs:stages[0]?.args??[],acceptance:{schemaVersion:1,stages}}}))setDirty(false);}}>
         <fieldset disabled={busy||pending||locked}>
+          <WorkflowTemplateImport contextKey={JSON.stringify([projectId,saved?.digest,draft])} disabled={busy||pending||locked} onApply={(requirement,supervision)=>{setDraft(d=>({...d,requirement,...(supervision?{supervision}:{})}));setDirty(true);}}/>
           <label htmlFor="planning-requirement">项目需求</label><textarea id="planning-requirement" required rows={4} value={draft.requirement} onChange={e=>update("requirement",e.target.value)} placeholder="描述要解决的问题、预期行为和完成标准。" />
           <div className="planning-fields">
             <ManagementSourceFields draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}/>

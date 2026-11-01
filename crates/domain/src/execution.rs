@@ -701,9 +701,13 @@ pub enum ExecutionEvidence {
     Verification {
         report: VerificationReport,
     },
+    VerificationRecheck {
+        approval: EventAnchor,
+        result: Box<crate::verification_recheck::RecheckResult>,
+    },
 }
 /// References to immutable workflow events; no remote input is inferred.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EventAnchor {
     pub sequence: u32,
@@ -754,7 +758,7 @@ pub enum VerificationState {
     Unknown,
     Abandoned,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VerificationJob {
     pub project_id: String,

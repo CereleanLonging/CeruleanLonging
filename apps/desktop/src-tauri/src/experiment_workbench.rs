@@ -33,7 +33,10 @@ impl Windows {
 #[cfg(windows)]
 pub mod catalog {
     use super::Binding;
-    use cerulean_core::{backup, data_format, experiment_guard, rejected_usage_guard, Store};
+    use cerulean_core::{
+        backup, data_format, experiment_guard, rejected_usage_guard, verification_recheck_guard,
+        Store,
+    };
     use serde::{Deserialize, Serialize};
     use sha2::{Digest, Sha256};
     use std::{
@@ -161,14 +164,18 @@ pub mod catalog {
         Ok(count)
     }
     pub fn create(root: &Path, id: &str) -> Result<Entry, String> {
-        create_for_generation(root, id, rejected_usage_guard::GENERATION)
+        create_for_generation(root, id, verification_recheck_guard::GENERATION)
     }
     #[cfg(test)]
     pub(super) fn create_legacy(root: &Path, id: &str) -> Result<Entry, String> {
         create_for_generation(root, id, experiment_guard::GENERATION)
     }
+    #[cfg(test)]
+    pub(super) fn create_reader17(root: &Path, id: &str) -> Result<Entry, String> {
+        create_for_generation(root, id, rejected_usage_guard::GENERATION)
+    }
     fn create_for_generation(root: &Path, id: &str, generation: u32) -> Result<Entry, String> {
-        require(matches!(generation, 15 | 17), "未知新工作台格式")?;
+        require(matches!(generation, 15 | 17 | 18), "未知新工作台格式")?;
         require(
             valid_id(id),
             "实验编号须以exp-开头，总长5至48位，仅含小写字母、数字或连字符",
@@ -198,7 +205,19 @@ pub mod catalog {
         drop(Store::open(&data)?);
         let archive = folder.join("initial-cold-backup");
         let backup_digest = backup::create(&data, &archive)?.manifest_digest;
-        let (status, guard_file) = if generation == rejected_usage_guard::GENERATION {
+        let (status, guard_file) = if generation == verification_recheck_guard::GENERATION {
+            let review = verification_recheck_guard::review(&data, &archive, &backup_digest)?;
+            write_new(&folder.join("protection-review.json"), &review)?;
+            (
+                verification_recheck_guard::promote(
+                    &data,
+                    &archive,
+                    &backup_digest,
+                    &review.digest,
+                )?,
+                verification_recheck_guard::MARKER,
+            )
+        } else if generation == rejected_usage_guard::GENERATION {
             let review = rejected_usage_guard::review(&data, &archive, &backup_digest)?;
             write_new(&folder.join("protection-review.json"), &review)?;
             (
@@ -259,7 +278,7 @@ pub mod catalog {
                 && intent.purpose == PURPOSE
                 && intent.id == id
                 && intent.data_root == data
-                && matches!(intent.minimum_reader, 14 | 15 | 17)
+                && matches!(intent.minimum_reader, 14 | 15 | 17 | 18)
                 && !intent.credentials_copied
                 && ready.intent_digest == hash(&intent_bytes)
                 && ready.review_digest
@@ -275,6 +294,7 @@ pub mod catalog {
             14 => "events/00000000.reader14.json",
             15 => experiment_guard::MARKER,
             17 => rejected_usage_guard::MARKER,
+            18 => verification_recheck_guard::MARKER,
             _ => return Err("未知原工作台保护格式".into()),
         };
         let guard = read_pinned(&data.join(guard_file), &mut handles)?;
@@ -304,6 +324,14 @@ pub mod catalog {
                 &mut handles,
             )?;
         }
+        if data
+            .join(verification_recheck_guard::MARKER)
+            .try_exists()
+            .map_err(err)?
+        {
+            let _recheck_guard =
+                read_pinned(&data.join(verification_recheck_guard::MARKER), &mut handles)?;
+        }
         let guard_value: serde_json::Value = serde_json::from_slice(&guard).map_err(err)?;
         let archive = folder.join("initial-cold-backup");
         let backup_review = backup::verify(&archive)?;
@@ -316,7 +344,7 @@ pub mod catalog {
             "工作台保护或初始备份不匹配",
         )?;
         require(
-            (intent.minimum_reader..=cerulean_core::rejected_usage_guard::GENERATION)
+            (intent.minimum_reader..=verification_recheck_guard::GENERATION)
                 .contains(&data_format::status(&data)?.minimum_reader_generation),
             "实验保护状态不匹配",
         )?;

@@ -29,6 +29,18 @@ fn commands() -> Vec<WorkflowCommand> {
     let attempt = || "attempt-1".to_owned();
     let text = || "中文、引号\"、反斜杠\\、换行\n与\t控制字符".to_owned();
     vec![
+        RetireVerificationRecheck {
+            task: task(),
+            attempt: attempt(),
+            operation_id: "retired-check".into(),
+            review_digest: proof(),
+        },
+        ApproveVerificationRecheck {
+            task: task(),
+            attempt: attempt(),
+            operation_id: "corrected-check".into(),
+            review_digest: proof(),
+        },
         ConfirmApiGenerationResolution {
             review_digest: proof(),
         },
@@ -178,7 +190,7 @@ fn borrowed_index_rows_match_original_for_every_command_and_snapshot() {
             .map(|e| e.kind.as_str())
             .collect::<BTreeSet<_>>()
             .len(),
-        22
+        24
     );
     for n in 0..entries.len() {
         assert_eq!(

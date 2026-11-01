@@ -56,7 +56,8 @@ pub(crate) fn observe(root: &Path, status: &mut Status) -> Result<(), String> {
     crate::management_source_guard::observe(root, status)?;
     crate::experiment_guard::observe(root, status)?;
     crate::relay_guard::observe(root, status)?;
-    crate::rejected_usage_guard::observe(root, status)
+    crate::rejected_usage_guard::observe(root, status)?;
+    crate::verification_recheck_guard::observe(root, status)
 }
 fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
     match fs::read_dir(root.join("events")) {
@@ -80,6 +81,7 @@ fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
                     && name != crate::management_source_guard::FILE_NAME
                     && name != crate::relay_guard::FILE_NAME
                     && name != crate::rejected_usage_guard::FILE_NAME
+                    && name != crate::verification_recheck_guard::FILE_NAME
                     && name != crate::experiment_guard::FILE_NAME
                     && name != crate::experiment_guard::LEGACY_FILE_NAME
                 {
@@ -159,6 +161,20 @@ pub(crate) fn require_workflow_context(
     root: &Path,
     context: &crate::scheduler::CommandContext,
 ) -> Result<(), String> {
+    if context.verification_recheck.is_some()
+        || context.recheck_disposition.is_some()
+        || matches!(
+            context.execution,
+            Some(cerulean_domain::execution::ExecutionEvidence::VerificationRecheck { .. })
+        )
+    {
+        let data = root
+            .parent()
+            .filter(|p| p.file_name().is_some_and(|v| v == "workflows"))
+            .and_then(Path::parent)
+            .ok_or("recheck evidence requires its guarded Host directory")?;
+        crate::verification_recheck_guard::require_protected(data, true)?;
+    }
     if context.currency_approval.is_some()
         || context.planning_budget.is_some()
         || context.historical_charge.is_some()
@@ -206,6 +222,7 @@ pub(crate) fn require_workflow_context(
 // Inspect only protocol-owned fields, never arbitrary task text or business JSON.
 // This preflight does not repair records or create directories/journals.
 pub(crate) fn reject_unprotected(root: &Path) -> Result<(), String> {
+    crate::verification_recheck_guard::reject_unprotected(root)?;
     crate::rejected_usage_guard::reject_unprotected(root)?;
     crate::experiment_guard::reject_unprotected(root)?;
     reject_legacy_unprotected(root)

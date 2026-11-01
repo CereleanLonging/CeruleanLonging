@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { WorkspaceTasks } from "./WorkspaceTasks";
 import { WorkspaceExecution } from "./WorkspaceExecution";
 import { WorkspaceJobs } from "./WorkspaceJobs";
+import { WorkspaceVerificationRechecks } from "./WorkspaceVerificationRechecks";
 import { WorkspaceRecovery } from "./WorkspaceRecovery";
 import { WorkspaceConfigurations } from "./WorkspaceConfigurations";
 import { WorkspaceHistory } from "./WorkspaceHistory";
@@ -34,6 +35,7 @@ export function WorkspaceBrowser(props: Props) {
   const [unsentAssignmentsProject, setUnsentAssignmentsProject] = useState<string | null>(null);
   const [codexCancellationsProject, setCodexCancellationsProject] = useState<string | null>(null);
   const [jobProject, setJobProject] = useState<string | null>(null);
+  const [recheckProject, setRecheckProject] = useState<string | null>(null);
   const [recoveryProject, setRecoveryProject] = useState<string | null>(null);
   const [historyProject, setHistoryProject] = useState<string | null>(null);
   const [startupProject, setStartupProject] = useState<string | null>(null);
@@ -169,7 +171,7 @@ export function WorkspaceBrowser(props: Props) {
       {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setManagementProject(p.project.id)}>查看项目 {p.project.id} 的管理决策</button>)}
       {managementProject && <><button className="secondary-button" onClick={() => setManagementProject(null)}>关闭项目管理决策</button><WorkspaceManagementDecisions key={managementProject} projectId={managementProject} read={props.read} busy={blocked}/></>}
       {selectedProject && <><button className="secondary-button" onClick={() => setSelectedProject(null)}>关闭项目任务</button><WorkspaceTasks projectId={selectedProject} read={props.read} busy={blocked}/></>}
-      {jobProject && <><button className="secondary-button" onClick={() => setJobProject(null)}>关闭项目作业</button><WorkspaceJobs projectId={jobProject} read={props.read} busy={blocked} onTaskEvidence={() => setSelectedProject(jobProject)}/></>}
+      {jobProject && <><button className="secondary-button" onClick={() => setJobProject(null)}>关闭项目作业</button><WorkspaceJobs projectId={jobProject} read={props.read} send={props.send} busy={blocked} onTaskEvidence={() => setSelectedProject(jobProject)}/></>}
       {projectRunsProject && <><button className="secondary-button" onClick={() => setProjectRunsProject(null)}>关闭项目运行记录</button><WorkspaceProjectRuns key={projectRunsProject} projectId={projectRunsProject} read={props.read} busy={blocked}/></>}
       {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setRevisionReviewsProject(p.project.id)}>查看项目 {p.project.id} 的修订审阅</button>)}
       {revisionReviewsProject && <><button className="secondary-button" onClick={() => setRevisionReviewsProject(null)}>关闭项目修订审阅</button><WorkspaceRevisionReviews key={revisionReviewsProject} projectId={revisionReviewsProject} read={props.read} busy={blocked}/></>}
@@ -182,6 +184,8 @@ export function WorkspaceBrowser(props: Props) {
       {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setHistoryProject(p.project.id)}>查看项目 {p.project.id} 的历史</button>)}
       {historyProject && <><button className="secondary-button" onClick={() => setHistoryProject(null)}>关闭项目历史</button><WorkspaceHistory key={historyProject} projectId={historyProject} read={props.read} busy={blocked}/></>}
       {executionReview && <WorkspaceExecution projectId={executionReview.projectId} expectedDigest={executionReview.digest} read={props.read} send={props.send} busy={blocked} close={() => setExecutionReview(null)}/>}
+      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setRecheckProject(p.project.id)}>查看项目 {p.project.id} 的复验记录</button>)}
+      {recheckProject && <><button className="secondary-button" onClick={() => setRecheckProject(null)}>关闭项目复验记录</button><WorkspaceVerificationRechecks key={recheckProject} projectId={recheckProject} read={props.read} send={props.send} busy={blocked}/></>}
     </>}
   </section>;
 }

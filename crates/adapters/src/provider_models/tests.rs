@@ -10,6 +10,7 @@ fn targets() -> Vec<ProviderEndpoint> {
         ProviderEndpoint::KimiChina {},
         ProviderEndpoint::Grok {},
         ProviderEndpoint::A6Api {},
+        ProviderEndpoint::A6ApiVip {},
         ProviderEndpoint::QwenBeijing {
             workspace_id: "workspace-123".into(),
         },
@@ -26,6 +27,18 @@ fn body(target: &ProviderEndpoint) -> Value {
 }
 #[test]
 fn closed_endpoints_and_provider_specific_shapes() {
+    assert_eq!(
+        endpoint(&ProviderEndpoint::A6Api {}).unwrap(),
+        "https://api.a6api.com/v1/models"
+    );
+    assert_eq!(
+        endpoint(&ProviderEndpoint::A6ApiVip {}).unwrap(),
+        "https://api.a6api.vip/v1/models"
+    );
+    assert!(serde_json::from_value::<ProviderEndpoint>(
+        json!({"kind":"a6ApiVip","url":"https://api.a6api.com/v1/models"})
+    )
+    .is_err());
     for target in targets() {
         let url = reqwest::Url::parse(&endpoint(&target).unwrap()).unwrap();
         assert_eq!(url.scheme(), "https");

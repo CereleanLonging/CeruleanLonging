@@ -5,6 +5,47 @@ pub(super) fn key() -> SecretInput {
 }
 
 #[test]
+fn relay_vip_binds_exact_origin_and_rejects_com_continuation() {
+    let client = ApiClient::new(key()).unwrap();
+    let com = request(ApiTarget::Provider {
+        endpoint: ProviderEndpoint::A6Api {},
+    });
+    let mut vip = request(ApiTarget::Provider {
+        endpoint: ProviderEndpoint::A6ApiVip {},
+    });
+    assert_eq!(
+        com.target.url().unwrap(),
+        "https://api.a6api.com/v1/chat/completions"
+    );
+    assert_eq!(
+        vip.target.url().unwrap(),
+        "https://api.a6api.vip/v1/chat/completions"
+    );
+    let original = client.prepare(com.clone()).unwrap();
+    let prepared = client.prepare(vip.clone()).unwrap();
+    assert_ne!(original.fingerprint(), prepared.fingerprint());
+    assert!(prepared.body.get("messages").is_some());
+    assert!(prepared.body.get("input").is_none());
+    let parsed = wire::parse(&vip, reply(&vip, false)).unwrap();
+    assert!(parsed
+        .observation()
+        .usage
+        .billable_usage(CredentialProvider::A6Api)
+        .is_err());
+    vip.messages.push(ApiMessage::Assistant(
+        wire::parse(&com, reply(&com, false)).unwrap(),
+    ));
+    assert!(
+        client.prepare(vip).is_err(),
+        "reply from .com cannot authorize continuation at .vip"
+    );
+    assert_eq!(
+        serde_json::to_value(&com.target).unwrap(),
+        json!({"kind":"provider","endpoint":{"kind":"a6Api"}})
+    );
+}
+
+#[test]
 fn relay_uses_chat_protocol_and_does_not_inherit_official_prices_or_continuation() {
     let target = ApiTarget::Provider {
         endpoint: ProviderEndpoint::A6Api {},
@@ -62,6 +103,9 @@ pub(super) fn targets() -> Vec<ApiTarget> {
         },
         ApiTarget::Provider {
             endpoint: ProviderEndpoint::A6Api {},
+        },
+        ApiTarget::Provider {
+            endpoint: ProviderEndpoint::A6ApiVip {},
         },
     ]
 }

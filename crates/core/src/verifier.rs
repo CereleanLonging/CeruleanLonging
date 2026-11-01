@@ -1,7 +1,9 @@
 //! Trusted host-only independent checks; no arbitrary command IPC endpoint.
 pub(crate) mod process;
 use crate::artifacts::{root_path, ArtifactObserver};
+use crate::verification_recheck_evidence::RecheckBinding;
 use cerulean_domain::execution::*;
+use cerulean_domain::verification_recheck::{RecheckApproval, RecheckBasis};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
@@ -173,6 +175,15 @@ struct Record<'a> {
     pins: &'a [PinnedCheck],
     report: Option<&'a VerificationReport>,
     error: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recheck: Option<&'a RecheckBinding>,
+}
+
+pub(crate) struct RecheckAuthority<'a> {
+    pub approval: &'a RecheckApproval,
+    pub event: &'a EventAnchor,
+    pub original_report: &'a VerificationReport,
+    pub retired_operations: &'a [String],
 }
 fn save(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut file = OpenOptions::new()
@@ -193,7 +204,65 @@ pub fn verify(
     operation_id: &str,
     cancel: &AtomicBool,
 ) -> Result<VerificationReport, String> {
+    execute(input, pins, evidence_root, operation_id, cancel, None, &[])
+}
+
+/// Trusted scheduler only: every retired ID was revalidated against its user
+/// ledger event and unchanged original evidence while preparing this run.
+pub(crate) fn verify_with_retirements(
+    input: VerificationInput<'_>,
+    pins: &[PinnedCheck],
+    evidence_root: &Path,
+    operation_id: &str,
+    cancel: &AtomicBool,
+    retired: &[String],
+) -> Result<VerificationReport, String> {
+    execute(
+        input,
+        pins,
+        evidence_root,
+        operation_id,
+        cancel,
+        None,
+        retired,
+    )
+}
+
+/// A separate trusted entry: the original plan approval is still verified as-is.
+/// Only the new user event authorizes replacement checks on its original source.
+pub(crate) fn verify_recheck(
+    input: VerificationInput<'_>,
+    pins: &[PinnedCheck],
+    evidence_root: &Path,
+    authority: RecheckAuthority<'_>,
+    cancel: &AtomicBool,
+) -> Result<VerificationReport, String> {
+    let operation = authority.approval.operation_id.as_str();
+    execute(
+        input,
+        pins,
+        evidence_root,
+        operation,
+        cancel,
+        Some(&authority),
+        authority.retired_operations,
+    )
+}
+
+fn execute(
+    input: VerificationInput<'_>,
+    pins: &[PinnedCheck],
+    evidence_root: &Path,
+    operation_id: &str,
+    cancel: &AtomicBool,
+    recheck: Option<&RecheckAuthority<'_>>,
+    retired: &[String],
+) -> Result<VerificationReport, String> {
     identifier(operation_id)?;
+    require(
+        !retired.iter().any(|id| id == operation_id),
+        "retired verification operation cannot be reused",
+    )?;
     identifier(input.verifier_id)?;
     require(
         input.plan.snapshot_policy.is_some(),
@@ -219,7 +288,35 @@ pub fn verify(
         !crate::artifacts::contains_path(&root, &evidence),
         "evidence must be outside worker project",
     )?;
-    let specs = &input.plan.task(&input.attempt.task_id)?.checks;
+    let binding = if let Some(recheck) = recheck {
+        let approval = recheck.approval;
+        approval.validate(&RecheckBasis {
+            plan: input.plan,
+            manifest: input.manifest,
+            original_job: &approval.original_job,
+            original_report: recheck.original_report,
+            ledger_head: &approval.review.ledger_head,
+            trusted_verifier: input.verifier_id,
+        })?;
+        require(
+            approval.operation_id == operation_id,
+            "recheck operation mismatch",
+        )?;
+        crate::source_snapshot::require_sealed(
+            input.plan,
+            input.manifest,
+            &approval.review.original_source_snapshot,
+            &evidence,
+        )?;
+        Some(RecheckBinding::new(approval, recheck.event)?)
+    } else {
+        None
+    };
+    let specs = if let Some(recheck) = recheck {
+        &recheck.approval.review.replacement_checks
+    } else {
+        &input.plan.task(&input.attempt.task_id)?.checks
+    };
     require(pins.len() == specs.len(), "validator bindings missing")?;
     for pin in pins {
         for (path, _) in &pin.files {
@@ -252,6 +349,9 @@ pub fn verify(
                 .to_str()
                 .ok_or("non-Unicode verifier storage")?,
         )?;
+        if retired.iter().any(|id| entry.file_name() == id.as_str()) {
+            continue;
+        }
         if crate::verification_reconciliation::retired(&entry.path())? {
             continue;
         }
@@ -280,6 +380,7 @@ pub fn verify(
         pins,
         report,
         error,
+        recheck: binding.as_ref(),
     };
     save(
         &dir.join("intent.json"),
@@ -292,6 +393,17 @@ pub fn verify(
             &dir,
             operation_id,
         )?;
+        if let Some(recheck) = recheck {
+            require(
+                snapshot.seal.manifest_sha256
+                    == recheck
+                        .approval
+                        .review
+                        .original_source_snapshot
+                        .manifest_sha256,
+                "recheck input snapshot differs from original failed check",
+            )?;
+        }
         let mut report = VerificationReport {
             schema_version: 1,
             verifier_id: input.verifier_id.into(),
@@ -309,7 +421,14 @@ pub fn verify(
             fs::create_dir(&temp).map_err(|e| e.to_string())?;
             let remaining = deadline.saturating_duration_since(Instant::now());
             require(!remaining.is_zero(), "verification overall time limit")?;
-            let outcome = process::run(
+            let job_name = recheck
+                .map(|authority| {
+                    let scope =
+                        process::named_job::scope(evidence_root, authority.event, operation_id)?;
+                    process::named_job::name(&scope, &spec.id)
+                })
+                .transpose()?;
+            let outcome = process::run_scoped(
                 &pin.executable,
                 &spec.args,
                 &snapshot.work,
@@ -317,7 +436,15 @@ pub fn verify(
                 remaining.min(Duration::from_secs(u64::from(spec.timeout_seconds))),
                 cancel,
                 &pin.environment,
+                job_name.as_deref(),
             )?;
+            if let Some(name) = &job_name {
+                let receipt = process::named_job::ExitReceipt::new(name, &outcome)?;
+                save(
+                    &dir.join(format!("{}.process-exit.json", spec.id)),
+                    &serde_json::to_vec(&receipt).map_err(|e| e.to_string())?,
+                )?;
+            }
             save(&dir.join(format!("{}.stdout", spec.id)), &outcome.stdout)?;
             save(&dir.join(format!("{}.stderr", spec.id)), &outcome.stderr)?;
             let observation = CheckObservation {

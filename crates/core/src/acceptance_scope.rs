@@ -50,7 +50,7 @@ pub(crate) fn validate(
     require(store.history()[..original.sequence as usize].iter().any(|e|
         matches!(&e.body.event.command, WorkflowCommand::Verify {task: t,attempt: a,passed:true,..}
             if t==task && a==attempt)
-        && matches!(&e.body.context.execution,Some(ExecutionEvidence::Verification {..}))),
+        && matches!(&e.body.context.execution,Some(ExecutionEvidence::Verification {..} | ExecutionEvidence::VerificationRecheck {..}))),
         "收口缺少原独立验收入账证据")?;
     for entry in &store.history()[original.sequence as usize..] {
         let command = &entry.body.event.command;

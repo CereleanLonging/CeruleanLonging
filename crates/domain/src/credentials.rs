@@ -45,6 +45,7 @@ pub enum ProviderEndpoint {
     KimiChina {},
     Grok {},
     A6Api {},
+    A6ApiVip {},
     QwenBeijing {
         #[serde(rename = "workspaceId")]
         workspace_id: String,
@@ -59,7 +60,7 @@ impl ProviderEndpoint {
             Self::Anthropic {} => CredentialProvider::Anthropic,
             Self::KimiChina {} => CredentialProvider::Kimi,
             Self::Grok {} => CredentialProvider::Grok,
-            Self::A6Api {} => CredentialProvider::A6Api,
+            Self::A6Api {} | Self::A6ApiVip {} => CredentialProvider::A6Api,
             Self::QwenBeijing { .. } | Self::QwenSingapore {} | Self::QwenHongKong {} => {
                 CredentialProvider::Qwen
             }

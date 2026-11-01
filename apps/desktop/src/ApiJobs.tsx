@@ -4,7 +4,7 @@ import "./CodexJobs.css";
 const labels:Record<ApiJobState,string>={starting:"正在准备 API 任务",executing:"编程执行中","cancel-requested":"停止请求已提交",submitted:"已提交，待验收",unknown:"结果尚未确认",abandoned:"已关闭本地尝试",retired:"本地已结束，远端结果未知"};
 type Review={kind:"cancel"|"startup"|"unsent"|"retire";job:ApiJob;unsent?:UnsentAssignmentReview};
 const same=(a:{projectId:string;attemptId:string},b:{projectId:string;attemptId:string})=>a.projectId===b.projectId&&a.attemptId===b.attemptId;
-const service=(job:ApiJob)=>job.worker.target.kind==="openAi"?"OpenAI":({a6Api:"A6API 中转 · api.a6api.com",deepSeek:"DeepSeek",anthropic:"Claude",kimiChina:"Kimi 中国站",grok:"xAI Grok",qwenBeijing:"Qwen 北京",qwenSingapore:"Qwen 新加坡",qwenHongKong:"Qwen 中国香港"}[job.worker.target.endpoint.kind]);
+const service=(job:ApiJob)=>job.worker.target.kind==="openAi"?"OpenAI":({a6Api:"A6API 中转 · api.a6api.com",a6ApiVip:"A6API 中转 · api.a6api.vip",deepSeek:"DeepSeek",anthropic:"Claude",kimiChina:"Kimi 中国站",grok:"xAI Grok",qwenBeijing:"Qwen 北京",qwenSingapore:"Qwen 新加坡",qwenHongKong:"Qwen 中国香港"}[job.worker.target.endpoint.kind]);
 export function ApiJobs({data,send,busy,openManagement}:{data:Snapshot|null;send:(c:Command)=>Promise<boolean>;busy:boolean;openManagement:(operation:string)=>void}){
   const [review,setReview]=useState<Review|null>(null),[reason,setReason]=useState(""),[ack,setAck]=useState(false),[pending,setPending]=useState(false),[message,setMessage]=useState("");
   const [lastCancellation,setLastCancellation]=useState<{projectId:string;attemptId:string}|null>(null);

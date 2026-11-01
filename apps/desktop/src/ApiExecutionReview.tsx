@@ -1,7 +1,7 @@
 import type {ApiWorkerSelection} from "./contracts";
 export function ApiExecutionReview({worker}:{worker:ApiWorkerSelection}) {
   const endpoint=worker.target.kind==="provider"?worker.target.endpoint:null;
-  const destination=endpoint ? ({a6Api:"A6API 中转 · api.a6api.com",deepSeek:"DeepSeek 官方",anthropic:"Claude 官方",kimiChina:"Kimi 中国站",grok:"xAI Grok 官方",qwenBeijing:"Qwen 北京",qwenSingapore:"Qwen 新加坡",qwenHongKong:"Qwen 中国香港"}[endpoint.kind]) : "OpenAI 官方";
+  const destination=endpoint ? ({a6Api:"A6API 中转 · api.a6api.com",a6ApiVip:"A6API 中转 · api.a6api.vip",deepSeek:"DeepSeek 官方",anthropic:"Claude 官方",kimiChina:"Kimi 中国站",grok:"xAI Grok 官方",qwenBeijing:"Qwen 北京",qwenSingapore:"Qwen 新加坡",qwenHongKong:"Qwen 中国香港"}[endpoint.kind]) : "OpenAI 官方";
   return <dl>
     <dt>API 服务</dt><dd>{destination}{endpoint?.kind==="qwenBeijing"&&` · 业务空间 ${endpoint.workspaceId}`}</dd>
     <dt>执行模型</dt><dd>{worker.model}</dd>

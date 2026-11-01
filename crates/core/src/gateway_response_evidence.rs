@@ -13,6 +13,7 @@ use std::{
 const DIRECTORY: &str = "gateway-response-evidence";
 const LIMIT: u64 = 4096;
 const ENDPOINT: &str = "https://api.a6api.com/v1/chat/completions";
+const VIP_ENDPOINT: &str = "https://api.a6api.vip/v1/chat/completions";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -22,6 +23,10 @@ pub(crate) struct Binding {
     pub local_id: String,
     pub request_digest: String,
     pub intent_hash: String,
+    /// Omitted for historical .com records to preserve their exact digest.
+    /// Only the independently selected .vip endpoint may be explicit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +35,23 @@ pub(crate) enum Lane {
     Management,
 }
 impl Binding {
+    pub(crate) fn endpoint_override(
+        target: &cerulean_domain::api_worker::ApiTarget,
+    ) -> Result<Option<String>, String> {
+        match target.url()?.as_str() {
+            ENDPOINT => Ok(None),
+            VIP_ENDPOINT => Ok(Some(VIP_ENDPOINT.into())),
+            _ => Err("gateway target is not an approved relay endpoint".into()),
+        }
+    }
+    fn endpoint(&self) -> &str {
+        self.endpoint.as_deref().unwrap_or(ENDPOINT)
+    }
     fn validate(&self) -> Result<(), String> {
+        require(
+            self.endpoint.as_deref().is_none_or(|v| v == VIP_ENDPOINT),
+            "gateway endpoint override is not the fixed vip origin",
+        )?;
         identifier(&self.project_id)?;
         identifier(&self.local_id)?;
         sha256(&self.request_digest)?;
@@ -56,7 +77,7 @@ impl HeaderRecord {
         require(
             self.schema == 1
                 && self.provider == "a6api"
-                && self.endpoint == ENDPOINT
+                && self.endpoint == binding.endpoint()
                 && &self.binding == binding,
             "gateway header binding differs",
         )?;
@@ -177,7 +198,7 @@ impl GatewayAttempt {
         let record = HeaderRecord {
             schema: 1,
             provider: "a6api".into(),
-            endpoint: ENDPOINT.into(),
+            endpoint: self.binding.endpoint().into(),
             binding: self.binding.clone(),
             observed_at: chrono::Utc::now().to_rfc3339(),
             observation: observation.clone(),

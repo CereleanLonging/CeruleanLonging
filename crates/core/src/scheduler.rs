@@ -22,6 +22,14 @@ pub(crate) mod projection;
 #[cfg(test)]
 #[path = "scheduler_projection_tests.rs"]
 mod projection_tests;
+#[path = "scheduler_recheck.rs"]
+mod recheck;
+#[path = "scheduler_recheck_disposition.rs"]
+mod recheck_disposition;
+#[cfg(windows)]
+#[path = "scheduler_recheck_runner.rs"]
+mod recheck_runner;
+pub(crate) use recheck::APPROVAL_SOURCE as RECHECK_APPROVAL_SOURCE;
 #[cfg(windows)]
 #[path = "scheduler_verification.rs"]
 mod verification;
@@ -117,6 +125,11 @@ impl SchedulerConfig {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CommandContext {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recheck_disposition:
+        Option<Box<cerulean_domain::verification_recheck::RecheckDispositionReview>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verification_recheck: Option<Box<cerulean_domain::verification_recheck::RecheckApproval>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_generation_resolution:
         Option<crate::api_generation_resolution::ApiGenerationResolutionReview>,
@@ -645,23 +658,9 @@ impl DurableWorkflow {
                 _ => None,
             })
     }
-    fn verification(&self, task: &str, attempt: &str) -> Option<&VerificationReport> {
-        self.entries.iter().rev().find_map(|e| {
-            match (&e.body.event.command, &e.body.context.execution) {
-                (
-                    WorkflowCommand::Verify {
-                        task: t,
-                        attempt: a,
-                        ..
-                    },
-                    Some(ExecutionEvidence::Verification { report }),
-                ) if t == task && a == attempt => Some(report),
-                _ => None,
-            }
-        })
-    }
     fn check_execution(
         &self,
+        operation: &str,
         principal: &str,
         command: &WorkflowCommand,
         context: &CommandContext,
@@ -669,6 +668,16 @@ impl DurableWorkflow {
     ) -> Result<(), String> {
         use cerulean_domain::execution::{digest as proof_digest, sha256};
         use cerulean_domain::workflow::ReconcileOutcome;
+        require(
+            context.recheck_disposition.is_some()
+                == matches!(command, WorkflowCommand::RetireVerificationRecheck { .. }),
+            "recheck disposition requires its explicit user command",
+        )?;
+        require(
+            context.verification_recheck.is_some()
+                == matches!(command, WorkflowCommand::ApproveVerificationRecheck { .. }),
+            "recheck approval requires its explicit user command",
+        )?;
         require(
             context.api_generation_resolution.is_some()
                 == matches!(
@@ -709,6 +718,8 @@ impl DurableWorkflow {
         let Some(scope) = &self.config.execution_scope else {
             return require(
                 context.execution.is_none()
+                    && context.recheck_disposition.is_none()
+                    && context.verification_recheck.is_none()
                     && context.currency_approval.is_none()
                     && context.planning_budget.is_none()
                     && context.historical_charge.is_none()
@@ -727,6 +738,8 @@ impl DurableWorkflow {
             }
             WorkflowCommand::Propose { .. } | WorkflowCommand::Accept { .. } => Role::Chief,
             WorkflowCommand::Approve { .. }
+            | WorkflowCommand::ApproveVerificationRecheck { .. }
+            | WorkflowCommand::RetireVerificationRecheck { .. }
             | WorkflowCommand::AuthorizePlanningBudget { .. }
             | WorkflowCommand::ConfirmHistoricalCharge { .. }
             | WorkflowCommand::ConfirmManagementCountResolution { .. }
@@ -748,6 +761,43 @@ impl DurableWorkflow {
                 .any(|p| p.id == principal && p.role == expected),
             "execution channel role mismatch",
         )?;
+        if let WorkflowCommand::RetireVerificationRecheck {
+            task,
+            attempt,
+            operation_id,
+            review_digest,
+        } = command
+        {
+            return self.check_recheck_disposition(
+                operation,
+                task,
+                attempt,
+                operation_id,
+                review_digest,
+                context,
+                live,
+            );
+        }
+        if let WorkflowCommand::ApproveVerificationRecheck {
+            task,
+            attempt,
+            operation_id,
+            review_digest,
+        } = command
+        {
+            require(
+                operation != operation_id,
+                "approval and verification need distinct operation IDs",
+            )?;
+            return self.check_recheck_approval(
+                task,
+                attempt,
+                operation_id,
+                review_digest,
+                context,
+                live,
+            );
+        }
         if let WorkflowCommand::ConfirmApiGenerationResolution { review_digest } = command {
             let review = context
                 .api_generation_resolution
@@ -1098,6 +1148,18 @@ impl DurableWorkflow {
                 }
             }
             WorkflowCommand::Verify { passed, .. } => {
+                if matches!(
+                    context.execution,
+                    Some(ExecutionEvidence::VerificationRecheck { .. })
+                ) {
+                    return self.check_recheck_result(
+                        operation,
+                        command,
+                        context,
+                        self.entries.len(),
+                        live,
+                    );
+                }
                 let Some(ExecutionEvidence::Verification { report }) = &context.execution else {
                     return Err("independent verification report required".into());
                 };
@@ -1152,10 +1214,7 @@ impl DurableWorkflow {
                 let (receipt, manifest) = self
                     .completed_artifacts(task, id)
                     .ok_or("completion evidence missing")?;
-                let report = self
-                    .verification(task, id)
-                    .ok_or("verification evidence missing")?;
-                report.require_pass(revision, manifest, &self.config.core_id)?;
+                let report = self.verified_report(task, id)?;
                 if live {
                     #[cfg(windows)]
                     if revision.snapshot_policy.is_some() {
@@ -1178,11 +1237,7 @@ impl DurableWorkflow {
                         receipt,
                         receipt.turn_id.as_deref(),
                     )?
-                    .require_verified(
-                        manifest,
-                        report,
-                        &self.config.core_id,
-                    )?;
+                    .require_unchanged(manifest)?;
                 }
             }
             _ => unreachable!(),
@@ -1502,6 +1557,7 @@ impl DurableWorkflow {
             }
             self.check_context(&entry.body.event.command, &entry.body.context)?;
             self.check_execution(
+                &entry.body.operation_id,
                 &entry.body.event.principal,
                 &entry.body.event.command,
                 &entry.body.context,
@@ -1673,7 +1729,7 @@ impl DurableWorkflow {
             return Ok(previous.clone());
         }
         self.check_context(&command, &context)?;
-        self.check_execution(principal, &command, &context, true)?;
+        self.check_execution(id, principal, &command, &context, true)?;
         let mut next = self.core.clone();
         let event = next.apply(principal, command)?;
         let mut received_at = Utc::now();

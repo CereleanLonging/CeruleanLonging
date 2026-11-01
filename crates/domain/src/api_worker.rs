@@ -28,6 +28,7 @@ impl ApiTarget {
                     "https://api.moonshot.cn/v1/chat/completions".into()
                 }
                 ProviderEndpoint::A6Api {} => "https://api.a6api.com/v1/chat/completions".into(),
+                ProviderEndpoint::A6ApiVip {} => "https://api.a6api.vip/v1/chat/completions".into(),
                 ProviderEndpoint::Grok {} => "https://api.x.ai/v1/chat/completions".into(),
                 ProviderEndpoint::QwenSingapore {} => {
                     "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions".into()

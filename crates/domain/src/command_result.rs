@@ -48,6 +48,9 @@ impl Command {
             | Self::ReadManagementPage { .. }
             | Self::ReadManagementDetail { .. }
             | Self::ReadVerificationDetail { .. } => false,
+            Self::ReviewVerificationRecheck { .. }
+            | Self::ReadVerificationRecheck { .. }
+            | Self::ReviewVerificationRecheckDisposition { .. } => false,
             Self::Baseline { .. }
             | Self::TeamTiming { .. }
             | Self::PrepareDesktopTask { .. }
@@ -77,6 +80,11 @@ impl Command {
             | Self::CancelCodex { .. }
             | Self::AbandonCodexStartup { .. }
             | Self::RecoverVerification { .. }
+            | Self::RetireVerificationRecheck { .. }
+            | Self::ApproveVerificationRecheck { .. }
+            | Self::StartVerificationRecheck { .. }
+            | Self::CancelVerificationRecheck { .. }
+            | Self::RecoverVerificationRecheck { .. }
             | Self::RequestProjectRevision { .. }
             | Self::RetireSubmittedPlan { .. }
             | Self::StartProjectRun { .. }

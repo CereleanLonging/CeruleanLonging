@@ -6,6 +6,8 @@ use serde::{ser::SerializeSeq, Serialize, Serializer};
 /// Exhaustive matching makes a new command variant require an explicit index label.
 fn kind(command: &WorkflowCommand) -> &'static str {
     match command {
+        WorkflowCommand::ApproveVerificationRecheck { .. } => "approve-verification-recheck",
+        WorkflowCommand::RetireVerificationRecheck { .. } => "retire-verification-recheck",
         WorkflowCommand::ConfirmApiGenerationResolution { .. } => {
             "confirm-api-generation-resolution"
         }

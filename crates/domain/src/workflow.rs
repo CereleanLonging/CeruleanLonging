@@ -112,6 +112,18 @@ pub enum ReconcileOutcome {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum WorkflowCommand {
+    RetireVerificationRecheck {
+        task: String,
+        attempt: String,
+        operation_id: String,
+        review_digest: String,
+    },
+    ApproveVerificationRecheck {
+        task: String,
+        attempt: String,
+        operation_id: String,
+        review_digest: String,
+    },
     ConfirmApiGenerationResolution {
         review_digest: String,
     },
@@ -219,7 +231,9 @@ impl WorkflowCommand {
             | Self::Approve { .. }
             | Self::RequestRevision { .. }
             | Self::RetireSubmittedPlan { .. } => None,
-            Self::Assign { task, .. }
+            Self::ApproveVerificationRecheck { task, .. }
+            | Self::RetireVerificationRecheck { task, .. }
+            | Self::Assign { task, .. }
             | Self::AbandonUnsent { task, .. }
             | Self::RetireUnknownApi { task, .. }
             | Self::RetireUnknownDesktop { task, .. }
@@ -246,7 +260,9 @@ impl WorkflowCommand {
             | Self::Advise { .. }
             | Self::RequestRevision { .. }
             | Self::RetireSubmittedPlan { .. } => None,
-            Self::Assign { attempt, .. }
+            Self::ApproveVerificationRecheck { attempt, .. }
+            | Self::RetireVerificationRecheck { attempt, .. }
+            | Self::Assign { attempt, .. }
             | Self::AbandonUnsent { attempt, .. }
             | Self::RetireUnknownApi { attempt, .. }
             | Self::RetireUnknownDesktop { attempt, .. }
@@ -524,6 +540,33 @@ impl Workflow {
                 ),
                 "single executor does not provide management, revisions or retries",
             )?;
+        }
+        if let WorkflowCommand::ApproveVerificationRecheck {
+            task,
+            attempt,
+            operation_id,
+            review_digest,
+        }
+        | WorkflowCommand::RetireVerificationRecheck {
+            task,
+            attempt,
+            operation_id,
+            review_digest,
+        } = cmd
+        {
+            role(principal, Role::User)?;
+            crate::execution::identifier(operation_id)?;
+            crate::execution::sha256(review_digest)?;
+            let run = state.tasks.get(task).ok_or("recheck task missing")?;
+            require(
+                state.approved
+                    && state.revision_requested.is_none()
+                    && run.state == TaskState::Submitted
+                    && !run.verified
+                    && run.attempt.as_deref() == Some(attempt.as_str()),
+                "recheck approval needs the current unverified submission",
+            )?;
+            return Ok(());
         }
         if let WorkflowCommand::ConfirmHistoricalCharge { review_digest }
         | WorkflowCommand::ConfirmManagementCountResolution { review_digest }

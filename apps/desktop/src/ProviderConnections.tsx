@@ -6,7 +6,7 @@ const providers = [
   {id:"anthropic",name:"Claude",title:"Claude API",target:{kind:"anthropic"}},
   {id:"qwen",name:"Qwen",title:"Qwen / 百炼 API",target:{kind:"qwenBeijing",workspaceId:""}},
   {id:"kimi",name:"Kimi",title:"Kimi API（中国站）",target:{kind:"kimiChina"}},
-  {id:"a6api",name:"A6API",title:"A6API 中转 · api.a6api.com",target:{kind:"a6Api"}},
+  {id:"a6api",name:"A6API",title:"A6API 中转",target:{kind:"a6Api"}},
   {id:"grok",name:"Grok",title:"xAI Grok API",target:{kind:"grok"}},
 ] satisfies {id:CredentialProvider;name:string;title:string;target:ProviderEndpoint}[];
 type Entry=typeof providers[number];
@@ -22,7 +22,13 @@ function ProviderCard({entry,status,send,busy,connected}:{entry:Entry;status:Pro
   return <section className="panel" aria-labelledby={`${entry.id}-credential-heading`}>
     <div className="section-heading"><h2 id={`${entry.id}-credential-heading`}>{entry.title}</h2><span className="badge">{label}</span></div>
     <p className="secondary">单独保存此供应商的 Key。模型列表检查只读取目录，不发送编程任务；目录返回不代表模型生成、工具调用或额度已验证。</p>
-    {entry.id==="a6api"&&<p className="secondary">服务地址：https://api.a6api.com/v1。此凭证仅用于 A6API；模型目录与编程验证分别检查。</p>}
+    {entry.id==="a6api"&&<>
+      <label htmlFor="a6api-origin">中转站地址（须与 Key 来源一致）</label>
+      <select id="a6api-origin" disabled={disabled} value={target.kind} onChange={event=>{const kind=event.target.value;if(kind==="a6Api"||kind==="a6ApiVip")setTarget({kind});}}>
+        <option value="a6Api">https://api.a6api.com/v1</option><option value="a6ApiVip">https://api.a6api.vip/v1</option>
+      </select>
+      <p className="secondary">只向所选地址读取模型列表，不自动切换域名。当前工作台保存一枚 A6API Key；更换地址前请核实凭证适用范围。</p>
+    </>}
     <form onSubmit={event=>{event.preventDefault();if(disabled||lock.current)return;const value=key;setKey("");void act({type:"setProviderKey",provider:entry.id,key:value});}}>
       <label htmlFor={`${entry.id}-key`}>{entry.name} API Key</label>
       <input id={`${entry.id}-key`} type="password" autoComplete="off" spellCheck={false} value={key} onChange={event=>setKey(event.target.value)} minLength={16} maxLength={512} required disabled={disabled} placeholder={saved?"已保存；输入新 Key 可替换":"在本机粘贴 Key，无需发送到聊天"}/>

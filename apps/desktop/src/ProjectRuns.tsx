@@ -39,7 +39,7 @@ function cancellationBlock(
   const apiWorkers=workflow.revision?.execution.flatMap(execution=>execution.apiWorker?[execution.apiWorker]:[])??[];
   for(const api of apiWorkers){
     const target=api.target;
-    const provider=target.kind==="openAi"?"openai":({deepSeek:"deepseek",anthropic:"anthropic",qwenBeijing:"qwen",qwenSingapore:"qwen",qwenHongKong:"qwen",kimiChina:"kimi",grok:"grok",a6Api:"a6api"} as const)[target.endpoint.kind];
+    const provider=target.kind==="openAi"?"openai":({deepSeek:"deepseek",anthropic:"anthropic",qwenBeijing:"qwen",qwenSingapore:"qwen",qwenHongKong:"qwen",kimiChina:"kimi",grok:"grok",a6Api:"a6api",a6ApiVip:"a6api"} as const)[target.endpoint.kind];
     if(provider==="openai" ? !data.openaiConnection.keyConfigured : !data.providerCredentials?.some(c=>c.provider===provider&&c.keyConfigured))return `请先配置 ${provider} 编程模型凭证。`;
     if(data.apiJobs?.some(j=>j.projectId===workflow.project.id&&["unknown","cancel-requested"].includes(j.state)))return "API 执行或停止结果仍需核对，暂不能恢复调度。";
   }

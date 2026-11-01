@@ -2,6 +2,10 @@ use cerulean_core::{artifacts::ArtifactObserver, host::RuntimeHost, scheduler::*
 use cerulean_domain::{execution::*, workflow::*, Command, Request, PROTOCOL_VERSION};
 use std::{fs, path::Path};
 
+#[cfg(windows)]
+#[path = "strict_workflow/recheck.rs"]
+mod recheck_ledger;
+
 fn plan(root: &Path) -> PlanRevision {
     PlanRevision {
         management_setup_digest: None,
@@ -759,6 +763,146 @@ fn complete_detail_verification(host: &mut RuntimeHost) {
         assert!(std::time::Instant::now() < deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
+}
+#[cfg(windows)]
+#[test]
+fn verification_recheck_review_preserves_real_failed_history_and_rejects_changed_inputs() {
+    use cerulean_domain::verification_recheck::RecheckRequest;
+    let (root, mut host, plan, pins) = async_fixture("detail-first-fail");
+    host.start_verification("project", "stage-check", "task", "attempt", pins)
+        .unwrap();
+    complete_detail_verification(&mut host);
+    assert_eq!(
+        host.snapshot().verification_jobs[0].state,
+        VerificationState::Failed
+    );
+    let before = host.snapshot();
+    let verification = root
+        .path()
+        .join("data/workflows/project/verification/stage-check");
+    let report_before = fs::read(verification.join("result.json")).unwrap();
+    let mut replacement = plan.execution[0].checks.clone();
+    replacement[0].args.push("--test-threads=1".into());
+    let request = RecheckRequest {
+        project_id: "project".into(),
+        original_operation_id: "stage-check".into(),
+        replacement_checks: replacement,
+        reason: "Synthetic checker correction review".into(),
+    };
+    let review = host.review_verification_recheck(&request).unwrap();
+    host.require_current_verification_recheck(&review).unwrap();
+    assert_eq!(review.original_operation_id, "stage-check");
+    assert_eq!(review, host.review_verification_recheck(&request).unwrap());
+    let after = host.snapshot();
+    assert_eq!(
+        serde_json::to_value(&before.workflows).unwrap(),
+        serde_json::to_value(&after.workflows).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(&before.verification_jobs).unwrap(),
+        serde_json::to_value(&after.verification_jobs).unwrap()
+    );
+    assert_eq!(
+        report_before,
+        fs::read(verification.join("result.json")).unwrap()
+    );
+    assert_eq!(
+        fs::read_dir(verification.parent().unwrap())
+            .unwrap()
+            .count(),
+        1
+    );
+
+    // The submitted result is unchanged, but another approved source input is not.
+    fs::write(
+        root.path().join("project/validator-mode"),
+        "different input",
+    )
+    .unwrap();
+    assert!(host.review_verification_recheck(&request).is_err());
+    fs::write(
+        root.path().join("project/validator-mode"),
+        "detail-first-fail",
+    )
+    .unwrap();
+    fs::write(root.path().join("project/result.txt"), "changed result").unwrap();
+    assert!(host.review_verification_recheck(&request).is_err());
+    fs::write(root.path().join("project/result.txt"), "abc").unwrap();
+    let mut altered = request.clone();
+    altered.replacement_checks[0]
+        .tool
+        .as_mut()
+        .unwrap()
+        .executable
+        .sha256 = "0".repeat(64);
+    assert!(host.review_verification_recheck(&altered).is_err());
+
+    // Even accurately pinned input files from the worker directory are ineligible.
+    let mut altered = request.clone();
+    altered.replacement_checks[0].tool = Some(
+        cerulean_core::verifier::PinnedCheck::describe(
+            &std::env::current_exe().unwrap(),
+            &[root.path().join("project/result.txt")],
+            Default::default(),
+        )
+        .unwrap(),
+    );
+    assert!(host.review_verification_recheck(&altered).is_err());
+    assert_eq!(review, host.review_verification_recheck(&request).unwrap());
+    let original_log = fs::read(verification.join("check.stdout")).unwrap();
+    fs::write(verification.join("check.stdout"), "changed log").unwrap();
+    assert!(host.review_verification_recheck(&request).is_err());
+    fs::write(verification.join("check.stdout"), original_log).unwrap();
+    let data = root.path().join("data");
+    drop(host);
+    let host = RuntimeHost::open(&data).unwrap();
+    assert_eq!(review, host.review_verification_recheck(&request).unwrap());
+    host.require_current_verification_recheck(&review).unwrap();
+    drop(host);
+    let ledger = data.join("workflows/project");
+    let config = serde_json::from_slice(&fs::read(ledger.join("bindings.json")).unwrap()).unwrap();
+    let mut store = DurableWorkflow::open(&ledger, config).unwrap();
+    apply(
+        &mut store,
+        "deputy",
+        WorkflowCommand::Advise {
+            task: "task".into(),
+            suggestion: "A later local ledger event invalidates the review".into(),
+        },
+        CommandContext::default(),
+    )
+    .unwrap();
+    drop(store);
+    let host = RuntimeHost::open(&data).unwrap();
+    assert!(host.require_current_verification_recheck(&review).is_err());
+    let fresh = host.review_verification_recheck(&request).unwrap();
+    assert_ne!(review.ledger_head, fresh.ledger_head);
+    assert_eq!(review.original_report_digest, fresh.original_report_digest);
+    assert_eq!(
+        report_before,
+        fs::read(verification.join("result.json")).unwrap()
+    );
+}
+#[cfg(windows)]
+#[test]
+fn verification_recheck_review_refuses_original_result_without_ledger_publication() {
+    let (_root, host) = recovery_fixture("detail-first-fail");
+    let snapshot = host.snapshot();
+    let mut checks = snapshot.workflows[0].revision.as_ref().unwrap().execution[0]
+        .checks
+        .clone();
+    checks[0].args.push("--test-threads=1".into());
+    let request = cerulean_domain::verification_recheck::RecheckRequest {
+        project_id: "project".into(),
+        original_operation_id: "stage-check".into(),
+        replacement_checks: checks,
+        reason: "Cannot bypass unresolved original publication".into(),
+    };
+    assert!(host.review_verification_recheck(&request).is_err());
+    assert_eq!(
+        host.snapshot().verification_jobs[0].state,
+        VerificationState::Unknown
+    );
 }
 #[cfg(windows)]
 fn recovery_fixture(mode: &str) -> (tempfile::TempDir, RuntimeHost) {
@@ -3698,3 +3842,7 @@ async fn service_approves_full_revision_and_refuses_shutdown_with_assigned_task(
     );
     // Drop terminates only this test's server; there is no external worker/effect.
 }
+
+#[cfg(windows)]
+#[path = "strict_workflow/native_export_647.rs"]
+mod native_export_647;

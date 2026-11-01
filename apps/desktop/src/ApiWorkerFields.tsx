@@ -33,6 +33,13 @@ export function ApiWorkerFields({worker,onChange,idPrefix="planning-api"}:{idPre
   ] as const;
   return <section className="panel" aria-label="API 编程执行配置">
     <h3>API 编程执行配置</h3>
+    {(endpoint?.kind==="a6Api"||endpoint?.kind==="a6ApiVip")&&<>
+      <label htmlFor={`${idPrefix}-relay-origin`}>A6API 中转站地址</label>
+      <select id={`${idPrefix}-relay-origin`} value={endpoint.kind} onChange={e=>{const kind=e.target.value;if(kind==="a6Api"||kind==="a6ApiVip")onChange({...worker,target:{kind:"provider",endpoint:{kind}}});}}>
+        <option value="a6Api">https://api.a6api.com/v1</option><option value="a6ApiVip">https://api.a6api.vip/v1</option>
+      </select>
+      <p className="secondary">须与接入管理中的 Key 来源一致。地址随方案一同批准，不自动切换域名。</p>
+    </>}
     {qwen&&<>
       <label htmlFor={`${idPrefix}-region`}>百炼地域</label>
       <select id={`${idPrefix}-region`} value={endpoint.kind} onChange={e=>{

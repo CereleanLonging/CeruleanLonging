@@ -48,7 +48,8 @@
     "third-party/THIRD-PARTY-MANIFEST.json",
     "third-party/THIRD-PARTY-NOTICES.txt",
     "third-party/THIRD-PARTY-SOURCES.zip",
-    "apps/desktop/src-tauri/installer/LICENSE-MIT.tauri"
+    "apps/desktop/src-tauri/installer/LICENSE-MIT.tauri",
+    "apps/desktop/src/workflow-template-example.json"
   ],
   "trees": {
     "crates": [
@@ -60,7 +61,8 @@
     "apps/desktop/src": [
       ".tsx",
       ".ts",
-      ".css"
+      ".css",
+      ".json"
     ],
     "apps/desktop/src-tauri/src": [
       ".rs"
@@ -100,7 +102,7 @@
     },
     {
       "path": "crates/adapters/src/api_generation/tests.rs",
-      "sourceSha256": "b2fb7f48885091301299cbfeab6899e9828dcfddd38fd67c6b2ac7824e8e919e",
+      "sourceSha256": "141c1f555224632f21fbd84f3fcfc57288c15d3285ce44eacd5c9325d65126c0",
       "markerSha256": "92f07319ddaf28406e1f43d83d412d577c428f92ecfe10dad308d4af0b179d5d"
     },
     {
@@ -130,7 +132,7 @@
     },
     {
       "path": "crates/adapters/src/provider_models/tests.rs",
-      "sourceSha256": "ef4477e2895b0facc7c2154459a4384cf4b2b3ff087de12732c1343cd95a6a3e",
+      "sourceSha256": "a82b0020453f4722d81d30453fe4127a3261e90042daf936e34144fe2a784df3",
       "markerSha256": "a34fa3c6d37318365d46fff1f50d41253bb062bdbfa8c3f5ea3ae264604de1b4"
     },
     {

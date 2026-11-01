@@ -248,6 +248,7 @@ async fn gateway_324_outcome_publication_failure_preserves_header_and_withholds_
     assert!(result.is_err());
     assert!(!journal.healthy());
     let binding = Binding {
+        endpoint: None,
         lane: Lane::Worker,
         project_id: id.project_id.clone(),
         local_id: id.request_id.clone(),

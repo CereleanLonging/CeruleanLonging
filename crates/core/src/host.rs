@@ -224,6 +224,11 @@ pub mod team_observation;
 mod team_timing_product;
 #[path = "unsent_assignment.rs"]
 mod unsent_assignment;
+#[path = "verification_recheck.rs"]
+mod verification_recheck;
+#[cfg(windows)]
+#[path = "verification_recheck_host.rs"]
+mod verification_recheck_host;
 #[path = "verification_recovery.rs"]
 mod verification_recovery;
 #[path = "workspace_host.rs"]
@@ -306,6 +311,8 @@ pub struct RuntimeHost {
     root: PathBuf,
     projects: BTreeMap<String, DurableWorkflow>,
     jobs: BTreeMap<(String, String), VerificationJob>,
+    #[cfg(windows)]
+    recheck_jobs: std::collections::BTreeSet<(String, String)>,
     validators: BTreeMap<String, RegisteredValidator>,
     codex_jobs: BTreeMap<(String, String), CodexJob>,
     omp_jobs: BTreeMap<(String, String), omp_jobs::OmpJob>,
@@ -816,6 +823,8 @@ impl RuntimeHost {
         ordinary(&folder, true)?;
         let mut projects = BTreeMap::new();
         let mut jobs = BTreeMap::new();
+        #[cfg(windows)]
+        let mut recheck_jobs = std::collections::BTreeSet::new();
         let mut codex_jobs = BTreeMap::new();
         for entry in fs::read_dir(&folder).map_err(|e| e.to_string())? {
             let entry = entry.map_err(|e| e.to_string())?;
@@ -850,6 +859,13 @@ impl RuntimeHost {
             #[cfg(windows)]
             for job in crate::async_verification::load(&root, &id, &store)? {
                 jobs.insert((id.clone(), job.operation_id.clone()), job);
+            }
+            #[cfg(windows)]
+            for job in crate::async_verification_recheck::load(&root, &id, &store)? {
+                let key = (id.clone(), job.operation_id.clone());
+                require(!jobs.contains_key(&key), "原验收与复验操作编号冲突")?;
+                recheck_jobs.insert(key.clone());
+                jobs.insert(key, job);
             }
             projects.insert(id, store);
         }
@@ -914,6 +930,8 @@ impl RuntimeHost {
             root,
             projects,
             jobs,
+            #[cfg(windows)]
+            recheck_jobs,
             validators,
             codex_jobs,
             omp_jobs: BTreeMap::new(),
@@ -1187,7 +1205,9 @@ impl RuntimeHost {
         #[cfg(windows)]
         {
             job.reconciliation_digest = None;
-            if job.state == VerificationState::Unknown && !self.active.contains_key(&job.project_id)
+            if job.state == VerificationState::Unknown
+                && !self.active.contains_key(&job.project_id)
+                && !self.is_verification_recheck(&job.project_id, &job.operation_id)
             {
                 if let Some(store) = self.projects.get(&job.project_id) {
                     job.reconciliation_digest =
@@ -1635,6 +1655,29 @@ impl RuntimeHost {
         self.require_available_inner(project, false)
     }
     fn require_available_inner(&self, project: &str, allow_api: bool) -> Result<(), String> {
+        self.require_available_for_recheck(project, allow_api, None)
+    }
+    fn require_available_for_recheck(
+        &self,
+        project: &str,
+        allow_api: bool,
+        recheck: Option<&str>,
+    ) -> Result<(), String> {
+        require(
+            match recheck {
+                None => self
+                    .projects
+                    .get(project)
+                    .is_none_or(|s| s.unresolved_verification_recheck().is_none()),
+                Some(operation) => self
+                    .projects
+                    .get(project)
+                    .and_then(|s| s.unresolved_verification_recheck())
+                    .and_then(|e| e.body.context.verification_recheck.as_ref())
+                    .is_some_and(|a| a.operation_id == operation),
+            },
+            "项目仍有未决复验批准，请核对原操作；禁止重新派发",
+        )?;
         require(
             !self.counting_project(project),
             "项目指挥计数仍在运行，请等待原操作",
@@ -1721,10 +1764,11 @@ impl RuntimeHost {
             "项目执行结果待对账，禁止重派",
         )?;
         require(
-            !self
-                .jobs
-                .values()
-                .any(|j| j.project_id == project && j.state == VerificationState::Unknown),
+            !self.jobs.values().any(|j| {
+                j.project_id == project
+                    && j.state == VerificationState::Unknown
+                    && Some(j.operation_id.as_str()) != recheck
+            }),
             "项目存在待对账验收，禁止自动重跑",
         )
     }
@@ -1798,7 +1842,7 @@ impl RuntimeHost {
             message: None,
             reconciliation_digest: None,
         };
-        crate::async_verification::save(&self.root, &job)?;
+        self.save_verification_job(&job)?;
         self.jobs
             .insert((project.into(), operation.into()), job.clone());
         if shared {
@@ -1817,7 +1861,7 @@ impl RuntimeHost {
                 job.message = Some(error.clone());
                 self.jobs
                     .insert((project.into(), operation.into()), job.clone());
-                let _ = crate::async_verification::save(&self.root, &job);
+                let _ = self.save_verification_job(&job);
                 let store =
                     DurableWorkflow::open(&self.root.join("workflows").join(project), config)?;
                 self.projects.insert(project.into(), store);
@@ -2353,7 +2397,7 @@ impl RuntimeHost {
                         self.active.insert(project.clone(), active);
                     }
                 }
-                if let Err(error) = crate::async_verification::save(&self.root, &job) {
+                if let Err(error) = self.save_verification_job(&job) {
                     job.state = VerificationState::Unknown;
                     job.message = Some(format!("验收状态保存失败，需要对账: {error}"));
                 }
@@ -2379,6 +2423,10 @@ impl RuntimeHost {
             )?;
             let key = (project.to_string(), operation.to_string());
             let job = self.jobs.get(&key).ok_or("验收记录不存在")?.clone();
+            require(
+                !self.is_verification_recheck(project, operation),
+                "复验须核对原批准，不可使用旧验收放弃路径",
+            )?;
             let store = self
                 .projects
                 .get(project)
@@ -2408,7 +2456,7 @@ impl RuntimeHost {
             job.reconciliation_digest = None;
             job.message = Some("用户已放弃本次验收；保留证据，任务未通过。".into());
             self.jobs.insert(key, job.clone());
-            crate::async_verification::save(&self.root, &job)
+            self.save_verification_job(&job)
         }
         #[cfg(not(windows))]
         {
@@ -2419,10 +2467,7 @@ impl RuntimeHost {
     fn cancel_verification(&mut self, project: &str, operation: &str) -> Result<(), String> {
         #[cfg(windows)]
         {
-            let active = self
-                .active
-                .get_mut(project)
-                .ok_or("此项目没有运行中的验收")?;
+            let active = self.active.get(project).ok_or("此项目没有运行中的验收")?;
             require(
                 active.job.operation_id == operation
                     && matches!(
@@ -2434,7 +2479,8 @@ impl RuntimeHost {
             let mut job = active.job.clone();
             job.state = VerificationState::Cancelling;
             job.updated_at = chrono::Utc::now().to_rfc3339();
-            crate::async_verification::save(&self.root, &job)?;
+            self.save_verification_job(&job)?;
+            let active = self.active.get_mut(project).expect("original verification");
             active
                 .cancel
                 .store(true, std::sync::atomic::Ordering::Release);
@@ -2791,6 +2837,11 @@ impl RuntimeHost {
                 | Command::RequestProjectRevision { .. }
                 | Command::RetireSubmittedPlan { .. }
                 | Command::RecoverVerification { .. }
+                | Command::RetireVerificationRecheck { .. }
+                | Command::ApproveVerificationRecheck { .. }
+                | Command::StartVerificationRecheck { .. }
+                | Command::CancelVerificationRecheck { .. }
+                | Command::RecoverVerificationRecheck { .. }
                 | Command::DiscardManagementDecision { .. }
                 | Command::AnswerManagementWait { .. }
                 | Command::AbandonUnsentAttempt { .. }
@@ -3100,6 +3151,19 @@ impl RuntimeHost {
                 operation_id,
                 evidence_digest,
             } => self.recover_verification(&project_id, &operation_id, &evidence_digest),
+            Command::ApproveVerificationRecheck {
+                review,
+                approval_operation_id,
+                operation_id,
+            } => self
+                .approve_verification_recheck(&review, &approval_operation_id, &operation_id)
+                .map(|_| ()),
+            command @ (Command::RetireVerificationRecheck { .. }
+            | Command::StartVerificationRecheck { .. }
+            | Command::CancelVerificationRecheck { .. }
+            | Command::RecoverVerificationRecheck { .. }) => {
+                self.verification_recheck_command(command)
+            }
             command => self.base.execute_command(command),
         };
         match result {

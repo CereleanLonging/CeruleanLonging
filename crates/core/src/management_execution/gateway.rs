@@ -19,6 +19,7 @@ impl DecisionJournal {
             return Ok(None);
         }
         Ok(Some(Binding {
+            endpoint: Binding::endpoint_override(&request.wire.target)?,
             lane: Lane::Management,
             project_id: op.intent.project_id.clone(),
             local_id: id.into(),

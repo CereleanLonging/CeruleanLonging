@@ -1,4 +1,4 @@
-//! Narrow proof that unresolved Codex work has no live local owner.
+//! Narrow proof that unresolved work has no live local owner.
 use super::*;
 use crate::management_execution::DecisionState;
 
@@ -78,6 +78,32 @@ impl RuntimeHost {
             }),
             "桌面操作仍需原停止或核对流程",
         )?;
+        let mut recheck_cancellations = Vec::new();
+        for job in self
+            .jobs
+            .values()
+            .filter(|j| j.state == VerificationState::Unknown)
+        {
+            require(
+                self.is_verification_recheck(&job.project_id, &job.operation_id),
+                "其他验收仍需对应恢复入口",
+            )?;
+            let store = self
+                .projects
+                .get(&job.project_id)
+                .ok_or("原复验账本尚不可用")?;
+            crate::async_verification_recheck::require_claim(&self.root, store, job)?;
+            let basis = crate::verification_detail::basis(store, job)?;
+            let mut proof = crate::verification_detail::preserved_recheck_cancellation(
+                &self.root, job, &basis,
+            )?;
+            if let Some(processes) =
+                crate::async_verification_recheck::process_exit_proof(&self.root, store, job)?
+            {
+                proof = digest(&("preserved-recheck-processes-v1", proof, processes))?;
+            }
+            recheck_cancellations.push((&job.project_id, &job.operation_id, proof));
+        }
         require(
             snapshot.api_jobs.iter().all(|j| {
                 matches!(
@@ -96,9 +122,7 @@ impl RuntimeHost {
             }) && self.jobs.values().all(|j| {
                 !matches!(
                     j.state,
-                    VerificationState::Running
-                        | VerificationState::Cancelling
-                        | VerificationState::Unknown
+                    VerificationState::Running | VerificationState::Cancelling
                 )
             }),
             "其他执行仍未结束，请使用对应恢复入口",
@@ -197,7 +221,7 @@ impl RuntimeHost {
             .iter()
             .map(|(id, store)| (id, store.history().last().map(|e| &e.hash)))
             .collect::<Vec<_>>();
-        let evidence = digest(&(
+        let original_evidence = digest(&(
             "preserved-shutdown-v1",
             &self.base.last_hash,
             project_heads,
@@ -206,6 +230,16 @@ impl RuntimeHost {
             self.omp_startups.all(),
             observations,
         ))?;
+        // Preserve the existing evidence identity when no recheck is involved.
+        let evidence = if recheck_cancellations.is_empty() {
+            original_evidence
+        } else {
+            digest(&(
+                "preserved-shutdown-recheck-v1",
+                original_evidence,
+                recheck_cancellations,
+            ))?
+        };
         Ok((snapshot, evidence))
     }
 }

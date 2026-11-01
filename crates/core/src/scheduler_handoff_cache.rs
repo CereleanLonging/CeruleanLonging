@@ -17,7 +17,9 @@ pub(super) fn event(
         | WorkflowCommand::Approve { .. }
         | WorkflowCommand::RequestRevision { .. } => return Ok(None),
         WorkflowCommand::RetireSubmittedPlan { .. } => return Ok(None),
-        WorkflowCommand::Assign { task, .. }
+        WorkflowCommand::ApproveVerificationRecheck { task, .. }
+        | WorkflowCommand::RetireVerificationRecheck { task, .. }
+        | WorkflowCommand::Assign { task, .. }
         | WorkflowCommand::AbandonUnsent { task, .. }
         | WorkflowCommand::RetireUnknownApi { task, .. }
         | WorkflowCommand::RetireUnknownDesktop { task, .. }
@@ -45,6 +47,12 @@ pub(super) fn event(
         _ => HandoffStatus::Running,
     };
     let summary = match command {
+        WorkflowCommand::RetireVerificationRecheck { .. } => {
+            "用户结束本次未完成复验；原提交仍未验证，失败与中断证据保留".into()
+        }
+        WorkflowCommand::ApproveVerificationRecheck { .. } => {
+            "用户批准更正检查器后复验；原提交与失败记录保留，尚未执行或通过".into()
+        }
         WorkflowCommand::RetireUnknownDesktop { reason, .. } => {
             format!("用户结束本地桌面跟踪，外部任务结果与费用仍未知，已有修改保留：{reason}")
         }

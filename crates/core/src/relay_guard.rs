@@ -95,7 +95,7 @@ pub(crate) fn record_uses_relay(value: &serde_json::Value) -> bool {
         v["workerAdapter"] == "a6api"
             || v["adapterId"] == "a6api"
             || v.pointer("/apiWorker/target/endpoint/kind")
-                .is_some_and(|s| s == "a6Api")
+                .is_some_and(|s| s == "a6Api" || s == "a6ApiVip")
     }
     fn sources(v: &serde_json::Value) -> bool {
         v["managementSources"]["chief"]["kind"] == "provider"

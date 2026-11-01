@@ -23,11 +23,11 @@ $releaseObservation=$null
 $maintenanceObservation=$null;$maintenanceBinary=$null;$reply=$null
 $guards=[Collections.Generic.Dictionary[string,object]]::new([StringComparer]::OrdinalIgnoreCase)
 function ReaderGeneration($package){
-    # Explicit declarations support numeric readers 3-17; no coercion or future-generation fallback.
+    # Explicit declarations support numeric readers 3-18; no coercion or future-generation fallback.
     $cap=$package.capabilities
     if($null -eq $cap){throw 'Package reader capabilities missing'}
     if($null -ne $cap.dataReaderGeneration){
-        if(($cap.dataReaderGeneration -isnot [int] -and $cap.dataReaderGeneration -isnot [long]) -or $cap.dataReaderGeneration -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17) -or $cap.dataFormatGuardSchema -ne 1 -or $cap.binaryUpdateSchema -ne 2 -or $cap.dataRecoverySchema -ne 2 -or (@($cap.readableDataSchemas) -join ',') -cne '1,2'){throw 'Unsupported or inconsistent explicit reader capabilities'}
+        if(($cap.dataReaderGeneration -isnot [int] -and $cap.dataReaderGeneration -isnot [long]) -or $cap.dataReaderGeneration -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18) -or $cap.dataFormatGuardSchema -ne 1 -or $cap.binaryUpdateSchema -ne 2 -or $cap.dataRecoverySchema -ne 2 -or (@($cap.readableDataSchemas) -join ',') -cne '1,2'){throw 'Unsupported or inconsistent explicit reader capabilities'}
         return $cap.dataReaderGeneration
     }
     # Only these inspected legacy versions predate explicit reader declarations.
@@ -54,9 +54,10 @@ function CheckDataFormat($source,$target){
     $teamImportMarker=Join-Path $script:plan.data 'events\00000000.reader15.json'
     $relayMarker=Join-Path $script:plan.data 'events\00000000.reader16.json'
     $rejectedUsageMarker=Join-Path $script:plan.data 'events\00000000.reader17.json'
+    $verificationRecheckMarker=Join-Path $script:plan.data 'events\00000000.reader18.json'
     $pending=@(Get-ChildItem -LiteralPath (Join-Path $script:plan.data 'events') -Filter '.format-migration-*.pending' -ErrorAction Stop)
     if($pending.Count){throw 'Data migration is incomplete; no program update is allowed'}
-    $unknown=@(Get-ChildItem -LiteralPath (Join-Path $script:plan.data 'events') -Filter '00000000.reader*' | Where-Object {$_.Name -cnotin @('00000000.reader3.json','00000000.reader4.json','00000000.reader5.json','00000000.reader6.json','00000000.reader7.json','00000000.reader8.json','00000000.reader9.json','00000000.reader10.json','00000000.reader11.json','00000000.reader12.json','00000000.reader13.json','00000000.reader14.json','00000000.reader15.json','00000000.reader16.json','00000000.reader17.json')})
+    $unknown=@(Get-ChildItem -LiteralPath (Join-Path $script:plan.data 'events') -Filter '00000000.reader*' | Where-Object {$_.Name -cnotin @('00000000.reader3.json','00000000.reader4.json','00000000.reader5.json','00000000.reader6.json','00000000.reader7.json','00000000.reader8.json','00000000.reader9.json','00000000.reader10.json','00000000.reader11.json','00000000.reader12.json','00000000.reader13.json','00000000.reader14.json','00000000.reader15.json','00000000.reader16.json','00000000.reader17.json','00000000.reader18.json')})
     if($unknown.Count){throw 'Unknown reader guard; no program update is allowed'}
     $readerPresent=Test-Path -LiteralPath $readerMarker
     $currencyPresent=Test-Path -LiteralPath $currencyMarker
@@ -73,6 +74,8 @@ function CheckDataFormat($source,$target){
     $teamImportPresent=Test-Path -LiteralPath $teamImportMarker
     $relayPresent=Test-Path -LiteralPath $relayMarker
     $rejectedUsagePresent=Test-Path -LiteralPath $rejectedUsageMarker
+    $verificationRecheckPresent=Test-Path -LiteralPath $verificationRecheckMarker
+    if($verificationRecheckPresent -and ($sourceReader -lt 18 -or $targetReader -lt 18)){throw 'Source/candidate cannot both read corrected verification generation 18'}
     if($rejectedUsagePresent -and ($sourceReader -lt 17 -or $targetReader -lt 17)){throw 'Source/candidate cannot both read rejected usage generation 17'}
     if($relayPresent -and ($sourceReader -lt 16 -or $targetReader -lt 16)){throw 'Source/candidate cannot both read relay generation 16'}
     if($teamImportPresent -and ($sourceReader -lt 15 -or $targetReader -lt 15)){throw 'Source/candidate cannot both read team import generation 15'}
@@ -96,9 +99,9 @@ function CheckDataFormat($source,$target){
     $sourceSchemas=if($sourceReader -eq 1){@(1)}else{@($source.capabilities.readableDataSchemas)}
     if(($format.dataSchema -isnot [int] -and $format.dataSchema -isnot [long]) -or $format.dataSchema -notin @(1,2) -or $format.dataSchema -notin @($target.capabilities.readableDataSchemas) -or $format.dataSchema -notin $sourceSchemas){throw 'Source/candidate cannot both read the active data format; use the reviewed data migration recovery path'}
     $minimum=$format.minimumReaderGeneration
-    if($null -eq $minimum -and $targetReader -eq 2 -and -not $readerPresent -and -not $currencyPresent -and -not $preparationPresent -and -not $countPresent -and -not $resolutionPresent -and -not $scopedPricingPresent -and -not $scopedCountPresent -and -not $scopedExecutionPresent -and -not $apiCurrencyPresent -and -not $apiFeeResolutionPresent -and -not $managementSourcePresent -and -not $experimentPresent -and -not $teamImportPresent -and -not $relayPresent -and -not $rejectedUsagePresent){$minimum=$format.dataSchema}
-    $expectedMinimum=if($rejectedUsagePresent){17}elseif($relayPresent){16}elseif($teamImportPresent){15}elseif($experimentPresent){14}elseif($managementSourcePresent){13}elseif($apiFeeResolutionPresent){12}elseif($apiCurrencyPresent){11}elseif($scopedExecutionPresent){10}elseif($scopedCountPresent){9}elseif($scopedPricingPresent){8}elseif($resolutionPresent){7}elseif($countPresent){6}elseif($preparationPresent){5}elseif($currencyPresent){4}elseif($readerPresent){3}else{$format.dataSchema}
-    if(($minimum -isnot [int] -and $minimum -isnot [long]) -or $minimum -notin @(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17) -or $minimum -ne $expectedMinimum -or (($readerPresent -or $currencyPresent -or $preparationPresent -or $countPresent -or $resolutionPresent -or $scopedPricingPresent -or $scopedCountPresent -or $scopedExecutionPresent -or $apiCurrencyPresent -or $apiFeeResolutionPresent -or $managementSourcePresent -or $experimentPresent -or $teamImportPresent -or $relayPresent -or $rejectedUsagePresent) -and $format.readerGuardDigest -cnotmatch '^[a-f0-9]{64}$')){throw 'Active data reader declaration is missing or inconsistent'}
+    if($null -eq $minimum -and $targetReader -eq 2 -and -not $readerPresent -and -not $currencyPresent -and -not $preparationPresent -and -not $countPresent -and -not $resolutionPresent -and -not $scopedPricingPresent -and -not $scopedCountPresent -and -not $scopedExecutionPresent -and -not $apiCurrencyPresent -and -not $apiFeeResolutionPresent -and -not $managementSourcePresent -and -not $experimentPresent -and -not $teamImportPresent -and -not $relayPresent -and -not $rejectedUsagePresent -and -not $verificationRecheckPresent){$minimum=$format.dataSchema}
+    $expectedMinimum=if($verificationRecheckPresent){18}elseif($rejectedUsagePresent){17}elseif($relayPresent){16}elseif($teamImportPresent){15}elseif($experimentPresent){14}elseif($managementSourcePresent){13}elseif($apiFeeResolutionPresent){12}elseif($apiCurrencyPresent){11}elseif($scopedExecutionPresent){10}elseif($scopedCountPresent){9}elseif($scopedPricingPresent){8}elseif($resolutionPresent){7}elseif($countPresent){6}elseif($preparationPresent){5}elseif($currencyPresent){4}elseif($readerPresent){3}else{$format.dataSchema}
+    if(($minimum -isnot [int] -and $minimum -isnot [long]) -or $minimum -notin @(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18) -or $minimum -ne $expectedMinimum -or (($readerPresent -or $currencyPresent -or $preparationPresent -or $countPresent -or $resolutionPresent -or $scopedPricingPresent -or $scopedCountPresent -or $scopedExecutionPresent -or $apiCurrencyPresent -or $apiFeeResolutionPresent -or $managementSourcePresent -or $experimentPresent -or $teamImportPresent -or $relayPresent -or $rejectedUsagePresent -or $verificationRecheckPresent) -and $format.readerGuardDigest -cnotmatch '^[a-f0-9]{64}$')){throw 'Active data reader declaration is missing or inconsistent'}
     if($minimum -gt $sourceReader -or $minimum -gt $targetReader){throw 'Source/candidate reader generation is below the active minimum; restore a reviewed compatible backup first'}
 }
 function HashBytes([byte[]]$bytes){
@@ -388,7 +391,7 @@ try{
         $source=InspectPackage $SourcePackage $SourceManifestSha256
         $target=InspectPackage $CandidatePackage $CandidateManifestSha256
         CheckResourceLayout $source $target
-        if($source.capabilities.upgradeHoldSchema -ne 1 -or $target.capabilities.binaryUpdateSchema -ne 2 -or (ReaderGeneration $target) -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17) -or $target.capabilities.dataSchema -ne 1 -or ($source.version -ne '0.1.1' -and $source.capabilities.dataSchema -ne 1) -or [version]$target.version -le [version]$source.version){throw 'Only forward updates to a reader-aware candidate with the same base data schema are supported'}
+        if($source.capabilities.upgradeHoldSchema -ne 1 -or $target.capabilities.binaryUpdateSchema -ne 2 -or (ReaderGeneration $target) -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18) -or $target.capabilities.dataSchema -ne 1 -or ($source.version -ne '0.1.1' -and $source.capabilities.dataSchema -ne 1) -or [version]$target.version -le [version]$source.version){throw 'Only forward updates to a reader-aware candidate with the same base data schema are supported'}
         foreach($a in @($run,$install,$data)){
             foreach($b in @($source.packageDirectory,$target.packageDirectory)){if(-not (Disjoint $a $b)){throw 'Package and mutable paths overlap'}}
         }
@@ -447,7 +450,7 @@ try{
         $readPath=if($Action -eq 'AbandonPreparation'){Join-Path $run 'intent.json'}else{$planPath}
         $readDigest=if($Action -eq 'AbandonPreparation'){$IntentDigest}else{$PlanDigest}
         $plan=ReadJson $readPath
-        if((HashBytes ([IO.File]::ReadAllBytes($readPath))) -cne $readDigest -or $plan.schema -notin @(1,2) -or ($plan.schema -eq 2 -and (($plan.controllerReaderGeneration -isnot [int] -and $plan.controllerReaderGeneration -isnot [long]) -or $plan.controllerReaderGeneration -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17) -or $plan.maintenanceInterlockSchema -ne 1)) -or $plan.ownerSid -cne $sid -or $plan.transaction -ine $run){throw 'Transaction identity, controller generation or plan digest changed'}
+        if((HashBytes ([IO.File]::ReadAllBytes($readPath))) -cne $readDigest -or $plan.schema -notin @(1,2) -or ($plan.schema -eq 2 -and (($plan.controllerReaderGeneration -isnot [int] -and $plan.controllerReaderGeneration -isnot [long]) -or $plan.controllerReaderGeneration -notin @(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18) -or $plan.maintenanceInterlockSchema -ne 1)) -or $plan.ownerSid -cne $sid -or $plan.transaction -ine $run){throw 'Transaction identity, controller generation or plan digest changed'}
         if($plan.schema -eq 1 -and $Action -ne 'Review'){throw 'Legacy transaction requires its original controller; no implicit maintenance adoption'}
         if($plan.schema -eq 2 -and $plan.maintenanceInterlockSchema -eq 1){OpenMaintenance;$maintenanceObservation=ObserveMaintenance}
         elseif($Action -ne 'Review'){throw 'Legacy transaction requires its original controller; no implicit maintenance adoption'}

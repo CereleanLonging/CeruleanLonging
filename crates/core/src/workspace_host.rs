@@ -31,6 +31,8 @@ mod revision_reviews_tests;
 mod startup;
 #[path = "workspace_unsent_assignments.rs"]
 pub(crate) mod unsent_assignments;
+#[path = "workspace_verification_rechecks.rs"]
+mod verification_rechecks;
 
 // Hash the selected original state without allocating an encoded full state or
 // cloning its evidence. This is a query version, never an approval digest.
@@ -409,6 +411,15 @@ impl RuntimeHost {
         query: &WorkspaceQuery,
     ) -> Result<WorkspaceResult, String> {
         let result = match query {
+            WorkspaceQuery::VerificationRechecks { .. }
+            | WorkspaceQuery::CurrentVerificationRecheck { .. }
+            | WorkspaceQuery::VerificationRecheckInputs { .. }
+            | WorkspaceQuery::RegisteredValidator { .. }
+            | WorkspaceQuery::VerificationRecheck { .. }
+            | WorkspaceQuery::VerificationRecheckDispositionReview { .. }
+            | WorkspaceQuery::VerificationRecheckReview { .. } => {
+                return self.workspace_verification_rechecks(query);
+            }
             WorkspaceQuery::ManagementRecordReviews { .. }
             | WorkspaceQuery::ManagementRecordReview { .. } => {
                 return self.workspace_management_record_reviews(query);

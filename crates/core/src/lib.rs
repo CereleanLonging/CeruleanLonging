@@ -1,4 +1,5 @@
 use cerulean_domain::*;
+pub const DATA_READER_GENERATION: u32 = verification_recheck_guard::GENERATION;
 #[cfg(all(test, windows))]
 mod workload_fixture_252;
 /// Explicitly reviewed schema-1 backup writers; never infer future compatibility.
@@ -38,6 +39,8 @@ mod async_codex;
 mod async_omp;
 #[cfg(windows)]
 mod async_verification;
+#[cfg(windows)]
+mod async_verification_recheck;
 #[cfg(windows)]
 pub mod backup;
 #[cfg(windows)]
@@ -106,6 +109,8 @@ pub mod portable_evidence;
 pub mod preserve_shutdown;
 mod project_setup;
 pub mod reader_generation;
+#[cfg(windows)]
+mod recheck_disposition_evidence;
 pub mod rejected_usage_guard;
 pub mod relay_guard;
 mod replay_checkpoint;
@@ -129,6 +134,8 @@ pub mod team_materials;
 pub mod upgrade;
 mod validator_catalog;
 mod verification_detail;
+mod verification_recheck_evidence;
+pub mod verification_recheck_guard;
 #[cfg(windows)]
 mod verification_reconciliation;
 #[cfg(windows)]
@@ -252,6 +259,7 @@ impl Store {
                 || f.file_name() == management_source_guard::FILE_NAME
                 || f.file_name() == relay_guard::FILE_NAME
                 || f.file_name() == rejected_usage_guard::FILE_NAME
+                || f.file_name() == verification_recheck_guard::FILE_NAME
                 || f.file_name() == experiment_guard::FILE_NAME
                 || f.file_name() == experiment_guard::LEGACY_FILE_NAME
             {
@@ -475,6 +483,9 @@ impl Store {
             workflows: vec![],
             verification_jobs: vec![],
             verification_detail: None,
+            verification_recheck_review: None,
+            verification_recheck_status: None,
+            verification_recheck_disposition_review: None,
             omp_files: None,
             omp_restore: None,
             omp_jobs: vec![],
@@ -544,6 +555,14 @@ impl Store {
             | Command::ReadManagementPage { .. }
             | Command::ReadManagementDetail { .. }
             | Command::ReadVerificationDetail { .. }
+            | Command::ReviewVerificationRecheckDisposition { .. }
+            | Command::RetireVerificationRecheck { .. }
+            | Command::ReviewVerificationRecheck { .. }
+            | Command::ReadVerificationRecheck { .. }
+            | Command::ApproveVerificationRecheck { .. }
+            | Command::StartVerificationRecheck { .. }
+            | Command::CancelVerificationRecheck { .. }
+            | Command::RecoverVerificationRecheck { .. }
             | Command::ReadWorkerObservation { .. }
             | Command::RecoverVerification { .. }
             | Command::RequestProjectRevision { .. }

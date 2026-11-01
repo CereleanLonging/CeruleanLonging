@@ -11,6 +11,34 @@ use ts_rs::TS;
     deny_unknown_fields
 )]
 pub enum WorkspaceQuery {
+    CurrentVerificationRecheck {
+        project_id: String,
+    },
+    VerificationRecheckInputs {
+        project_id: String,
+        original_operation_id: String,
+    },
+    RegisteredValidator {
+        id: String,
+        digest: String,
+    },
+    VerificationRechecks {
+        project_id: String,
+        offset: u32,
+        revision: Option<String>,
+    },
+    VerificationRecheck {
+        project_id: String,
+        operation_id: String,
+    },
+    VerificationRecheckDispositionReview {
+        project_id: String,
+        operation_id: String,
+        reason: String,
+    },
+    VerificationRecheckReview {
+        input: Box<crate::verification_recheck::RecheckRequest>,
+    },
     Overview,
     History {
         project_id: Option<String>,
@@ -763,6 +791,15 @@ pub struct WorkspaceApiPublicationReviewDetail {
     deny_unknown_fields
 )]
 pub enum WorkspaceResult {
+    CurrentVerificationRecheck(Option<Box<crate::verification_recheck::RecheckStatus>>),
+    VerificationRecheckInputs(Box<WorkspaceRecheckInputs>),
+    RegisteredValidator(Box<crate::execution::RegisteredValidator>),
+    VerificationRechecks(WorkspaceRecheckPage),
+    VerificationRecheck(Box<crate::verification_recheck::RecheckStatus>),
+    VerificationRecheckDispositionReview(
+        Box<crate::verification_recheck::RecheckDispositionReview>,
+    ),
+    VerificationRecheckReview(Box<crate::verification_recheck::RecheckReview>),
     ManagementRecordReviews(WorkspaceManagementRecordReviewPage),
     ManagementRecordReview(Box<WorkspaceManagementRecordReviewDetail>),
     Overview(WorkspaceOverview),
@@ -802,6 +839,51 @@ pub enum WorkspaceResult {
     Task(Box<WorkspaceTaskDetail>),
     TaskEvidence(WorkspaceTaskEvidencePage),
     ExecutionReview(Box<WorkspaceExecutionReview>),
+}
+
+/// Original approval events, including approvals that have no executor job yet.
+/// Pagination revisions bind the original event stream, not a live job status.
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceRecheckSummary {
+    pub operation_id: String,
+    pub original_operation_id: String,
+    pub task_id: String,
+    pub attempt_id: String,
+    pub approval_event: crate::execution::EventAnchor,
+    pub review_digest: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceRecheckPage {
+    pub project_id: String,
+    pub revision: String,
+    pub offset: u32,
+    pub total: u32,
+    pub next_offset: Option<u32>,
+    pub entries: Vec<WorkspaceRecheckSummary>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceValidatorSummary {
+    pub id: String,
+    pub name: String,
+    pub digest: String,
+}
+
+/// Form inputs only. Original logs and source pins are verified by the separate
+/// review query, then verified again when the user approves and starts.
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceRecheckInputs {
+    pub original_job: crate::execution::VerificationJob,
+    pub revision_digest: String,
+    pub original_checks_digest: String,
+    pub checks: Vec<crate::execution::AcceptanceCheck>,
+    pub max_timeout_seconds: u32,
+    pub validators: Vec<WorkspaceValidatorSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

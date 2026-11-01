@@ -39,7 +39,7 @@ export function ExperimentWorkbenches({ desktop, client = api }: { desktop: bool
   return <div>
     <p style={{ overflowWrap: "anywhere" }}>{desktop ? current : "浏览器预览"}</p>
     <button className="secondary-button" disabled={!desktop} onClick={() => setVisible(true)}>实验工作台</button>
-    {visible && <div className="modal-backdrop"><section className="modal panel" role="dialog" aria-modal="true" aria-label="独立实验工作台" style={{ maxHeight: "85vh", overflow: "auto" }}>
+    {visible && <div className="modal-backdrop"><section className="modal panel experiment-workbench-dialog" role="dialog" aria-modal="true" aria-label="独立实验工作台" style={{ maxHeight: "85vh", overflow: "auto" }}>
       <h2>独立实验工作台</h2>
       <p>实验在独立窗口和数据目录中运行。打开其他工作台会保留当前窗口及后台任务；关闭窗口不等于停止任务。</p>
       <p style={{ overflowWrap: "anywhere" }}>当前：{catalog?.currentDirectory ?? "未读取"}</p>
@@ -49,7 +49,8 @@ export function ExperimentWorkbenches({ desktop, client = api }: { desktop: bool
       {notice && <p role="status">{notice}</p>}
       <label>实验工作台编号<input aria-label="实验工作台编号" value={id} disabled={busy} maxLength={48} onChange={e => setId(e.target.value)} placeholder="exp-example" /></label>
       <p>以 exp- 开头，仅用小写字母、数字和连字符，5 至 48 位。已有或未完成的编号不能重复创建。</p>
-      <button disabled={busy || !catalog || !valid || attempted.current.has(id) || catalog.entries.some(e => e.id === id)} onClick={() => void action(async () => {
+      <div className="experiment-workbench-actions">
+      <button className="primary" disabled={busy || !catalog || !valid || attempted.current.has(id) || catalog.entries.some(e => e.id === id)} onClick={() => void action(async () => {
         attempted.current.add(id);
         let entry: Entry;
         try { entry = await client.create(id); }
@@ -64,19 +65,20 @@ export function ExperimentWorkbenches({ desktop, client = api }: { desktop: bool
         try { setCatalog(await client.read()); }
         catch (e) { setError(`创建已返回成功，列表刷新失败；请读取原登记，不要重新创建：${String(e)}`); }
       })}>创建并启用实验保护</button>
-      <button disabled={busy} onClick={() => void action(async () => setCatalog(await client.read()))}>读取原登记</button>
-      <button disabled={busy} onClick={() => void action(async () => { await client.open("main"); setNotice("已打开日常工作台窗口。"); })}>打开日常工作台</button>
+      <button className="secondary-button" disabled={busy} onClick={() => void action(async () => setCatalog(await client.read()))}>读取原登记</button>
+      <button className="secondary-button" disabled={busy} onClick={() => void action(async () => { await client.open("main"); setNotice("已打开日常工作台窗口。"); })}>打开日常工作台</button>
+      </div>
       {catalog?.entries.map(entry => <article key={entry.id} className="panel">
         <h3>{entry.id} · {entry.ready ? "可打开" : "需核查"}</h3>
         <p style={{ overflowWrap: "anywhere" }}>{entry.directory}</p>
         {entry.error && <p role="alert">{entry.error}。原目录保留，不自动修复或重建。</p>}
-        <button disabled={busy || !entry.ready} onClick={() => void action(async () => { await client.open(entry.id); setNotice(`已打开 ${entry.id} 窗口，当前工作台保持。`); })}>打开 {entry.id}</button>
+        <button className="secondary-button" disabled={busy || !entry.ready} onClick={() => void action(async () => { await client.open(entry.id); setNotice(`已打开 ${entry.id} 窗口，当前工作台保持。`); })}>打开 {entry.id}</button>
         {!entry.ready && <>
           <p>保留原目录用于核查。若要继续其他实验，请使用新编号单独创建；原目录不会被删除、修复或重新执行。</p>
-          <button disabled={busy} onClick={() => { setId("exp-"); setNotice(`已保留 ${entry.id} 的原现场。请在上方填写新编号，再决定是否创建；本按钮尚未创建任何工作台。`); }}>保留 {entry.id}，填写新编号</button>
+          <button className="secondary-button" disabled={busy} onClick={() => { setId("exp-"); setNotice(`已保留 ${entry.id} 的原现场。请在上方填写新编号，再决定是否创建；本按钮尚未创建任何工作台。`); }}>保留 {entry.id}，填写新编号</button>
         </>}
       </article>)}
-      <button disabled={busy} onClick={() => setVisible(false)}>关闭选择面板</button>
+      <button className="secondary-button" disabled={busy} onClick={() => setVisible(false)}>关闭选择面板</button>
     </section></div>}
   </div>;
 }

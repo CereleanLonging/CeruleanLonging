@@ -116,6 +116,32 @@ impl RuntimeHost {
     }
     pub(super) fn management_read(&self, command: &Command) -> Option<Result<Snapshot, String>> {
         match command {
+            Command::ReviewVerificationRecheckDisposition {
+                project_id,
+                operation_id,
+                reason,
+            } => Some((|| {
+                let review =
+                    self.read_recheck_disposition_review(project_id, operation_id, reason)?;
+                let mut snapshot = self.snapshot();
+                snapshot.verification_recheck_disposition_review = Some(review);
+                Ok(snapshot)
+            })()),
+            Command::ReviewVerificationRecheck { input } => Some((|| {
+                let review = self.review_verification_recheck(input)?;
+                let mut snapshot = self.snapshot();
+                snapshot.verification_recheck_review = Some(review);
+                Ok(snapshot)
+            })()),
+            Command::ReadVerificationRecheck {
+                project_id,
+                operation_id,
+            } => Some((|| {
+                let status = self.read_verification_recheck(project_id, operation_id)?;
+                let mut snapshot = self.snapshot();
+                snapshot.verification_recheck_status = Some(status);
+                Ok(snapshot)
+            })()),
             Command::ReadWorkerObservation {
                 project_id,
                 attempt_id,

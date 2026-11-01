@@ -1,5 +1,5 @@
 use super::*;
-use cerulean_core::{data_format, rejected_usage_guard, Store};
+use cerulean_core::{data_format, rejected_usage_guard, verification_recheck_guard, Store};
 use std::{collections::BTreeMap, fs, path::Path};
 
 fn snapshot(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
@@ -58,7 +58,7 @@ fn new_workbench_protects_only_new_data_and_reopens_without_execution() {
         data_format::status(&created.directory)
             .unwrap()
             .minimum_reader_generation,
-        rejected_usage_guard::GENERATION
+        verification_recheck_guard::GENERATION
     );
     assert!(!created.directory.join("credentials").exists());
     assert!(!created.directory.join("baseline-experiments").exists());
@@ -103,7 +103,7 @@ fn identity_guard_backup_and_symlink_changes_are_rejected() {
         ("exp-intent", "intent.json"),
         ("exp-review", "protection-review.json"),
         ("exp-ready", "ready.json"),
-        ("exp-guard", "data/events/00000000.reader17.json"),
+        ("exp-guard", "data/events/00000000.reader18.json"),
         ("exp-backup", "initial-cold-backup/manifest.json"),
     ] {
         catalog::create(&catalog, id).unwrap();
@@ -156,7 +156,11 @@ fn immutable_window_routes_and_pins_preserve_an_active_other_host() {
     );
     assert!(windows.directory("unknown").is_err());
     assert!(Store::open(&a.directory).is_err()); // original writer still owns its root
-    assert!(fs::write(a.directory.join(rejected_usage_guard::MARKER), b"replace").is_err());
+    assert!(fs::write(
+        a.directory.join(verification_recheck_guard::MARKER),
+        b"replace"
+    )
+    .is_err());
     assert!(fs::rename(catalog.join("exp-one"), catalog.join("moved")).is_err());
     drop(active);
     drop(Store::open(&a.directory).unwrap());
@@ -234,4 +238,59 @@ fn existing_reader15_catalog_opens_without_silent_promotion() {
         .exists());
     drop(binding);
     assert_eq!(snapshot(&catalog), before);
+}
+
+#[test]
+fn reader17_registration_stays_unchanged_and_explicit_reader18_promotion_is_pinned() {
+    use cerulean_core::backup;
+    let temp = tempfile::tempdir().unwrap();
+    let catalog = temp.path().join("catalog");
+    let created = catalog::create_reader17(&catalog, "exp-reader17").unwrap();
+    let catalog = fs::canonicalize(catalog).unwrap();
+    let before = snapshot(&catalog);
+    {
+        let (_, binding) = catalog::open(&catalog, "exp-reader17").unwrap();
+        assert_eq!(
+            data_format::status(&created.directory)
+                .unwrap()
+                .minimum_reader_generation,
+            17
+        );
+        assert!(!created
+            .directory
+            .join(verification_recheck_guard::MARKER)
+            .exists());
+        drop(binding);
+    }
+    assert_eq!(snapshot(&catalog), before);
+    let archive = temp.path().join("reader17-cold");
+    let manifest = backup::create(&created.directory, &archive)
+        .unwrap()
+        .manifest_digest;
+    let reviewed =
+        verification_recheck_guard::review(&created.directory, &archive, &manifest).unwrap();
+    verification_recheck_guard::promote(&created.directory, &archive, &manifest, &reviewed.digest)
+        .unwrap();
+    let marker = created.directory.join(verification_recheck_guard::MARKER);
+    let mut after = snapshot(&catalog);
+    after.remove(&marker).unwrap();
+    assert_eq!(after, before);
+    let promoted = snapshot(&catalog);
+    for _ in 0..2 {
+        let (entry, binding) = catalog::open(&catalog, "exp-reader17").unwrap();
+        assert_eq!(
+            data_format::status(&entry.directory)
+                .unwrap()
+                .minimum_reader_generation,
+            18
+        );
+        assert!(fs::OpenOptions::new().write(true).open(&marker).is_err());
+        drop(Store::open(&entry.directory).unwrap());
+        drop(binding);
+    }
+    assert_eq!(snapshot(&catalog), promoted);
+    fs::write(&marker, b"{damaged-promoted-guard").unwrap();
+    let damaged = snapshot(&catalog);
+    assert!(catalog::open(&catalog, "exp-reader17").is_err());
+    assert_eq!(snapshot(&catalog), damaged);
 }

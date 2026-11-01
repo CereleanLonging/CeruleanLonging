@@ -1,7 +1,7 @@
 //! Capture original authority under the writer; run processes outside it; then
 //! revalidate the same task's evidence before publishing the existing Verify.
 use super::*;
-use crate::verifier::{verify, PinnedCheck, VerificationInput};
+use crate::verifier::{verify_with_retirements, PinnedCheck, VerificationInput};
 use cerulean_domain::execution::{digest, ExecutionReceipt};
 use std::sync::atomic::AtomicBool;
 
@@ -17,6 +17,7 @@ pub(crate) struct PreparedVerification {
     policy_version: u32,
     core: String,
     evidence: PathBuf,
+    retired_rechecks: Vec<String>,
 }
 impl PreparedVerification {
     pub(crate) fn require_scope(
@@ -44,7 +45,7 @@ impl PreparedVerification {
             safe_metadata(&self.evidence)?.is_dir(),
             "invalid verification directory",
         )?;
-        verify(
+        verify_with_retirements(
             VerificationInput {
                 plan: &self.plan,
                 approval: &self.approval,
@@ -59,6 +60,7 @@ impl PreparedVerification {
             &self.evidence,
             &self.operation,
             cancel,
+            &self.retired_rechecks,
         )
     }
 }
@@ -70,6 +72,10 @@ impl DurableWorkflow {
         attempt: &str,
     ) -> Result<PreparedVerification, String> {
         require(!self.poisoned, "workflow requires reopen")?;
+        require(
+            self.unresolved_verification_recheck().is_none(),
+            "original recheck approval is unresolved; do not start another verification",
+        )?;
         require(
             self.state().revision_requested.is_none(),
             "old plan is awaiting revision; checks cannot start",
@@ -111,6 +117,7 @@ impl DurableWorkflow {
             policy_version: scope.policy_version,
             core: self.config.core_id.clone(),
             evidence: self.root.join("verification"),
+            retired_rechecks: self.retired_recheck_operations()?,
         })
     }
     pub(crate) fn finish_prepared_verification(

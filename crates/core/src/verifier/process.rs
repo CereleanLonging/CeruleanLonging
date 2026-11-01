@@ -26,6 +26,7 @@ use windows_sys::Win32::{
 
 pub const OUTPUT_LIMIT: usize = 1024 * 1024;
 pub(crate) mod interactive;
+pub(crate) mod named_job;
 pub struct Outcome {
     pub exit_code: i32,
     pub timed_out: bool,
@@ -194,6 +195,30 @@ pub fn run(
         cancel,
         allowed_environment,
         false,
+        None,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_scoped(
+    exe: &Path,
+    args: &[String],
+    cwd: &Path,
+    temp: &Path,
+    timeout: Duration,
+    cancel: &AtomicBool,
+    allowed_environment: &std::collections::BTreeMap<String, String>,
+    job_name: Option<&str>,
+) -> Result<Outcome, String> {
+    run_inner(
+        exe,
+        args,
+        cwd,
+        temp,
+        timeout,
+        cancel,
+        allowed_environment,
+        false,
+        job_name,
     )
 }
 #[link(name = "user32")]
@@ -222,6 +247,7 @@ pub(crate) fn run_desktop(
         cancel,
         allowed_environment,
         true,
+        None,
     )
 }
 #[allow(clippy::too_many_arguments)]
@@ -234,8 +260,12 @@ fn run_inner(
     cancel: &AtomicBool,
     allowed_environment: &std::collections::BTreeMap<String, String>,
     desktop_foreground: bool,
+    job_name: Option<&str>,
 ) -> Result<Outcome, String> {
-    let job = handle(unsafe { CreateJobObjectW(null(), null()) })?;
+    let job = match job_name {
+        Some(name) => named_job::create(name)?,
+        None => handle(unsafe { CreateJobObjectW(null(), null()) })?,
+    };
     let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if unsafe {

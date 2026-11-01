@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "workflowType": "coding-review",
+  "name": "实现与独立检查",
+  "objective": "完成一项范围明确的代码变更，并保留可复核的交付结果。",
+  "steps": [
+    {
+      "id": "implement",
+      "dependsOn": [],
+      "goal": "按项目约定修改指定文件。",
+      "completionCriteria": ["公开接口与约定一致", "记录修改范围和待检查事项"]
+    },
+    {
+      "id": "verify",
+      "dependsOn": ["implement"],
+      "goal": "检查实现与交付要求是否一致。",
+      "completionCriteria": ["独立检查覆盖约定行为", "保留失败证据并列出未解决事项"]
+    }
+  ],
+  "deputyGuidance": [
+    "依赖任务通过验收后，再安排后续工作。",
+    "依据实际工具失败和检查结果监督，不把完成报告当作验收证据。",
+    "发现范围外需求时停止扩展并交由用户决定。"
+  ],
+  "supervision": {"repeatedFailureThreshold": 2, "maxAdvicePerAttempt": 1}
+}

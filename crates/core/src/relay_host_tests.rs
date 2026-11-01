@@ -6,6 +6,15 @@ use cerulean_domain::{
 
 #[test]
 fn relay_project_approval_and_reopen_keep_endpoint_model_and_provider_bound() {
+    relay_approval(ProviderEndpoint::A6Api {});
+}
+
+#[test]
+fn relay_vip_project_approval_and_reopen_keep_distinct_origin() {
+    relay_approval(ProviderEndpoint::A6ApiVip {});
+}
+
+fn relay_approval(endpoint: ProviderEndpoint) {
     let temp = tempfile::tempdir().unwrap();
     let data = temp.path().join("data");
     let (mut host, draft) = project_planning::tests::fixture(temp.path());
@@ -13,7 +22,7 @@ fn relay_project_approval_and_reopen_keep_endpoint_model_and_provider_bound() {
         draft,
         ProjectWorkerAdapter::A6api,
         ApiTarget::Provider {
-            endpoint: ProviderEndpoint::A6Api {},
+            endpoint: endpoint.clone(),
         },
     );
     draft.api_worker.as_mut().unwrap().model = "gpt-6.1-sol".into();
@@ -38,6 +47,15 @@ fn relay_project_approval_and_reopen_keep_endpoint_model_and_provider_bound() {
     assert_eq!(revision.execution[0].api_worker, draft.api_worker);
     let digest = revision.approval_digest().unwrap();
     host.approve("project", &digest).unwrap();
+    let mut altered = revision.clone();
+    altered.execution[0].api_worker.as_mut().unwrap().target = ApiTarget::Provider {
+        endpoint: if matches!(endpoint, ProviderEndpoint::A6Api {}) {
+            ProviderEndpoint::A6ApiVip {}
+        } else {
+            ProviderEndpoint::A6Api {}
+        },
+    };
+    assert_ne!(altered.approval_digest().unwrap(), digest);
     let mut altered = revision.clone();
     altered.execution[0].api_worker.as_mut().unwrap().model = "another-model".into();
     assert_ne!(altered.approval_digest().unwrap(), digest);

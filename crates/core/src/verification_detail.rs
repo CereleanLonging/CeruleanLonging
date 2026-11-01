@@ -4,12 +4,27 @@ use cerulean_domain::{execution::*, verification_detail::*, workflow::WorkflowCo
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{fs, io::Read, path::Path};
+#[path = "verification_recheck_detail.rs"]
+mod recheck;
 
 #[derive(Clone)]
 pub(crate) struct Basis {
     plan: PlanRevision,
     manifest: ArtifactManifest,
     recorded: Option<(VerificationReport, bool)>,
+    recheck: Option<recheck::RecheckDetail>,
+}
+#[cfg(windows)]
+pub(crate) fn recheck_authority(
+    basis: &Basis,
+) -> Option<(
+    cerulean_domain::verification_recheck::RecheckApproval,
+    EventAnchor,
+)> {
+    basis
+        .recheck
+        .as_ref()
+        .map(|r| (r.approval.clone(), r.event.clone()))
 }
 pub(crate) fn basis(store: &DurableWorkflow, job: &VerificationJob) -> Result<Basis, String> {
     basis_from_history(store.history(), job)
@@ -51,30 +66,36 @@ pub(crate) fn basis_from_history(
             && manifest.attempt_id == job.attempt_id,
         "验收详情关联不匹配",
     )?;
-    let recorded = history
-        .iter()
-        .find(|entry| entry.body.operation_id == job.operation_id)
-        .map(
-            |entry| match (&entry.body.event.command, &entry.body.context.execution) {
-                (
-                    WorkflowCommand::Verify {
-                        task,
-                        attempt,
-                        passed,
-                        ..
-                    },
-                    Some(ExecutionEvidence::Verification { report }),
-                ) if task == &job.task_id && attempt == &job.attempt_id => {
-                    Ok((report.clone(), *passed))
-                }
-                _ => Err("验收操作与账本冲突".to_string()),
-            },
-        )
-        .transpose()?;
+    let recheck = recheck::RecheckDetail::from_history(history, job, &plan, manifest)?;
+    let recorded = if let Some(recheck) = &recheck {
+        recheck.recorded.clone()
+    } else {
+        history
+            .iter()
+            .find(|entry| entry.body.operation_id == job.operation_id)
+            .map(
+                |entry| match (&entry.body.event.command, &entry.body.context.execution) {
+                    (
+                        WorkflowCommand::Verify {
+                            task,
+                            attempt,
+                            passed,
+                            ..
+                        },
+                        Some(ExecutionEvidence::Verification { report }),
+                    ) if task == &job.task_id && attempt == &job.attempt_id => {
+                        Ok((report.clone(), *passed))
+                    }
+                    _ => Err("验收操作与账本冲突".to_string()),
+                },
+            )
+            .transpose()?
+    };
     Ok(Basis {
         plan,
         manifest: manifest.clone(),
         recorded,
+        recheck,
     })
 }
 #[derive(Deserialize)]
@@ -86,6 +107,8 @@ struct Record {
     pins: Vec<serde_json::Value>,
     report: Option<VerificationReport>,
     error: Option<String>,
+    #[serde(default)]
+    recheck: Option<crate::verification_recheck_evidence::RecheckBinding>,
 }
 fn bytes(path: &Path, limit: u64) -> Result<Option<Vec<u8>>, String> {
     match fs::symlink_metadata(path) {
@@ -127,11 +150,64 @@ pub(crate) fn read(
 ) -> Result<VerificationDetail, String> {
     Ok(inspect(root, job, basis)?.0)
 }
+
+/// Only the specific cancellation observation produced after process::run has
+/// confirmed an empty Windows Job and joined both output readers can permit
+/// preserving an unresolved recheck. Arbitrary errors or absent results cannot.
+#[cfg(windows)]
+pub(crate) fn preserved_recheck_cancellation(
+    root: &Path,
+    job: &VerificationJob,
+    basis: &Basis,
+) -> Result<String, String> {
+    require(
+        basis.recheck.is_some() && job.state == VerificationState::Unknown,
+        "仅原复验取消可核对保存关闭",
+    )?;
+    let inspection = inspect_evidence(root, job, basis)?;
+    let detail = inspection.detail;
+    require(
+        inspection.report.is_none() && !detail.ledger_recorded && detail.snapshot_digest.is_some(),
+        "复验取消证据与原结果不符",
+    )?;
+    let last = detail
+        .stages
+        .iter()
+        .rposition(|s| s.exit_code.is_some())
+        .ok_or("复验取消缺少进程结束观察")?;
+    require(
+        inspection.terminal_error.as_deref()
+            == Some(format!("check {}: cancelled", detail.stages[last].id).as_str())
+            && !detail.stages[last].timed_out
+            && detail.stages[..=last]
+                .iter()
+                .all(|s| s.exit_code.is_some() && s.stdout.is_some() && s.stderr.is_some())
+            && detail.stages[last + 1..]
+                .iter()
+                .all(|s| s.exit_code.is_none() && s.stdout.is_none() && s.stderr.is_none()),
+        "仅确认进程树已结束的原取消可保存关闭；其他失败须保留核对",
+    )?;
+    Ok(detail.evidence_digest)
+}
 pub(crate) fn inspect(
     root: &Path,
     job: &VerificationJob,
     basis: &Basis,
 ) -> Result<(VerificationDetail, Option<VerificationReport>), String> {
+    let inspection = inspect_evidence(root, job, basis)?;
+    Ok((inspection.detail, inspection.report))
+}
+struct Inspection {
+    detail: VerificationDetail,
+    report: Option<VerificationReport>,
+    #[cfg(windows)]
+    terminal_error: Option<String>,
+}
+fn inspect_evidence(
+    root: &Path,
+    job: &VerificationJob,
+    basis: &Basis,
+) -> Result<Inspection, String> {
     for id in [
         &job.project_id,
         &job.operation_id,
@@ -140,7 +216,13 @@ pub(crate) fn inspect(
     ] {
         identifier(id)?;
     }
-    let specs = &basis.plan.task(&job.task_id)?.checks;
+    let specs = if let Some(recheck) = &basis.recheck {
+        crate::verification_recheck_guard::require_protected(root, true)?;
+        &recheck.approval.review.replacement_checks
+    } else {
+        &basis.plan.task(&job.task_id)?.checks
+    };
+    let expected_recheck = basis.recheck.as_ref().map(|r| r.binding()).transpose()?;
     require(specs.len() <= 64, "验收详情超过64项，请使用后续分页功能")?;
     let manifest_digest = digest(&basis.manifest)?;
     let mut dir = root.to_path_buf();
@@ -184,7 +266,8 @@ pub(crate) fn inspect(
             record.schema_version == 1
                 && record.operation_id == job.operation_id
                 && record.manifest_digest == manifest_digest
-                && record.pins == expected_pins,
+                && record.pins == expected_pins
+                && record.recheck == expected_recheck,
             "验收记录与原批准检查不匹配",
         )?;
     }
@@ -221,6 +304,9 @@ pub(crate) fn inspect(
         )?;
     }
     if let Some(report) = report {
+        if let Some(recheck) = &basis.recheck {
+            recheck.validate_report(report, &basis.plan, &basis.manifest)?;
+        }
         require(
             report.schema_version == 1
                 && report.manifest_digest == manifest_digest
@@ -354,8 +440,9 @@ pub(crate) fn inspect(
         &hashes,
     ))?;
     let validated_report = report.cloned();
-    Ok((
-        VerificationDetail {
+    let terminal_error = terminal.and_then(|r| r.error);
+    Ok(Inspection {
+        detail: VerificationDetail {
             project_id: job.project_id.clone(),
             operation_id: job.operation_id.clone(),
             task_id: job.task_id.clone(),
@@ -367,8 +454,8 @@ pub(crate) fn inspect(
             ledger_recorded: basis.recorded.is_some(),
             evidence_digest,
             observed_at: chrono::Utc::now().to_rfc3339(),
-            message: terminal
-                .and_then(|r| r.error)
+            message: terminal_error
+                .as_ref()
                 .map(|e| e.chars().take(2000).collect())
                 .or_else(|| job.message.clone()),
             artifacts: basis.manifest.artifacts.clone(),
@@ -376,6 +463,8 @@ pub(crate) fn inspect(
             recovery: None,
             recovery_error: None,
         },
-        validated_report,
-    ))
+        report: validated_report,
+        #[cfg(windows)]
+        terminal_error,
+    })
 }

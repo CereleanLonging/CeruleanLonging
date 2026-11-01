@@ -24,8 +24,10 @@ pub mod project_setup;
 pub mod secret;
 pub mod supervision;
 pub mod verification_detail;
+pub mod verification_recheck;
 pub mod worker_observation;
 pub mod workflow;
+pub mod workflow_template;
 pub mod workspace;
 
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -102,6 +104,16 @@ pub struct Snapshot {
     pub verification_jobs: Vec<execution::VerificationJob>,
     #[serde(default)]
     pub verification_detail: Option<verification_detail::VerificationDetail>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub verification_recheck_review: Option<verification_recheck::RecheckReview>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub verification_recheck_status: Option<verification_recheck::RecheckStatus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub verification_recheck_disposition_review:
+        Option<verification_recheck::RecheckDispositionReview>,
     #[serde(default)]
     pub omp_files: Option<omp_restore::OmpFilesView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -566,6 +578,39 @@ pub enum Command {
         operation_id: String,
     },
     ReadVerificationDetail {
+        project_id: String,
+        operation_id: String,
+    },
+    ReviewVerificationRecheckDisposition {
+        project_id: String,
+        operation_id: String,
+        reason: String,
+    },
+    RetireVerificationRecheck {
+        review: Box<verification_recheck::RecheckDispositionReview>,
+        event_operation_id: String,
+    },
+    ReviewVerificationRecheck {
+        input: Box<verification_recheck::RecheckRequest>,
+    },
+    ReadVerificationRecheck {
+        project_id: String,
+        operation_id: String,
+    },
+    ApproveVerificationRecheck {
+        review: Box<verification_recheck::RecheckReview>,
+        approval_operation_id: String,
+        operation_id: String,
+    },
+    StartVerificationRecheck {
+        project_id: String,
+        operation_id: String,
+    },
+    CancelVerificationRecheck {
+        project_id: String,
+        operation_id: String,
+    },
+    RecoverVerificationRecheck {
         project_id: String,
         operation_id: String,
     },

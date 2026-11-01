@@ -16,6 +16,7 @@ impl ApiCallJournal {
             "gateway observation requires original API intent",
         )?;
         Ok(Some(Binding {
+            endpoint: Binding::endpoint_override(&self.expected.fingerprint.target)?,
             lane: Lane::Worker,
             project_id: self.expected.project_id.clone(),
             local_id: self.expected.request_id.clone(),

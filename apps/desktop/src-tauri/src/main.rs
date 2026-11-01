@@ -10,6 +10,13 @@ mod maintenance;
 mod portable_archive;
 mod webview_profile;
 
+#[tauri::command]
+fn review_workflow_template(
+    input: String,
+) -> Result<cerulean_domain::workflow_template::WorkflowTemplateReview, String> {
+    cerulean_domain::workflow_template::review(&input)
+}
+
 struct State {
     workbenches: experiment_workbench::Windows,
     experiment_root: PathBuf,
@@ -514,6 +521,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            review_workflow_template,
             portable_evidence,
             historical_request,
             count_resolution_request,
