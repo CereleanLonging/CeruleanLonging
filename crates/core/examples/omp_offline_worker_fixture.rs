@@ -60,6 +60,7 @@ fn main() {
     assert!([
         "fixture-completed",
         "fixture-tree",
+        "fixture-parent-wait",
         "fixture-wrong-model",
         "fixture-file-completed",
         "fixture-file-worktree",
@@ -286,6 +287,13 @@ fn main() {
                 );
             }
             _ => panic!("unexpected fixture command"),
+        }
+    }
+    if model == "fixture-parent-wait" {
+        // Offline owner test: deliberately ignore stdin EOF so the original
+        // process must be terminated and its retained handle observed.
+        loop {
+            std::thread::park_timeout(Duration::from_secs(1));
         }
     }
     // A deliberately surviving descendant proves tree ownership on graceful EOF.

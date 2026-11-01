@@ -146,7 +146,12 @@ export type ApiRecovery = { message: string, canRestart: boolean, };
 export type ApiPublicationReview = { relativePath: string, evidenceDigest: string, reason: string, at: string, };
 export type ApiTarget = { "kind": "openAi", } | { "kind": "provider", endpoint: ProviderEndpoint, };
 export type ApiWriteScope = "declared-artifacts";
-export type ApiWorkerSelection = { writeScope?: ApiWriteScope | null, target: ApiTarget, model: string, fileTools: Array<ToolPermission>, maxRounds: number, maxToolCalls: number, maxOutputTokens: number, maxTotalTokens: number, requestTimeoutSeconds: number, };
+export type ApiWorkerSelection = { writeScope?: ApiWriteScope | null, target: ApiTarget, model: string, fileTools: Array<ToolPermission>, maxRounds: number, maxToolCalls: number, 
+/**
+ * Explicit provider request ceiling. The provider enforces its model limit;
+ * do not impose a second, model-independent 16K ceiling here.
+ */
+maxOutputTokens: number, maxTotalTokens: number, requestTimeoutSeconds: number, };
 export type OmpJob = { managementOperation?: string | null, projectId: string, taskId: string, attemptId: string, revisionDigest: string, worker: WorkerSelection, state: OmpJobState, startedAt: string, message: string | null, closureDigest: string | null, };
 export type OmpStopIssue = { projectId: string, taskId: string, attemptId: string, message: string, pendingPath: string, pendingSha256: string | null, pendingBytes: number | null, evidenceDigest: string | null, acknowledged: boolean, };
 export type OmpJobState = "starting" | "executing" | "cancel-requested" | "submitted" | "cancelled" | "unknown" | "failed" | "abandoned";

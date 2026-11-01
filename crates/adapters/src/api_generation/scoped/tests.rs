@@ -18,6 +18,39 @@ fn client() -> ApiClient {
 fn request() -> ApiRequest {
     legacy::request(ApiTarget::OpenAi {})
 }
+
+#[test]
+fn provider_output_limits_preserve_scoped_count_projection_and_exact_reservation() {
+    let c = client();
+    let legacy = c.prepare_scoped(request()).unwrap();
+    let mut r = request();
+    r.max_output_tokens = 393216;
+    let draft = c.prepare_scoped(r.clone()).unwrap();
+    draft.fingerprint.validate().unwrap();
+    assert_eq!(draft.prepared.body["max_output_tokens"], 393216);
+    assert_ne!(
+        draft.fingerprint.request.body_sha256,
+        legacy.fingerprint.request.body_sha256
+    );
+    // Counting covers input; the separate output reservation must bind the new ceiling.
+    assert_eq!(
+        draft.checked_count_body().unwrap(),
+        legacy.checked_count_body().unwrap()
+    );
+    let counted = counted_request(r, 100);
+    assert_eq!(counted.draft.fingerprint.request.max_output_tokens, 393216);
+    let prepared = counted.prepare().unwrap();
+    assert_eq!(prepared.review.request.output_ceiling, 393216);
+    assert!(
+        prepared.review.audit.maximum_usd_nanos
+            > counted_request(request(), 100)
+                .prepare()
+                .unwrap()
+                .review
+                .audit
+                .maximum_usd_nanos
+    );
+}
 fn quote() -> ScopedPriceQuote {
     let now = chrono::Utc::now();
     ScopedPriceQuote {

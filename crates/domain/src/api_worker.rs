@@ -77,6 +77,8 @@ pub struct ApiWorkerSelection {
     pub file_tools: Vec<crate::execution::ToolPermission>,
     pub max_rounds: u32,
     pub max_tool_calls: u32,
+    /// Explicit provider request ceiling. The provider enforces its model limit;
+    /// do not impose a second, model-independent 16K ceiling here.
     pub max_output_tokens: u32,
     #[ts(type = "number")]
     pub max_total_tokens: u64,
@@ -118,10 +120,45 @@ impl ApiWorkerSelection {
         require(
             (1..=128).contains(&self.max_rounds)
                 && (1..=128).contains(&self.max_tool_calls)
-                && (1..=16384).contains(&self.max_output_tokens)
+                && self.max_output_tokens > 0
                 && (1..=10_000_000).contains(&self.max_total_tokens)
                 && (1..=600).contains(&self.request_timeout_seconds),
             "invalid API worker limits",
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn provider_output_limits_preserve_numeric_contract_and_finite_task_limits() {
+        let mut value = json!({
+            "target": {"kind":"provider","endpoint":{"kind":"deepSeek"}},
+            "model":"deepseek-flash","fileTools":["read-files","write-files"],
+            "maxRounds":16,"maxToolCalls":24,"maxOutputTokens":8192,
+            "maxTotalTokens":10000000,"requestTimeoutSeconds":120
+        });
+        for limit in [8192, 16384, 393216, u32::MAX] {
+            value["maxOutputTokens"] = json!(limit);
+            let worker: ApiWorkerSelection = serde_json::from_value(value.clone()).unwrap();
+            worker.validate().unwrap();
+            assert_eq!(serde_json::to_value(&worker).unwrap(), value);
+            let mut invalid = worker.clone();
+            invalid.max_output_tokens = 0;
+            assert!(invalid.validate().is_err());
+            invalid = worker.clone();
+            invalid.max_total_tokens = 10_000_001;
+            assert!(invalid.validate().is_err());
+            invalid = worker;
+            invalid.request_timeout_seconds = 601;
+            assert!(invalid.validate().is_err());
+        }
+        for invalid in [json!(null), json!(-1), json!(4294967296_u64)] {
+            value["maxOutputTokens"] = invalid;
+            assert!(serde_json::from_value::<ApiWorkerSelection>(value.clone()).is_err());
+        }
     }
 }

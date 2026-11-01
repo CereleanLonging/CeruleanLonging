@@ -19,6 +19,23 @@ use windows_sys::Win32::{
 };
 
 const PLACEHOLDER: &str = "cerulean-offline-placeholder-not-a-real-key";
+
+#[tokio::test]
+#[ignore = "explicit offline worker executable and isolated parent required"]
+async fn forced_parent_exit_waits_for_original_handle_after_job_accounting() {
+    let (root, exe) = fixture();
+    let worker = selection(&exe, "fixture-parent-wait");
+    let key = SecretInput::new(PLACEHOLDER.into()).unwrap();
+    let mut process = WorkerProcess::launch(&worker, &root.path().join("profile"), &key).unwrap();
+    let original = handle(process.pid());
+    process.connect().await.unwrap();
+    let exit = process.close().await.unwrap();
+    exited(&original);
+    assert!(exit.forced);
+    assert_eq!(exit.exit_code, 1);
+    assert_eq!(exit.remaining_processes, 0);
+    assert_eq!(exit.stderr_bytes, 0);
+}
 fn handle(pid: u32) -> OwnedHandle {
     let handle = unsafe {
         OpenProcess(

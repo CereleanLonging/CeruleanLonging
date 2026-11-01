@@ -3,6 +3,7 @@
 //! Wire contract: upstream modes/rpc/rpc-frame.ts and rpc-types.ts at v18.4.4.
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
+use std::collections::VecDeque;
 use tokio::{
     io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt},
     time::{timeout_at, Duration, Instant},
@@ -111,6 +112,8 @@ struct Transport<R, W> {
     writer: Option<W>,
     partial: Vec<u8>,
     decoder: Decoder,
+    inbound: VecDeque<(Value, usize)>,
+    inbound_bytes: usize,
     broken: bool,
     connected: bool,
     next_id: u64,
@@ -123,6 +126,8 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> Transport<R, W> {
             writer: Some(writer),
             partial: Vec::new(),
             decoder: Decoder::default(),
+            inbound: VecDeque::new(),
+            inbound_bytes: 0,
             broken: false,
             connected: false,
             next_id: 1,
@@ -130,30 +135,44 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> Transport<R, W> {
         }
     }
     async fn read(&mut self, deadline: Instant) -> Result<Value, String> {
+        if let Some((frame, bytes)) = self.inbound.pop_front() {
+            self.inbound_bytes -= bytes;
+            return Ok(frame);
+        }
+        Self::read_wire(
+            &mut self.reader,
+            &mut self.partial,
+            &mut self.decoder,
+            deadline,
+        )
+        .await
+    }
+    async fn read_wire(
+        reader: &mut R,
+        partial: &mut Vec<u8>,
+        decoder: &mut Decoder,
+        deadline: Instant,
+    ) -> Result<Value, String> {
         timeout_at(deadline, async {
             loop {
-                let available = self
-                    .reader
-                    .fill_buf()
-                    .await
-                    .map_err(|_| "OMP read failed")?;
+                let available = reader.fill_buf().await.map_err(|_| "OMP read failed")?;
                 if available.is_empty() {
                     return Err("OMP stream ended before response".into());
                 }
                 let newline = available.iter().position(|b| *b == b'\n');
                 let n = newline.map_or(available.len(), |i| i + 1);
-                if self.partial.len() + n > FRAME_LIMIT {
+                if partial.len() + n > FRAME_LIMIT {
                     return Err("OMP physical frame exceeds limit".into());
                 }
-                self.partial.extend_from_slice(&available[..n]);
-                self.reader.consume(n);
+                partial.extend_from_slice(&available[..n]);
+                reader.consume(n);
                 if newline.is_none() {
                     continue;
                 }
-                let bytes = std::mem::take(&mut self.partial);
+                let bytes = std::mem::take(partial);
                 let frame = serde_json::from_slice(&bytes)
                     .map_err(|_| "OMP JSON invalid (body omitted)")?;
-                if let Some(value) = self.decoder.push(frame)? {
+                if let Some(value) = decoder.push(frame)? {
                     return Ok(value);
                 }
             }
@@ -169,13 +188,33 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> Transport<R, W> {
             return Err("OMP request exceeds physical frame limit".into());
         }
         let writer = self.writer.as_mut().ok_or("OMP input is closed")?;
-        timeout_at(deadline, async {
+        let sending = timeout_at(deadline, async {
             writer.write_all(&bytes).await?;
             writer.flush().await
-        })
-        .await
-        .map_err(|_| "OMP write timeout; delivery unknown")?
-        .map_err(|_| "OMP write failed; delivery unknown".into())
+        });
+        tokio::pin!(sending);
+        loop {
+            // Anonymous Windows pipes have finite capacity. The peer may be
+            // writing observations while waiting for our tool result, so keep
+            // draining its output during this one, non-retried write. Queue
+            // frames in order; only the original consumer may act on them.
+            tokio::select! {
+                biased;
+                result = &mut sending => return result
+                    .map_err(|_| "OMP write timeout; delivery unknown")?
+                    .map_err(|_| "OMP write failed; delivery unknown".into()),
+                frame = Self::read_wire(&mut self.reader, &mut self.partial, &mut self.decoder, deadline) => {
+                    let frame = frame?;
+                    let size = serde_json::to_vec(&frame)
+                        .map_err(|_| "OMP received frame serialization failed")?.len();
+                    if self.inbound.len() >= 1024 || size > REASSEMBLED_LIMIT - self.inbound_bytes {
+                        return Err("OMP buffered observations exceed limit; delivery unknown".into());
+                    }
+                    self.inbound_bytes += size;
+                    self.inbound.push_back((frame, size));
+                }
+            }
+        }
     }
     // With extensions disabled, OMP can still emit display-only widget and
     // available-command metadata updates. They never grant command authority.

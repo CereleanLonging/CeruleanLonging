@@ -102,7 +102,7 @@ def config_check(config, mode):
     require(isinstance(worker["model"], str) and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,200}", worker["model"]),
             "Invalid worker model")
     require(worker["fileTools"] == ["read-files", "write-files"], "Freeze the same file-only worker tools")
-    for field, maximum in (("maxRounds", 128), ("maxToolCalls", 1000), ("maxOutputTokens", 16384),
+    for field, maximum in (("maxRounds", 128), ("maxToolCalls", 1000), ("maxOutputTokens", 4294967295),
                            ("maxTotalTokens", 10000000), ("requestTimeoutSeconds", 600)):
         require(type(worker[field]) is int and 1 <= worker[field] <= maximum, "Invalid worker limit: " + field)
     managers = config["management"]

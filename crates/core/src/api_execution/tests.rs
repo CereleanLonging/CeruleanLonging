@@ -370,7 +370,9 @@ fn api_selection_binds_target_limits_and_permissions_without_changing_old_json()
         user_id: "user".into(),
         approved_at: chrono::Utc::now().to_rfc3339(),
     };
-    for change in ["model", "target", "rounds", "tokens", "tools", "timeout"] {
+    for change in [
+        "model", "target", "rounds", "tokens", "output", "tools", "timeout",
+    ] {
         let mut altered = original.clone();
         let worker = altered.execution[0].api_worker.as_mut().unwrap();
         match change {
@@ -378,6 +380,7 @@ fn api_selection_binds_target_limits_and_permissions_without_changing_old_json()
             "target" => worker.target = targets().remove(0),
             "rounds" => worker.max_rounds = 3,
             "tokens" => worker.max_total_tokens = 100,
+            "output" => worker.max_output_tokens = 393216,
             "tools" => altered.policy.tools = vec![ToolPermission::ReadFiles],
             "timeout" => worker.request_timeout_seconds = 1,
             _ => unreachable!(),
@@ -401,6 +404,49 @@ fn api_selection_binds_target_limits_and_permissions_without_changing_old_json()
     let parsed: TaskExecution = serde_json::from_value(legacy.clone()).unwrap();
     assert!(parsed.api_worker.is_none());
     assert_eq!(serde_json::to_value(parsed).unwrap(), legacy);
+}
+#[tokio::test]
+async fn provider_output_limits_keep_budget_journal_and_recovery_bound_to_approval() {
+    // Real workflow/journal and file tool writes with synthetic provider replies.
+    // This verifies local protocol support, not remote model availability.
+    for (output, total) in [
+        (393216, 10_000_000),
+        (393216, 30000),
+        (u32::MAX, 10_000_000),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut worker = selection(targets().remove(2));
+        worker.max_output_tokens = output;
+        worker.max_total_tokens = total;
+        let mut store = assigned(dir.path(), plan(dir.path(), worker));
+        let (_tx, mut rx) = oneshot::channel();
+        let (result, sends) = run(&mut store, "ok", &mut rx, &mut |_| Ok(())).await;
+        result.unwrap();
+        assert_eq!(sends, 2);
+        let root = store.api_attempt_path("attempt").unwrap();
+        let mut original = Vec::new();
+        for round in 1..=2 {
+            let path = root.join(format!("rounds/{round:03}"));
+            let journal = ApiCallJournal::read_existing(&path).unwrap();
+            assert_eq!(
+                journal.identity().fingerprint.max_output_tokens,
+                output.min((total - 20 * (round - 1)) as u32)
+            );
+            for record in ["00.json", "01.json"] {
+                original.push((path.join(record), fs::read(path.join(record)).unwrap()));
+            }
+        }
+        CallInventory::read(&store).unwrap().check(None).unwrap();
+        let mut store = reopen(store, dir.path());
+        CallInventory::read(&store).unwrap().check(None).unwrap();
+        assert_eq!(store.state().tasks["task"].state, TaskState::Submitted);
+        let (result, sends) = run(&mut store, "ok", &mut rx, &mut |_| Ok(())).await;
+        assert!(result.is_err());
+        assert_eq!(sends, 0);
+        for (path, bytes) in original {
+            assert_eq!(fs::read(path).unwrap(), bytes);
+        }
+    }
 }
 #[tokio::test]
 async fn six_provider_loops_write_real_files_and_require_independent_acceptance() {

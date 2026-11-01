@@ -261,8 +261,7 @@ impl ApiRequest {
         token(&self.model)?;
         text(&self.instructions, 32768, false)?;
         require(
-            (1..=16384).contains(&self.max_output_tokens)
-                && (1..=600).contains(&self.timeout_seconds),
+            self.max_output_tokens > 0 && (1..=600).contains(&self.timeout_seconds),
             "API output or time limit invalid",
         )?;
         require(

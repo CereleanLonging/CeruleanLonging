@@ -92,17 +92,17 @@
   "fixtureMarkers": [
     {
       "path": "crates/adapters/src/api_generation/scoped.rs",
-      "sourceSha256": "6e0f6f56e5d79d0e2ef89c8a520787fb5e4bcb0a2a6b51079e908f7cabf7a995",
+      "sourceSha256": "7f66c2de71e28db6826b3d8292705b0e8379c8699ddb4b4c6732f2677b72638b",
       "markerSha256": "42c82102b851b50051e94e315f7b385089569bc067db0e48270d72d2f116fe18"
     },
     {
       "path": "crates/adapters/src/api_generation/scoped/tests.rs",
-      "sourceSha256": "157868bf608fa8105e815d345b859da4afe9a4d99c5d438419d6f0be6f835088",
+      "sourceSha256": "cf8f97c321c6ea20eb6018da8f1dfab7d90195f7fdedf1a128e10a9c87bce61e",
       "markerSha256": "92f07319ddaf28406e1f43d83d412d577c428f92ecfe10dad308d4af0b179d5d"
     },
     {
       "path": "crates/adapters/src/api_generation/tests.rs",
-      "sourceSha256": "141c1f555224632f21fbd84f3fcfc57288c15d3285ce44eacd5c9325d65126c0",
+      "sourceSha256": "d6ecebdddf624f51b5fa666a550632f3e95168e8a3cf0ba71f1d0cbe202dc127",
       "markerSha256": "92f07319ddaf28406e1f43d83d412d577c428f92ecfe10dad308d4af0b179d5d"
     },
     {

@@ -27,7 +27,7 @@ export function ApiWorkerFields({worker,onChange,idPrefix="planning-api"}:{idPre
   const limits=[
     ["maxRounds","每次尝试最多 API 轮次",128],
     ["maxToolCalls","每次尝试最多文件工具调用",128],
-    ["maxOutputTokens","每轮输出 token 上限",16384],
+    ["maxOutputTokens","每轮输出 token 上限",4294967295],
     ["maxTotalTokens","每次尝试累计 token 停止阈值",10000000],
     ["requestTimeoutSeconds","单个 API 请求时限（秒）",600],
   ] as const;
@@ -62,6 +62,7 @@ export function ApiWorkerFields({worker,onChange,idPrefix="planning-api"}:{idPre
     <p className="secondary">文件操作限于批准的项目目录。验收命令由独立验收器执行。</p>
     <div className="planning-fields">{limits.map(([field,label,max])=><div key={field}><label htmlFor={`${idPrefix}-${field}`}>{label}</label><input id={`${idPrefix}-${field}`} type="number" min={1} max={max} required value={worker[field]} onChange={e=>onChange({...worker,[field]:Number(e.target.value)})}/></div>)}</div>
     <p className="secondary">每轮计入项目编程请求上限。累计 token 按供应商回复后的用量统计，最后一轮可能超过停止阈值；这不是金额硬上限。</p>
+    <p className="secondary">输出长度须符合所选模型的供应商限制；如需最大输出，请填写该模型公布的最大值。实际请求还受本次尝试剩余 token 预算约束。</p>
     <p role="status">保存配置并批准方案后，可启动持续执行。编程 API 仅使用已批准的文件工具。</p>
   </section>;
 }

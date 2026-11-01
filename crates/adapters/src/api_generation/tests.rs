@@ -5,6 +5,35 @@ pub(super) fn key() -> SecretInput {
 }
 
 #[test]
+fn provider_output_limits_reach_wire_and_fingerprint_without_silent_clamping() {
+    let client = ApiClient::new(key()).unwrap();
+    for target in targets() {
+        let mut r = request(target);
+        let legacy = client.prepare(r.clone()).unwrap();
+        for limit in [16385, 393216, u32::MAX] {
+            r.max_output_tokens = limit;
+            let prepared = client.prepare(r.clone()).unwrap();
+            let field = if matches!(r.target, ApiTarget::OpenAi {}) {
+                "max_output_tokens"
+            } else {
+                "max_tokens"
+            };
+            assert_eq!(prepared.body[field], limit);
+            assert_eq!(prepared.fingerprint().max_output_tokens, limit);
+            assert_ne!(
+                prepared.fingerprint().body_sha256,
+                legacy.fingerprint().body_sha256
+            );
+            let mut expected = legacy.body.clone();
+            expected[field] = json!(limit);
+            assert_eq!(prepared.body, expected);
+        }
+        r.max_output_tokens = 0;
+        assert!(client.prepare(r).is_err());
+    }
+}
+
+#[test]
 fn relay_vip_binds_exact_origin_and_rejects_com_continuation() {
     let client = ApiClient::new(key()).unwrap();
     let com = request(ApiTarget::Provider {

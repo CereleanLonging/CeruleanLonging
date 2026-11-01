@@ -1,6 +1,85 @@
 use super::*;
 use tokio::io::{duplex, split, AsyncReadExt, BufReader};
 
+#[tokio::test]
+async fn duplex_backpressure_drains_peer_frames_without_resending_or_reordering() {
+    for (outbound, inbound) in [(16, 16), (32768, 16), (16, 32768), (32768, 32768)] {
+        let (client, peer) = duplex(4096);
+        let (read, write) = split(client);
+        let mut transport = Transport::new(BufReader::new(read), write);
+        let request =
+            json!({"type":"host_tool_result","id":"original","body":"x".repeat(outbound)});
+        let expected = request.clone();
+        let peer = tokio::spawn(async move {
+            let (read, mut write) = split(peer);
+            let mut read = BufReader::new(read);
+            for sequence in 0..3 {
+                write_frame(
+                    &mut write,
+                    json!({"type":"message_update","sequence":sequence,"body":"d".repeat(inbound)}),
+                )
+                .await;
+            }
+            let mut line = String::new();
+            read.read_line(&mut line).await.unwrap();
+            assert_eq!(serde_json::from_str::<Value>(&line).unwrap(), expected);
+            let mut tail = Vec::new();
+            read.read_to_end(&mut tail).await.unwrap();
+            assert!(tail.is_empty(), "one original send only");
+        });
+        let deadline = Instant::now() + Duration::from_secs(2);
+        transport.send(request, deadline).await.unwrap();
+        for sequence in 0..3 {
+            let frame = transport.read(deadline).await.unwrap();
+            assert_eq!(frame["sequence"], sequence);
+            assert_eq!(frame["body"].as_str().unwrap().len(), inbound);
+        }
+        assert!(transport.inbound.is_empty());
+        assert_eq!(transport.inbound_bytes, 0);
+        transport.close_input().await.unwrap();
+        peer.await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn duplex_backpressure_rejects_malformed_and_unbounded_peer_frames() {
+    for malformed in [true, false] {
+        let (client, peer) = duplex(4096);
+        let (read, write) = split(client);
+        let mut transport = Transport::new(BufReader::new(read), write);
+        let peer = tokio::spawn(async move {
+            let (_read, mut write) = split(peer);
+            if malformed {
+                write.write_all(b"not-json\n").await.unwrap();
+            } else {
+                for _ in 0..1025 {
+                    write_frame(&mut write, json!({"type":"message_update"})).await;
+                }
+            }
+            std::future::pending::<()>().await;
+        });
+        let error = transport
+            .send(
+                json!({"type":"host_tool_result","body":"x".repeat(32768)}),
+                Instant::now() + Duration::from_secs(2),
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            error.contains(if malformed {
+                "JSON invalid"
+            } else {
+                "buffered observations exceed limit"
+            }),
+            "{error}"
+        );
+        assert!(transport.inbound.len() <= 1024);
+        assert!(transport.inbound_bytes <= REASSEMBLED_LIMIT);
+        peer.abort();
+        let _ = peer.await;
+    }
+}
+
 fn chunks(value: &Value) -> Vec<Value> {
     let bytes = serde_json::to_vec(value).unwrap();
     let count = bytes.len().div_ceil(CHUNK_LIMIT);

@@ -55,7 +55,7 @@ impl CallIdentity {
         )?;
         require(
             (1..=128).contains(&self.round)
-                && (1..=16384).contains(&self.fingerprint.max_output_tokens)
+                && self.fingerprint.max_output_tokens > 0
                 && (1..=600).contains(&self.fingerprint.timeout_seconds),
             "API journal limits invalid",
         )

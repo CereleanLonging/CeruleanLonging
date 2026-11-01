@@ -51,7 +51,7 @@ impl ScopedApiFingerprint {
                     })
                 && self.count_url == COUNT_URL
                 && (1..=MAX_BODY).contains(&self.count_body_bytes)
-                && (1..=16384).contains(&self.request.max_output_tokens)
+                && self.request.max_output_tokens > 0
                 && (1..=600).contains(&self.request.timeout_seconds),
             "invalid scoped API identity",
         )

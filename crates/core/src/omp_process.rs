@@ -346,10 +346,16 @@ impl WorkerProcess {
             )?;
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
-        let code = self
-            .child
-            .exit_code()?
-            .ok_or("OMP parent exit not confirmed")?;
+        // Job accounting can reach zero before the original parent handle is
+        // signalled. Observe that same retained handle within the cleanup
+        // deadline instead of treating this short teardown interval as a leak.
+        let code = loop {
+            if let Some(code) = self.child.exit_code()? {
+                break code;
+            }
+            require(Instant::now() < cleanup, "OMP parent exit not confirmed")?;
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        };
         let count = tokio::time::timeout(Duration::from_secs(2), &mut self.diagnostics)
             .await
             .map_err(|_| "OMP diagnostic stream remained open")?
