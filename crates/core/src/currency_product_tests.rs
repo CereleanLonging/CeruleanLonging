@@ -5,6 +5,15 @@ use cerulean_domain::{
 };
 
 pub(super) fn settings() -> BudgetSettings {
+    // Repeated calls must retain identical approval digests within this process,
+    // while a later test run must not inherit an expired calendar-date fixture.
+    static SETTINGS: std::sync::OnceLock<BudgetSettings> = std::sync::OnceLock::new();
+    SETTINGS
+        .get_or_init(|| settings_at(chrono::Utc::now()))
+        .clone()
+}
+
+fn settings_at(now: chrono::DateTime<chrono::Utc>) -> BudgetSettings {
     BudgetSettings {
         scoped_quotes: None,
         schema: 1,
@@ -23,11 +32,33 @@ pub(super) fn settings() -> BudgetSettings {
                     cache_read: None,
                     cache_write: Some(0),
                 },
-                valid_from: "2026-10-01T00:00:00Z".into(),
-                valid_until: "2026-11-01T00:00:00Z".into(),
+                valid_from: (now - chrono::Duration::days(2)).to_rfc3339(),
+                valid_until: (now + chrono::Duration::days(2)).to_rfc3339(),
                 source: "Controlled fixture, not supplier pricing".into(),
             })
             .collect(),
+    }
+}
+
+#[test]
+fn currency_product_quote_fixture_is_stable_and_current_across_calendar_boundaries() {
+    assert_eq!(settings(), settings());
+    for at in [
+        "2026-10-31T23:59:59Z",
+        "2026-11-01T00:00:00Z",
+        "2031-01-01T00:00:00Z",
+    ] {
+        let now = chrono::DateTime::parse_from_rfc3339(at)
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        for quote in settings_at(now).quotes {
+            assert!(quote.valid_at(at).is_ok());
+            assert!(quote.valid_at(&quote.valid_from).is_ok());
+            assert!(quote.valid_at(&quote.valid_until).is_err());
+            assert!(quote
+                .valid_at(&(now - chrono::Duration::days(3)).to_rfc3339())
+                .is_err());
+        }
     }
 }
 
@@ -80,7 +111,12 @@ fn currency_product_saves_approves_reopens_without_enabling_requests() {
             3 => budget.quotes[0]
                 .reported_models
                 .push("another-model".into()),
-            4 => budget.quotes[0].valid_until = "2026-12-01T00:00:00Z".into(),
+            4 => {
+                budget.quotes[0].valid_until =
+                    (chrono::DateTime::parse_from_rfc3339(&budget.quotes[0].valid_until).unwrap()
+                        + chrono::Duration::hours(1))
+                    .to_rfc3339()
+            }
             _ => budget.quotes[0].source.push_str(" revised"),
         }
         assert_ne!(changed.approval_digest().unwrap(), approved);
