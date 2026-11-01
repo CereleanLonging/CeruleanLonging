@@ -238,3 +238,9 @@ Feedback, feature suggestions, and bug reports are welcome. Include the product 
 Updates happen as time allows. Issues are welcome, and I’ll review and address them in batches when I have time.
 
 发布者 / Publisher：**lantu**
+
+## Code signing policy / 代码签名政策
+
+当前安装包未签名，SignPath Foundation 申请正在准备中。签名角色、构建与审批规则见 [代码签名政策](CODE_SIGNING_POLICY.md)，数据和外部服务使用见 [隐私说明](PRIVACY.md)。
+
+The current installer is unsigned; the SignPath Foundation application is being prepared. See the [Code signing policy](CODE_SIGNING_POLICY.md) for signing roles and build/approval rules, and the [Privacy notice](PRIVACY.md) for data and external-service use.
