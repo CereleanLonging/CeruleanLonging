@@ -241,6 +241,6 @@ Updates happen as time allows. Issues are welcome, and I’ll review and address
 
 ## Code signing policy / 代码签名政策
 
-当前安装包未签名，SignPath Foundation 申请正在准备中。签名角色、构建与审批规则见 [代码签名政策](CODE_SIGNING_POLICY.md)，数据和外部服务使用见 [隐私说明](PRIVACY.md)。
+当前安装包未签名，项目现阶段不申请代码签名。发布状态与校验说明见 [代码签名政策](CODE_SIGNING_POLICY.md)，数据和外部服务使用见 [隐私说明](PRIVACY.md)。
 
-The current installer is unsigned; the SignPath Foundation application is being prepared. See the [Code signing policy](CODE_SIGNING_POLICY.md) for signing roles and build/approval rules, and the [Privacy notice](PRIVACY.md) for data and external-service use.
+The current installer is unsigned; the project is not pursuing code signing at this stage. See the [Code signing policy](CODE_SIGNING_POLICY.md) for release status and verification details, and the [Privacy notice](PRIVACY.md) for data and external-service use.
