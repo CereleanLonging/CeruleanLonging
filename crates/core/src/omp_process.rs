@@ -34,6 +34,7 @@ pub struct WorkerExit {
 }
 pub struct WorkerProcess {
     child: InteractiveChild,
+    _account: Option<crate::windows_worker_account::Account>,
     _executable: File,
     rpc: OwnedTransport,
     expected: WorkerSelection,
@@ -109,6 +110,10 @@ fn normal_path(path: &Path) -> Result<PathBuf, String> {
 }
 pub(crate) fn check_profile_parent(parent: &Path) -> Result<PathBuf, String> {
     let parent = root_path(parent.to_str().ok_or("OMP profile parent invalid")?)?;
+    check_ancestor_configuration(&parent, false)?;
+    Ok(parent)
+}
+fn check_ancestor_configuration(parent: &Path, isolated_identity: bool) -> Result<(), String> {
     for ancestor in parent.ancestors() {
         for name in [
             ".env",
@@ -127,6 +132,9 @@ pub(crate) fn check_profile_parent(parent: &Path) -> Result<PathBuf, String> {
         ] {
             match fs::symlink_metadata(ancestor.join(name)) {
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                // Only the real, verified worker token may prove this marker
+                // inaccessible. Host mode still fails on every access error.
+                Err(e) if isolated_identity && e.kind() == std::io::ErrorKind::PermissionDenied => {}
                 _ => {
                     return Err(format!(
                         "OMP profile ancestor contains {name} or it is inaccessible; use a configuration-free runtime parent"
@@ -135,11 +143,32 @@ pub(crate) fn check_profile_parent(parent: &Path) -> Result<PathBuf, String> {
             }
         }
     }
-    Ok(parent)
+    Ok(())
 }
 fn profile(root: &Path) -> Result<PathBuf, String> {
+    profile_for_account(root, None)
+}
+fn profile_for_account(
+    root: &Path,
+    account: Option<&crate::windows_worker_account::Account>,
+) -> Result<PathBuf, String> {
     require(root.is_absolute(), "OMP profile must be absolute")?;
-    check_profile_parent(root.parent().ok_or("OMP profile parent missing")?)?;
+    let parent = root.parent().ok_or("OMP profile parent missing")?;
+    if let Some(account) = account {
+        // Resolve and reject links as the host before impersonating; the
+        // worker intentionally has traversal-only access to shared ancestors.
+        let parent = root_path(parent.to_str().ok_or("OMP profile parent invalid")?)?;
+        let workspace = root_path(&account.record.workspace)?;
+        require(
+            crate::artifacts::contains_path(&workspace, &parent),
+            "OMP account runtime escaped model directory",
+        )?;
+        crate::windows_worker_account::with_identity(account, || {
+            check_ancestor_configuration(&parent, true)
+        })?;
+    } else {
+        check_profile_parent(parent)?;
+    }
     fs::create_dir(root).map_err(|_| "OMP profile must be newly created")?;
     let root = normal_path(root)?;
     for name in [
@@ -217,6 +246,14 @@ impl WorkerProcess {
         fresh_profile: &Path,
         key: &SecretInput,
     ) -> Result<Self, String> {
+        Self::launch_with_account(worker, fresh_profile, key, None)
+    }
+    pub(crate) fn launch_with_account(
+        worker: &WorkerSelection,
+        fresh_profile: &Path,
+        key: &SecretInput,
+        account: Option<crate::windows_worker_account::Account>,
+    ) -> Result<Self, String> {
         let runtime = tokio::runtime::Handle::try_current()
             .map_err(|_| "OMP worker launch requires an active runtime")?;
         require(
@@ -229,7 +266,10 @@ impl WorkerProcess {
         )?;
         key.validate()?;
         let (exe, pin) = lock_executable(worker)?;
-        let profile = profile(fresh_profile)?;
+        let profile = match account.as_ref() {
+            Some(account) => profile_for_account(fresh_profile, Some(account)),
+            None => profile(fresh_profile),
+        }?;
         let mut args = [
             "--mode",
             "rpc",
@@ -257,8 +297,17 @@ impl WorkerProcess {
             profile.join("sessions").to_string_lossy().into(),
         ]);
         let env = environment(&profile, key)?;
-        let spawned = InteractiveChild::spawn(&exe, &args, &profile.join("workspace"), &env)
-            .map_err(|_| "OMP owned worker launch failed")?;
+        let spawned = match &account {
+            Some(account) => InteractiveChild::spawn_as(
+                &exe,
+                &args,
+                Path::new(&account.record.workspace),
+                &env,
+                account,
+            ),
+            None => InteractiveChild::spawn(&exe, &args, &profile.join("workspace"), &env),
+        }
+        .map_err(|_| "OMP owned worker launch failed")?;
         let mut stderr = AsyncFile::from_std(spawned.stderr);
         let diagnostics = runtime.spawn(async move {
             let mut count = 0u64;
@@ -272,6 +321,7 @@ impl WorkerProcess {
             count
         });
         Ok(Self {
+            _account: account,
             child: spawned.child,
             _executable: pin,
             rpc: WorkerTransport::new(

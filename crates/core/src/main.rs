@@ -8,6 +8,21 @@ use std::{
 };
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    #[cfg(all(windows, debug_assertions))]
+    if args.len() == 2 && args[0] == "--worker-account-setup-probe" {
+        let value =
+            cerulean_core::windows_worker_account::probe_setup(std::path::Path::new(&args[1]))
+                .map_err(io::Error::other)?;
+        println!("{}", serde_json::to_string(&value)?);
+        return Ok(());
+    }
+    #[cfg(all(windows, debug_assertions))]
+    if args.len() == 2 && args[0] == "--worker-account-probe" {
+        let value = cerulean_core::windows_worker_account::probe(std::path::Path::new(&args[1]))
+            .map_err(io::Error::other)?;
+        println!("{}", serde_json::to_string(&value)?);
+        return Ok(());
+    }
     if args == ["--build-info"] {
         serde_json::to_writer(
             std::io::stdout().lock(),

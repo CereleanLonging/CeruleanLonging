@@ -69,7 +69,11 @@ impl RuntimeHost {
             .clone();
         require(setup.digest == setup_digest, "project setup changed")?;
         let count = self.management_operation_ids(project).len();
-        let context = self.management_context(project, &setup.setup.requirement)?;
+        let context = self.role_context(
+            self.management_context(project, &setup.setup.requirement)?,
+            Purpose::Plan,
+            true,
+        )?;
         let operation = format!("ui-plan-{}-{}", &digest(&project)?[..32], count + 1);
         let intent = DecisionIntent {
             operation_id: operation,

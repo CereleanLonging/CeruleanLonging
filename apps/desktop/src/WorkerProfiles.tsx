@@ -1,3 +1,4 @@
+import { AssertionFields } from "./AssertionFields";
 import { SupervisionFields } from "./SupervisionFields";
 import { ResourceFields } from "./ResourceFields";
 import type { AcceptanceStageDraft, ProjectWorkerAdapter, Snapshot, WorkerProfile, WorkerProfileDraft, SupervisionPolicy } from "./contracts";
@@ -12,10 +13,10 @@ function nextId(prefix:string, used:string[]):string {
 }
 
 export function restoreProfile(p: WorkerProfile): WorkerProfileDraft {
-  return {supervisionOverride:p.supervisionOverride,resourceKeys:p.resourceKeys,id:p.id,description:p.description,workerAdapter:p.workerAdapter,codexExecutable:p.worker?.executable.path??"",workerModel:p.worker?.model??p.apiWorker?.model??p.desktopWorker?.modelLabel??"",ompRuntimeParent:p.worker?.ompRuntimeParent,apiWorker:p.apiWorker,desktopWorker:p.desktopWorker,artifactPaths:p.artifactPaths,acceptance:{schemaVersion:1,stages:p.acceptance.stages.map(s=>({id:s.check.id,name:s.check.name??s.check.id,validatorId:s.validatorId,args:s.check.args,timeoutSeconds:s.check.timeoutSeconds}))}};
+  return {supervisionOverride:p.supervisionOverride,resourceKeys:p.resourceKeys,id:p.id,description:p.description,workerAdapter:p.workerAdapter,codexExecutable:p.worker?.executable.path??"",workerModel:p.worker?.model??p.apiWorker?.model??p.desktopWorker?.modelLabel??"",ompRuntimeParent:p.worker?.ompRuntimeParent,apiWorker:p.apiWorker,desktopWorker:p.desktopWorker,artifactPaths:p.artifactPaths,acceptance:{schemaVersion:1,stages:p.acceptance.stages.map(s=>({expectedAssertions:s.check.expectedAssertions,id:s.check.id,name:s.check.name??s.check.id,validatorId:s.validatorId,args:s.check.args,timeoutSeconds:s.check.timeoutSeconds}))}};
 }
-export function WorkerProfiles({data,projectId,value,worktree,commonResources,supervision,onChange}: {
-  supervision?:SupervisionPolicy|null;commonResources:string[];data:Snapshot;projectId:string;value:WorkerProfileDraft[];worktree:boolean;onChange:(profiles:WorkerProfileDraft[])=>void;
+export function WorkerProfiles({data,projectId,value,worktree,commonResources,supervision,onChange,isolationEnabled=false}: {
+  isolationEnabled?:boolean;supervision?:SupervisionPolicy|null;commonResources:string[];data:Snapshot;projectId:string;value:WorkerProfileDraft[];worktree:boolean;onChange:(profiles:WorkerProfileDraft[])=>void;
 }) {
   function update(index:number,patch:Partial<WorkerProfileDraft>) {onChange(value.map((p,i)=>i===index?{...p,...patch}:p));}
   function stages(index:number,next:AcceptanceStageDraft[]) {update(index,{acceptance:{schemaVersion:1,stages:next}});}
@@ -33,10 +34,10 @@ export function WorkerProfiles({data,projectId,value,worktree,commonResources,su
         </select>
         {!desktop&&!p.apiWorker&&<><label htmlFor={`${prefix}-exe`}>执行程序绝对路径</label><input id={`${prefix}-exe`} required value={p.codexExecutable} onChange={e=>update(index,{codexExecutable:e.target.value})}/></>}
         {!desktop&&<><label htmlFor={`${prefix}-model`}>模型 ID</label><input id={`${prefix}-model`} required value={p.workerModel} onChange={e=>update(index,{workerModel:e.target.value,apiWorker:p.apiWorker?{...p.apiWorker,model:e.target.value}:undefined})}/></>}
-        {p.workerAdapter==="omp"&&<><label htmlFor={`${prefix}-runtime`}>OMP 独立运行目录（可选）</label><input id={`${prefix}-runtime`} value={p.ompRuntimeParent??""} onChange={e=>update(index,{ompRuntimeParent:e.target.value||undefined})}/></>}
+        {p.workerAdapter==="omp"&&(isolationEnabled?<p className="secondary">OMP 运行配置固定保存在该模型目录内，与其他执行模型隔离。</p>:<><label htmlFor={`${prefix}-runtime`}>OMP 独立运行目录（可选）</label><input id={`${prefix}-runtime`} value={p.ompRuntimeParent??""} onChange={e=>update(index,{ompRuntimeParent:e.target.value||undefined})}/></>)}
         {p.apiWorker&&<ApiWorkerFields idPrefix={`${prefix}-api`} worker={p.apiWorker} onChange={apiWorker=>update(index,{apiWorker})}/>}
         <NativeWorkerCost adapter={p.workerAdapter}/>
-        {desktop&&<DesktopWorkerFields idPrefix={`${prefix}-desktop`} data={data} projectId={projectId} app={p.workerAdapter as 'qoder'|'workbuddy'} worker={p.desktopWorker} onChange={desktopWorker=>update(index,{desktopWorker,workerModel:desktopWorker?.modelLabel??""})}/>}
+        {desktop&&<DesktopWorkerFields isolationEnabled={isolationEnabled} idPrefix={`${prefix}-desktop`} data={data} projectId={projectId} app={p.workerAdapter as 'qoder'|'workbuddy'} worker={p.desktopWorker} onChange={desktopWorker=>update(index,{desktopWorker,workerModel:desktopWorker?.modelLabel??""})}/>}
         <SupervisionFields id={`${prefix}-supervision`} value={p.supervisionOverride} inherited={supervision} adapter={p.workerAdapter} onChange={supervisionOverride=>update(index,{supervisionOverride})}/>
         <ResourceFields id={`${prefix}-resources`} common={commonResources} value={p.resourceKeys} onChange={resourceKeys=>update(index,{resourceKeys})}/>
         <label htmlFor={`${prefix}-artifacts`}>任务交付文件（每行一个）</label><textarea id={`${prefix}-artifacts`} required value={p.artifactPaths.join("\n")} onChange={e=>update(index,{artifactPaths:e.target.value.split(/\r?\n/)})}/>
@@ -44,6 +45,7 @@ export function WorkerProfiles({data,projectId,value,worktree,commonResources,su
           const key=`${prefix}-check-${n}`;
           function patch(change:Partial<AcceptanceStageDraft>) {stages(index,p.acceptance.stages.map((s,i)=>i===n?{...s,...change}:s));}
           return <section className="panel" key={stage.id} aria-label={`检查 ${n+1}`}>
+            <AssertionFields id={`${key}-assertions`} value={stage.expectedAssertions} onChange={expectedAssertions=>patch({expectedAssertions})}/>
             <label htmlFor={`${key}-name`}>检查名称</label><input id={`${key}-name`} required value={stage.name} onChange={e=>patch({name:e.target.value})}/>
             <label htmlFor={`${key}-validator`}>已登记验收工具</label><select id={`${key}-validator`} required value={stage.validatorId} onChange={e=>patch({validatorId:e.target.value})}><option value="">选择工具</option>{data.validators.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
             <label htmlFor={`${key}-args`}>检查参数（每行一个）</label><textarea id={`${key}-args`} value={stage.args.join("\n")} onChange={e=>patch({args:e.target.value?e.target.value.split(/\r?\n/):[]})}/>

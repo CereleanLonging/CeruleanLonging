@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{collections::VecDeque, path::Path, process::Stdio, time::Duration};
 use tokio::{
-    io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader},
-    process::{Child, ChildStdin, ChildStdout, Command},
+    io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
+    process::{Child, Command},
     time::{timeout_at, Instant},
 };
 #[path = "codex_steer.rs"]
@@ -599,14 +599,62 @@ fn field(value: &Value, key: &str) -> Result<String, String> {
         .ok_or_else(|| format!("invalid Codex field: {key}"))
 }
 
+/// A trusted platform launcher owns the complete process tree and terminates it
+/// on Drop. Supplying this interface never grants a model launch authority.
+pub trait OwnedCodexProcess: Send {
+    fn try_wait(&mut self) -> Result<Option<bool>, String>;
+    fn terminate(&mut self) -> Result<(), String>;
+}
+enum ClientProcess {
+    Native(Box<Child>),
+    Isolated(Box<dyn OwnedCodexProcess>),
+}
+impl ClientProcess {
+    fn try_wait(&mut self) -> Result<Option<bool>, String> {
+        match self {
+            Self::Native(child) => child
+                .try_wait()
+                .map(|s| s.map(|s| s.success()))
+                .map_err(|_| "Codex process wait failed".into()),
+            Self::Isolated(child) => child.try_wait(),
+        }
+    }
+    fn terminate(&mut self) -> Result<(), String> {
+        match self {
+            Self::Native(child) => child
+                .start_kill()
+                .map_err(|_| "Codex process cleanup failed".into()),
+            Self::Isolated(child) => child.terminate(),
+        }
+    }
+}
+type ClientRead = Box<dyn AsyncRead + Unpin + Send>;
+type ClientWrite = Box<dyn AsyncWrite + Unpin + Send>;
 pub struct CodexClient {
-    child: Child,
-    rpc: Transport<BufReader<ChildStdout>, ChildStdin>,
+    child: ClientProcess,
+    rpc: Transport<BufReader<ClientRead>, ClientWrite>,
     workspace: String,
     active: Option<(String, String)>,
     binding: Option<WorkerBinding>,
 }
 impl CodexClient {
+    pub fn from_owned_process(
+        owner: Box<dyn OwnedCodexProcess>,
+        reader: ClientRead,
+        writer: ClientWrite,
+        workspace: &Path,
+        readonly: bool,
+    ) -> Result<Self, String> {
+        let mut rpc = Transport::new(BufReader::new(reader), writer);
+        rpc.read_only = readonly;
+        Ok(Self {
+            child: ClientProcess::Isolated(owner),
+            rpc,
+            workspace: workspace.to_str().ok_or("non-Unicode workspace")?.into(),
+            active: None,
+            binding: None,
+        })
+    }
     pub fn capture_observations(&mut self, capture: crate::codex_observation::ObservationCapture) {
         self.rpc.observation = Some(capture);
     }
@@ -656,8 +704,11 @@ impl CodexClient {
         let stdout = child.stdout.take().ok_or("Codex stdout missing")?;
         let stdin = child.stdin.take().ok_or("Codex stdin missing")?;
         Ok(Self {
-            child,
-            rpc: Transport::new(BufReader::new(stdout), stdin),
+            child: ClientProcess::Native(Box::new(child)),
+            rpc: Transport::new(
+                BufReader::new(Box::new(stdout) as ClientRead),
+                Box::new(stdin),
+            ),
             workspace: workspace.to_str().ok_or("non-Unicode workspace")?.into(),
             active: None,
             binding: None,
@@ -931,19 +982,19 @@ impl CodexClient {
         // ChildStdin::shutdown is a no-op on Windows. Drop the pipe handle so
         // an idle app-server can actually observe EOF before we wait for it.
         drop(self.rpc.writer);
-        match timeout_at(Instant::now() + Duration::from_secs(2), self.child.wait()).await {
-            Ok(Ok(status)) if status.success() => {}
-            Ok(Ok(_)) => return Err("Codex process exited unsuccessfully".into()),
-            Ok(Err(_)) => return Err("Codex process wait failed".into()),
-            Err(_) => {
-                self.child
-                    .kill()
-                    .await
-                    .map_err(|_| "Codex process cleanup failed")?;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            match self.child.try_wait()? {
+                Some(true) => return Ok(()),
+                Some(false) => return Err("Codex process exited unsuccessfully".into()),
+                None => {}
+            }
+            if Instant::now() >= deadline {
+                self.child.terminate()?;
                 return Err("Codex process required forced cleanup after close timeout".into());
             }
+            tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        Ok(())
     }
 }
 
@@ -980,8 +1031,11 @@ mod tests {
         .unwrap();
         assert_eq!(ready.trim(), "READY");
         CodexClient {
-            child,
-            rpc: Transport::new(reader, stdin),
+            child: ClientProcess::Native(Box::new(child)),
+            rpc: Transport::new(
+                BufReader::new(Box::new(reader.into_inner()) as ClientRead),
+                Box::new(stdin),
+            ),
             workspace: std::env::current_dir().unwrap().to_string_lossy().into(),
             active: None,
             binding: None,

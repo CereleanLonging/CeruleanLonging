@@ -67,6 +67,8 @@ impl ProjectWorkerAdapter {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectSetupDraft {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chief_directory: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub management_sources: Option<ManagementSources>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub currency_budget: Option<crate::currency_budget::BudgetSettings>,
@@ -104,6 +106,10 @@ pub struct ProjectSetupDraft {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectSetup {
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub worker_directories: std::collections::BTreeMap<String, WorkerDirectory>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chief_directory: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub management_sources: Option<ManagementSources>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -139,6 +145,14 @@ pub struct ProjectSetup {
 pub struct SavedProjectSetup {
     pub setup: ProjectSetup,
     pub digest: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkerAccountSetupView {
+    pub project_id: String,
+    pub state: String,
+    pub message: Option<String>,
+    pub receipt_path: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -236,6 +250,8 @@ impl ProjectIntegration {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AcceptanceStageDraft {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub expected_assertions: Vec<String>,
     pub id: String,
     pub name: String,
     pub validator_id: String,
@@ -302,6 +318,7 @@ impl AcceptanceDraft {
         let mut seconds = 0u64;
         let mut arg_bytes = 0usize;
         for stage in &self.stages {
+            validate_assertion_ids(&stage.expected_assertions)?;
             identifier(&stage.id)?;
             identifier(&stage.validator_id)?;
             require(ids.insert(&stage.id), "验收检查 ID 重复")?;
@@ -453,6 +470,22 @@ impl RunState {
 }
 impl ProjectSetupDraft {
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(chief) = &self.chief_directory {
+            require(!chief.trim().is_empty(), "请指定独立的主指挥目录")?;
+            require(
+                self.worktree.is_none(),
+                "固定模型目录不能与按尝试创建的Git目录池混用",
+            )?;
+            let checks = &self
+                .acceptance
+                .as_ref()
+                .ok_or("隔离项目需要明确的验收检查及断言")?
+                .stages;
+            require(
+                !checks.is_empty() && checks.iter().all(|s| !s.expected_assertions.is_empty()),
+                "隔离项目的每项检查至少需要一个预期断言；退出码0不能代替检查覆盖",
+            )?;
+        }
         if let Some(sources) = &self.management_sources {
             sources.validate(&self.chief_model, self.currency_budget.is_some())?;
         }

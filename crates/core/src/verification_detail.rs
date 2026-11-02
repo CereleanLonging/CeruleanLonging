@@ -9,8 +9,8 @@ mod recheck;
 
 #[derive(Clone)]
 pub(crate) struct Basis {
-    plan: PlanRevision,
-    manifest: ArtifactManifest,
+    pub(crate) plan: PlanRevision,
+    pub(crate) manifest: ArtifactManifest,
     recorded: Option<(VerificationReport, bool)>,
     recheck: Option<recheck::RecheckDetail>,
 }
@@ -402,6 +402,9 @@ fn inspect_evidence(
             .transpose()?;
         let state = match &observation {
             Some(o) if o.timed_out => VerificationStageState::TimedOut,
+            Some(o) if o.assertion_error.is_some() || o.assertions.iter().any(|a| !a.passed) => {
+                VerificationStageState::Failed
+            }
             Some(o) if o.exit_code.is_some_and(|c| c != 0) => VerificationStageState::Failed,
             Some(o) if o.exit_code == Some(0) && basis.recorded.is_some() => {
                 VerificationStageState::Passed

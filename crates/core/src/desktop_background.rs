@@ -113,6 +113,11 @@ impl RuntimeHost {
             .desktop_worker
             .as_ref()
             .ok_or("桌面配置缺失")?;
+        crate::windows_worker_account::desktop(
+            &self.root,
+            store.revision().ok_or("方案缺失")?,
+            task,
+        )?;
         self.validate_desktop_selection(project, selection)?;
         require(
             selection.binding.bridge_sha256 == fingerprint(),
@@ -170,6 +175,11 @@ impl RuntimeHost {
             .projects
             .get_mut(&review.project_id)
             .ok_or("项目不存在")?;
+        crate::windows_worker_account::desktop(
+            &self.root,
+            store.revision().ok_or("方案缺失")?,
+            &review.attempt.task_id,
+        )?;
         let permit = execution::reserve(&self.root, store, &review);
         self.refresh_desktop_tasks()?;
         self.launch_desktop_task(review, Some(permit?))
@@ -244,6 +254,14 @@ impl RuntimeHost {
         operation: Operation,
     ) -> Result<(), String> {
         let project = review.project_id.clone();
+        let account = crate::windows_worker_account::desktop(
+            &self.root,
+            self.projects
+                .get(&project)
+                .and_then(|s| s.revision())
+                .ok_or("方案缺失")?,
+            &review.attempt.task_id,
+        )?;
         let cancellation = cancellation::inspect(
             &self.root,
             self.projects.get(&project).ok_or("项目账本暂不可用")?,
@@ -266,6 +284,7 @@ impl RuntimeHost {
         let thread = std::thread::Builder::new()
             .name("desktop-task".into())
             .spawn(move || {
+                let _account_guard = account;
                 let call = |r: &TaskReview| {
                     let request = if reading {
                         ReadRequest::TaskRead {

@@ -447,7 +447,14 @@ fn execute(
             }
             save(&dir.join(format!("{}.stdout", spec.id)), &outcome.stdout)?;
             save(&dir.join(format!("{}.stderr", spec.id)), &outcome.stderr)?;
+            let (assertions, assertion_error) =
+                match cerulean_domain::execution::parse_assertions(spec, &outcome.stdout) {
+                    Ok(results) => (results, None),
+                    Err(error) => (vec![], Some(error)),
+                };
             let observation = CheckObservation {
+                assertions,
+                assertion_error,
                 check_id: spec.id.clone(),
                 command_digest: digest(spec)?,
                 exit_code: Some(outcome.exit_code),

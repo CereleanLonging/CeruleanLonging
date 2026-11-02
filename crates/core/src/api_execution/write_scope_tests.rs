@@ -4,6 +4,92 @@ use cerulean_domain::api_worker::ApiWriteScope;
 use sha2::Digest;
 
 #[test]
+fn isolated_model_file_tools_cannot_read_or_write_shared_or_sibling_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut p = plan(dir.path(), selection(targets().remove(2)));
+    let binding = WorkerDirectory::for_task(&p.execution[0]).unwrap();
+    let own = std::path::PathBuf::from(binding.root(&p.project.root).unwrap());
+    fs::create_dir_all(&own).unwrap();
+    let sibling = own.parent().unwrap().join("other-model");
+    fs::create_dir(&sibling).unwrap();
+    fs::write(sibling.join("private.txt"), "other-model-private").unwrap();
+    fs::write(
+        Path::new(&p.project.root).join("private.txt"),
+        "deputy-private",
+    )
+    .unwrap();
+    fs::write(own.join("local.txt"), "local-input").unwrap();
+    fs::hard_link(sibling.join("private.txt"), own.join("linked.txt")).unwrap();
+    p.execution[0].worker_directory = Some(binding);
+    let store = assigned(dir.path(), p.clone());
+    let (_, _, identity, _) = evidence_scope(&store, "task", "attempt").unwrap();
+    assert_eq!(Path::new(&identity.binding.workspace), own);
+    let mut tools = ApiFileTools::create(
+        &p,
+        store.approval().unwrap(),
+        "user",
+        &identity,
+        &dir.path().join("isolated-tools"),
+    )
+    .unwrap();
+    let mut ordinal = 0;
+    for path in [
+        "../other-model/private.txt".to_owned(),
+        "../../private.txt".into(),
+        sibling.join("private.txt").to_string_lossy().into(),
+        "linked.txt".into(),
+    ] {
+        for name in ["cerulean_read_file", "cerulean_write_file"] {
+            ordinal += 1;
+            let arguments = if name == "cerulean_read_file" {
+                json!({"path":path,"offset":0})
+            } else {
+                json!({"path":path,"content":"bad","expectedSha256":"absent"})
+            };
+            let result = tools
+                .execute(
+                    ordinal,
+                    &ToolCall {
+                        id: format!("boundary-{ordinal}"),
+                        name: name.into(),
+                        arguments,
+                    },
+                )
+                .unwrap();
+            assert!(result.is_error, "{name}: {path}");
+        }
+    }
+    ordinal += 1;
+    assert!(
+        !tools
+            .execute(
+                ordinal,
+                &ToolCall {
+                    id: "own-read".into(),
+                    name: "cerulean_read_file".into(),
+                    arguments: json!({"path":"local.txt","offset":0})
+                }
+            )
+            .unwrap()
+            .is_error
+    );
+    ordinal += 1;
+    assert!(!tools.execute(ordinal, &ToolCall{id:"own-write".into(),name:"cerulean_write_file".into(),arguments:json!({"path":"result.txt","content":"own-result","expectedSha256":"absent"})}).unwrap().is_error);
+    assert_eq!(
+        fs::read_to_string(own.join("result.txt")).unwrap(),
+        "own-result"
+    );
+    assert_eq!(
+        fs::read_to_string(sibling.join("private.txt")).unwrap(),
+        "other-model-private"
+    );
+    assert_eq!(
+        fs::read_to_string(Path::new(&p.project.root).join("private.txt")).unwrap(),
+        "deputy-private"
+    );
+}
+
+#[test]
 fn write_scope_is_explicit_and_changes_approval_without_changing_legacy_bytes() {
     let dir = tempfile::tempdir().unwrap();
     let original = plan(dir.path(), selection(targets().remove(2)));

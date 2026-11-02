@@ -30,6 +30,9 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
             .as_str()
             .ok_or("worker selection missing")?
     );
+    let validator = i.context["executionSetup"]["setup"]["validatorId"]
+        .as_str()
+        .unwrap_or("tests");
     let decision = match i.purpose {
         Purpose::Plan => ManagementDecision::Plan {
             tasks: vec![
@@ -42,7 +45,7 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
                     ),
                     dependencies: vec![],
                     worker_id: worker.clone(),
-                    validator_id: "tests".into(),
+                    validator_id: validator.into(),
                 },
                 ProposedTask {
                     profile_id: None,
@@ -50,7 +53,7 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
                     goal: "DAG_B: read alpha then extend to alpha beta".into(),
                     dependencies: vec!["a".into()],
                     worker_id: worker.clone(),
-                    validator_id: "tests".into(),
+                    validator_id: validator.into(),
                 },
             ],
             rationale: "Two dependent file changes with independent validation".into(),
@@ -144,6 +147,93 @@ fn attach(host: &mut RuntimeHost) {
     host.management_fixture = Some(manager);
     host.api_fixture = Some(worker);
 }
+fn manager_reviewing_materials(
+    i: crate::management_execution::DecisionIntent,
+) -> Result<DecisionObservation, String> {
+    assert!(i.context["roleWorkspace"]["material"]["requirement"]
+        .as_str()
+        .unwrap()
+        .contains("ROLE_ISOLATION"));
+    assert_eq!(i.context["roleWorkspace"]["deputyChiefAccess"], "read-only");
+    if i.purpose == Purpose::Accept {
+        let submissions = i.context["chiefReview"]["packet"]["submissions"]
+            .as_array()
+            .unwrap();
+        assert!(!submissions.is_empty());
+        for s in submissions {
+            let expected = if s["taskId"] == "a" {
+                "alpha"
+            } else {
+                "alpha beta"
+            };
+            assert_eq!(s["artifacts"][0]["content"], expected);
+            assert_eq!(
+                s["verification"]["checks"][0]["assertions"][0]["id"],
+                "artifact-content"
+            );
+            assert_eq!(
+                s["verification"]["checks"][0]["assertions"][0]["passed"],
+                true
+            );
+        }
+    }
+    manager(i)
+}
+#[test]
+fn role_isolated_api_dag_supplies_actual_sealed_contents_to_chief_and_reopens() {
+    let root = tempfile::tempdir().unwrap();
+    let mut host = configured(
+        root.path(),
+        ProjectWorkerAdapter::Openai,
+        ApiTarget::OpenAi {},
+        "ROLE_ISOLATION",
+        8,
+    );
+    host.management_fixture = Some(manager_reviewing_materials);
+    approved(&mut host);
+    start(&mut host);
+    spin(&mut host, |h| {
+        h.runs.all()[0].state != RunState::Active && h.api_active.is_empty()
+    });
+    if host.runs.all()[0].state != RunState::Completed {
+        let retained = root.keep();
+        panic!(
+            "role DAG failed; evidence retained at {}: runs={:?}, jobs={:?}",
+            retained.display(),
+            host.runs.all(),
+            host.jobs
+        );
+    }
+    let setup = &host.project_setups["project"].setup;
+    let binding = setup.worker_directories.values().next().unwrap();
+    let workspace = binding
+        .root(
+            &host.projects["project"]
+                .configuration()
+                .execution_scope
+                .as_ref()
+                .unwrap()
+                .project
+                .root,
+        )
+        .unwrap();
+    assert_eq!(
+        fs::read_to_string(Path::new(&workspace).join("result.txt")).unwrap(),
+        "alpha beta"
+    );
+    assert!(!root.path().join("project/result.txt").exists());
+    let packets =
+        fs::read_dir(Path::new(setup.chief_directory.as_deref().unwrap()).join("reviews"))
+            .unwrap()
+            .map(|e| fs::read_to_string(e.unwrap().path()).unwrap())
+            .collect::<Vec<_>>();
+    assert_eq!(packets.len(), 2);
+    assert!(packets.iter().any(|p| p.contains("\"content\":\"alpha\"")));
+    let history = host.projects["project"].history().to_vec();
+    drop(host);
+    let host = RuntimeHost::open(&root.path().join("data")).unwrap();
+    assert_eq!(host.projects["project"].history(), history.as_slice());
+}
 fn configured(
     root: &Path,
     adapter: ProjectWorkerAdapter,
@@ -187,6 +277,41 @@ fn configured_inputs(
     ];
     if isolated {
         draft.worktree = Some(dependency_host_fixture::configure(root));
+    }
+    if mode == "ROLE_ISOLATION" {
+        let script = root.join("assertions.ps1");
+        fs::write(&script,r#"$s=[IO.File]::ReadAllText((Join-Path (Get-Location) 'result.txt'));[Console]::Write((@{schemaVersion=1;assertions=@(@{id='artifact-content';passed=($s -eq 'alpha' -or $s -eq 'alpha beta');detail=$s})}|ConvertTo-Json -Compress -Depth 4));exit 0"#).unwrap();
+        let shell = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+            .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        host.register_validator(
+            "assertion-check".into(),
+            "Bound assertion report".into(),
+            shell.to_string_lossy().into(),
+            vec![script.to_string_lossy().into()],
+            Default::default(),
+        )
+        .unwrap();
+        draft.chief_directory = Some(root.join("chief").to_string_lossy().into());
+        draft.validator_id = "assertion-check".into();
+        draft.acceptance = Some(cerulean_domain::project_setup::AcceptanceDraft {
+            schema_version: 1,
+            stages: vec![cerulean_domain::project_setup::AcceptanceStageDraft {
+                id: "assertions".into(),
+                name: "Artifact content".into(),
+                validator_id: "assertion-check".into(),
+                args: vec![
+                    "-NoProfile".into(),
+                    "-NonInteractive".into(),
+                    "-ExecutionPolicy".into(),
+                    "Bypass".into(),
+                    "-File".into(),
+                    script.to_string_lossy().into(),
+                ],
+                timeout_seconds: 10,
+                expected_assertions: vec!["artifact-content".into()],
+            }],
+        });
+        draft.check_args = draft.acceptance.as_ref().unwrap().stages[0].args.clone();
     }
     host.configure_project(draft).unwrap();
     host.set_openai_key(Some(

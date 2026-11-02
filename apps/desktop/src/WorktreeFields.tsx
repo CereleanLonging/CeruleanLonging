@@ -1,9 +1,10 @@
 import type { RegisteredValidator, WorktreeSetupDraft } from "./contracts";
 import { IntegrationFields } from "./IntegrationFields";
 
-export function WorktreeFields({value, disabled, onChange, validators=[]}: {
+export function WorktreeFields({value, disabled, onChange, validators=[], disabledReason}: {
   value: WorktreeSetupDraft | undefined;
   disabled: boolean;
+  disabledReason?: string;
   validators?: RegisteredValidator[];
   onChange: (value: WorktreeSetupDraft | undefined) => void;
 }) {
@@ -13,7 +14,7 @@ export function WorktreeFields({value, disabled, onChange, validators=[]}: {
       onChange={e => onChange(e.target.checked ? {baseCommit:"", poolRoot:"", gitExecutable:""} : undefined)} />
       为每次编程尝试使用独立 Git 工作目录
     </label>
-    {disabled && <p className="secondary">已有桌面聊天使用原项目目录，暂不支持迁入独立工作目录。</p>}
+    {disabled && <p className="secondary">{disabledReason??"已有桌面聊天使用原项目目录，暂不支持迁入独立工作目录。"}</p>}
     {value && <>
       <label htmlFor="planning-base-commit">固定基准提交</label>
       <input id="planning-base-commit" required pattern="([0-9a-f]{40}|[0-9a-f]{64})" value={value.baseCommit}

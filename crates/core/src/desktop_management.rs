@@ -132,7 +132,7 @@ impl RuntimeHost {
                 adapter_version: format!("desktop-ui-v1:{}", d.binding.bridge_sha256),
                 session_id: d.session_id(),
                 identity_strength: IdentityStrength::UiObservation,
-                workspace: revision.project.root.clone(),
+                workspace: revision.execution_root(task_id, attempt_id)?,
             },
         };
         self.apply_management_decision_inner(

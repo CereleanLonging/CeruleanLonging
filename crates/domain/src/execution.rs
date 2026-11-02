@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use ts_rs::TS;
+mod assertions;
+pub use assertions::*;
+mod worker_directory;
+pub use worker_directory::*;
 mod workspaces;
 pub use workspaces::*;
 
@@ -115,6 +119,8 @@ pub struct ExecutionPolicy {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AcceptanceCheck {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub expected_assertions: Vec<String>,
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -202,6 +208,8 @@ impl ValidationTool {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TaskExecution {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_directory: Option<WorkerDirectory>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub supervision_override: Option<crate::supervision::SupervisionOverride>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -406,7 +414,11 @@ impl PlanRevision {
                         && e.api_worker.is_none()
                         && e.adapter_id == desktop.adapter_id()
                         && desktop.binding.project_id == self.project.id
-                        && desktop.project_root == self.project.root,
+                        && desktop.project_root
+                            == e.worker_directory.as_ref().map_or_else(
+                                || Ok(self.project.root.clone()),
+                                |d| d.root(&self.project.root),
+                            )?,
                     "桌面执行配置与方案范围不符",
                 )?;
                 require(
@@ -460,6 +472,7 @@ impl PlanRevision {
             }
             let mut ids = BTreeSet::new();
             for check in &e.checks {
+                validate_assertion_ids(&check.expected_assertions)?;
                 if let Some(name) = &check.name {
                     require(
                         !name.trim().is_empty()
@@ -793,6 +806,10 @@ pub struct ArtifactManifest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CheckObservation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assertion_error: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assertions: Vec<AssertionResult>,
     pub check_id: String,
     pub command_digest: String,
     pub exit_code: Option<i32>,
@@ -870,6 +887,11 @@ impl VerificationReport {
                     && !result.timed_out,
                 "verification failed or command altered",
             )?;
+            require(
+                result.assertion_error.is_none(),
+                "checker assertion report invalid",
+            )?;
+            require_assertions(check, &result.assertions, true)?;
             sha256(&result.stdout_sha256)?;
             sha256(&result.stderr_sha256)?;
         }

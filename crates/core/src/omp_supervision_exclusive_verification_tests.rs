@@ -232,6 +232,8 @@ fn exclusive_verification_waits_before_observed_advice_then_accepts_once() {
             .checks
             .iter()
             .map(|check| CheckObservation {
+                assertion_error: None,
+                assertions: vec![],
                 check_id: check.id.clone(),
                 command_digest: digest(check).unwrap(),
                 exit_code: Some(0),

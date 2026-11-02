@@ -87,7 +87,11 @@ impl RuntimeHost {
             "external chief model identity differs from configuration",
         )?;
         let session = session_id.clone();
-        let context = self.management_context(project, requirement)?;
+        let context = self.role_context(
+            self.management_context(project, requirement)?,
+            Purpose::Accept,
+            true,
+        )?;
         let original: ExecutionSnapshot = serde_json::from_value(context["workflow"].clone())
             .map_err(|_| "acceptance workflow missing")?;
         require(
@@ -148,7 +152,11 @@ impl RuntimeHost {
         }
         self.match_original_catalog(
             &request.context,
-            self.management_context(&request.project_id, requirement)?,
+            self.rebuild_role_context(
+                &request.context,
+                self.management_context(&request.project_id, requirement)?,
+                request.purpose,
+            )?,
         )
     }
 }

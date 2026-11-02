@@ -685,6 +685,7 @@ fn resource_named_host(
             acceptance: AcceptanceDraft {
                 schema_version: 1,
                 stages: vec![AcceptanceStageDraft {
+                    expected_assertions: vec![],
                     id: "check".into(),
                     name: "Check isolated branch".into(),
                     validator_id: "tests".into(),

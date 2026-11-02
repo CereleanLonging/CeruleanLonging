@@ -39,11 +39,9 @@ impl RuntimeHost {
         let revision = snapshot.revision.ok_or("执行方案缺失")?;
         require(
             revision.management_setup_digest.as_ref()
-                == setup
-                    .setup
-                    .management_sources
-                    .as_ref()
-                    .map(|_| &setup.digest),
+                == (setup.setup.management_sources.is_some()
+                    || setup.setup.chief_directory.is_some())
+                .then_some(&setup.digest),
             "主副指挥配置与批准方案绑定不符，请重新规划和批准",
         )?;
         require(

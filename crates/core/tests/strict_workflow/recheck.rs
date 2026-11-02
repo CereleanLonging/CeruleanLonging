@@ -127,6 +127,8 @@ fn result_fixture(
                 .replacement_checks
                 .iter()
                 .map(|check| CheckObservation {
+                    assertion_error: None,
+                    assertions: vec![],
                     check_id: check.id.clone(),
                     command_digest: digest(check).unwrap(),
                     exit_code: Some(if passed { 0 } else { 1 }),

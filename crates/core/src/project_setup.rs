@@ -9,6 +9,28 @@ use std::{
 };
 pub(crate) fn validate(record: &SavedProjectSetup) -> Result<(), String> {
     let s = &record.setup;
+    require(s.worker_directories.len() <= 5, "最多保留五个执行模型目录")?;
+    require(
+        s.chief_directory.is_some() || s.worker_directories.is_empty(),
+        "执行目录必须绑定角色隔离配置",
+    )?;
+    for (identity, directory) in &s.worker_directories {
+        sha256(identity)?;
+        require(
+            identity == &directory.identity
+                && directory.relative_path == format!("executors/{identity}"),
+            "执行目录登记被更改",
+        )?;
+    }
+    if s.chief_directory.is_some() {
+        for profile in std::iter::once(None).chain(s.profiles.iter().map(|p| Some(p.id.as_str()))) {
+            let task = s.execution_for("validate-workspace", profile)?;
+            task.worker_directory
+                .as_ref()
+                .ok_or("执行模型未登记工作目录")?
+                .validate(&task)?;
+        }
+    }
     require(
         s.worker_adapter.is_api() == s.api_worker.is_some()
             && s.worker_adapter.is_desktop() == s.desktop_worker.is_some()
@@ -16,6 +38,7 @@ pub(crate) fn validate(record: &SavedProjectSetup) -> Result<(), String> {
         "project setup worker selection mismatch",
     )?;
     ProjectSetupDraft {
+        chief_directory: s.chief_directory.clone(),
         management_sources: s.management_sources.clone(),
         resource_keys: s.resource_keys.clone(),
         profiles: s.profiles.iter().map(WorkerProfile::draft).collect(),
@@ -61,6 +84,7 @@ pub(crate) fn validate(record: &SavedProjectSetup) -> Result<(), String> {
                 .stages
                 .iter()
                 .map(|stage| AcceptanceStageDraft {
+                    expected_assertions: stage.check.expected_assertions.clone(),
                     id: stage.check.id.clone(),
                     name: stage.check.name.clone().unwrap_or_default(),
                     validator_id: stage.validator_id.clone(),

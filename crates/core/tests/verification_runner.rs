@@ -82,6 +82,7 @@ impl Fixture {
                 budget_usd_cents: Some(25),
             },
             execution: vec![TaskExecution {
+                worker_directory: None,
                 supervision_override: None,
                 profile_id: None,
                 desktop_worker: None,
@@ -91,6 +92,7 @@ impl Fixture {
                 adapter_id: "codex".into(),
                 artifact_paths: vec!["src/result.txt".into()],
                 checks: vec![AcceptanceCheck {
+                    expected_assertions: vec![],
                     name: None,
                     tool: Some(
                         PinnedCheck::describe(
@@ -283,6 +285,63 @@ fn ordered_stages_keep_individual_outcomes_and_never_rerun() {
                 .join("verify-1/second-success-temp")
                 .exists());
         }
+    }
+}
+
+#[test]
+fn zero_exit_requires_complete_passing_assertions_and_preserves_original_logs() {
+    for (text, passed) in [
+        ("", false),
+        (r#"{"schemaVersion":1,"assertions":[]}"#, false),
+        (
+            r#"{"schemaVersion":1,"assertions":[{"id":"sum","passed":false,"detail":"wrong result"}]}"#,
+            false,
+        ),
+        (
+            r#"{"schemaVersion":1,"assertions":[{"id":"sum","passed":true,"detail":"2 + 3 = 5"}]}"#,
+            true,
+        ),
+    ] {
+        let trusted = tempfile::tempdir().unwrap();
+        let script = trusted.path().join("check.ps1");
+        fs::write(
+            &script,
+            format!("[Console]::Write('{}'); exit 0", text.replace('\'', "''")),
+        )
+        .unwrap();
+        let shell = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+            .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        let mut f = Fixture::prepare("success", 10);
+        let check = &mut f.plan.execution[0].checks[0];
+        check.expected_assertions = vec!["sum".into()];
+        check.args = vec![
+            "-NoProfile".into(),
+            "-NonInteractive".into(),
+            "-ExecutionPolicy".into(),
+            "Bypass".into(),
+            "-File".into(),
+            script.to_string_lossy().into(),
+        ];
+        check.tool = Some(
+            PinnedCheck::describe(&shell, std::slice::from_ref(&script), Default::default())
+                .unwrap(),
+        );
+        f.approval.revision_digest = f.plan.approval_digest().unwrap();
+        f.attempt.revision_digest = f.approval.revision_digest.clone();
+        let evidence = tempfile::tempdir().unwrap();
+        let report = f.run(evidence.path(), &AtomicBool::new(false)).unwrap();
+        assert_eq!(report.checks[0].exit_code, Some(0));
+        let manifest = f.observer().unwrap().capture().unwrap();
+        assert_eq!(
+            report.require_pass(&f.plan, &manifest, "core").is_ok(),
+            passed
+        );
+        assert_eq!(
+            fs::read(evidence.path().join("verify-1/check.stdout")).unwrap(),
+            text.as_bytes()
+        );
+        assert!(evidence.path().join("verify-1/check.json").is_file());
+        assert!(f.run(evidence.path(), &AtomicBool::new(false)).is_err());
     }
 }
 #[test]

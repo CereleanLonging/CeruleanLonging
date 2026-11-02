@@ -40,6 +40,25 @@ fn os_error() -> String {
 fn wide(value: &OsStr) -> Vec<u16> {
     value.encode_wide().chain(Some(0)).collect()
 }
+fn launch_path(exe: &Path) -> Result<std::path::PathBuf, String> {
+    let text = exe.to_str().ok_or("non-Unicode executable")?;
+    // Keep canonical paths for pins and evidence. .NET Framework applications
+    // (including Windows PowerShell) cannot initialize from a verbatim argv[0].
+    let normal = if let Some(tail) = text.strip_prefix(r"\\?\UNC\") {
+        std::path::PathBuf::from(format!(r"\\{tail}"))
+    } else if let Some(tail) = text.strip_prefix(r"\\?\") {
+        std::path::PathBuf::from(tail)
+    } else {
+        return Ok(exe.to_owned());
+    };
+    if !normal.is_absolute()
+        || std::fs::canonicalize(&normal).map_err(|e| e.to_string())?
+            != std::fs::canonicalize(exe).map_err(|e| e.to_string())?
+    {
+        return Err("native executable path representation changed identity".into());
+    }
+    Ok(normal)
+}
 fn handle(value: HANDLE) -> Result<OwnedHandle, String> {
     if value.is_null() || value == INVALID_HANDLE_VALUE {
         Err(os_error())
@@ -311,6 +330,12 @@ fn run_inner(
     startup.StartupInfo.hStdOutput = inherited[1];
     startup.StartupInfo.hStdError = inherited[2];
     startup.lpAttributeList = attrs.ptr();
+    let executable = launch_path(exe)?;
+    let working_directory = launch_path(cwd)?;
+    let temporary_directory = launch_path(temp)?;
+    let exe = executable.as_path();
+    let cwd = working_directory.as_path();
+    let temp = temporary_directory.as_path();
     let application = wide(exe.as_os_str());
     let directory = wide(cwd.as_os_str());
     let text = std::iter::once(exe.to_str().ok_or("non-Unicode executable")?)

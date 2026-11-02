@@ -112,7 +112,7 @@ fn check(result: i32) -> io::Result<()> {
         Ok(())
     }
 }
-fn sid_for_process(process: HANDLE) -> io::Result<String> {
+pub(crate) fn sid_for_process(process: HANDLE) -> io::Result<String> {
     unsafe {
         let mut token = ptr::null_mut();
         check(OpenProcessToken(process, TOKEN_QUERY, &mut token))?;
@@ -145,7 +145,7 @@ fn sid_for_process(process: HANDLE) -> io::Result<String> {
 pub fn current_sid() -> io::Result<String> {
     sid_for_process(unsafe { GetCurrentProcess() })
 }
-fn process_sid(pid: u32) -> io::Result<String> {
+pub(crate) fn process_sid(pid: u32) -> io::Result<String> {
     let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
     if process.is_null() {
         return Err(io::Error::last_os_error());

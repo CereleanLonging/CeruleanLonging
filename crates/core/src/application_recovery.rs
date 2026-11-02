@@ -831,6 +831,7 @@ mod tests {
                         project,
                         workflow: workflow.clone(),
                         execution: vec![TaskExecution {
+                            worker_directory: None,
                             supervision_override: None,
                             profile_id: None,
                             desktop_worker: None,

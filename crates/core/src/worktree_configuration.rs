@@ -69,6 +69,7 @@ impl RuntimeHost {
                         artifact_paths: i.artifact_paths.clone(),
                         validator_id: i.validator_id.clone(),
                         check: AcceptanceCheck {
+                            expected_assertions: vec![],
                             id: "project-integration-check".into(),
                             name: Some("项目整体检查".into()),
                             program: validator.tool.executable.path.clone(),

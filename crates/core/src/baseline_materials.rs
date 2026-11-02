@@ -483,6 +483,7 @@ pub(crate) fn compose_mode(
             supervision: None,
         },
         execution: vec![TaskExecution {
+            worker_directory: None,
             task_id: "complete".into(),
             adapter_id: config.worker.target.provider().id().into(),
             profile_id: None,
@@ -492,6 +493,7 @@ pub(crate) fn compose_mode(
             supervision_override: None,
             artifact_paths: seed_hashes.keys().cloned().collect(),
             checks: vec![AcceptanceCheck {
+                expected_assertions: vec![],
                 id: "fixed-workload-check".into(),
                 name: None,
                 program: tool.executable.path.clone(),

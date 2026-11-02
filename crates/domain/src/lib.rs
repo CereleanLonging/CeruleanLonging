@@ -69,6 +69,8 @@ pub struct EventSummary {
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     #[serde(default)]
+    pub worker_account_setups: Vec<project_setup::WorkerAccountSetupView>,
+    #[serde(default)]
     pub team_import: Option<team_timing::TeamImportView>,
     #[serde(default)]
     pub baselines: Vec<baseline_product::BaselineView>,
@@ -659,6 +661,15 @@ pub enum Command {
     },
     ConfigureProject {
         draft: Box<project_setup::ProjectSetupDraft>,
+    },
+    ProvisionWorkerAccounts {
+        project_id: String,
+        setup_digest: String,
+    },
+    OpenWorkerLogin {
+        project_id: String,
+        setup_digest: String,
+        profile_id: Option<String>,
     },
     RequestChiefPlan {
         project_id: String,

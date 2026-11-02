@@ -246,6 +246,7 @@ fn configured_efficiency(root: &Path) -> RuntimeHost {
                 acceptance: AcceptanceDraft {
                     schema_version: 1,
                     stages: vec![AcceptanceStageDraft {
+                        expected_assertions: vec![],
                         id: format!("check-{id}"),
                         name: format!("Check {file} interface"),
                         validator_id: format!("eff-{id}"),

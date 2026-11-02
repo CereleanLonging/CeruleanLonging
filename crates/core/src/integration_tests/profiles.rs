@@ -85,6 +85,7 @@ fn host(root: &Path, mode: &str) -> RuntimeHost {
                 acceptance: AcceptanceDraft {
                     schema_version: 1,
                     stages: vec![AcceptanceStageDraft {
+                        expected_assertions: vec![],
                         id: format!("check-{id}"),
                         name: format!("Check branch {id}"),
                         validator_id: "tests".into(),

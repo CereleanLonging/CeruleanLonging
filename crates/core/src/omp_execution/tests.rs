@@ -59,6 +59,7 @@ pub(crate) fn assigned(root: &Path, money: bool) -> (DurableWorkflow, PlanRevisi
             supervision: None,
         },
         execution: vec![TaskExecution {
+            worker_directory: None,
             supervision_override: None,
             profile_id: None,
             desktop_worker: None,
@@ -73,6 +74,7 @@ pub(crate) fn assigned(root: &Path, money: bool) -> (DurableWorkflow, PlanRevisi
                 executable: tool.executable.clone(),
             }),
             checks: vec![AcceptanceCheck {
+                expected_assertions: vec![],
                 id: "check".into(),
                 name: None,
                 program: "fixture-check".into(),

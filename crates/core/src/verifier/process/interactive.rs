@@ -20,6 +20,46 @@ impl InteractiveChild {
         cwd: &Path,
         environment: &[u16],
     ) -> Result<Spawned, String> {
+        Self::spawn_inner(exe, args, cwd, environment, None, false)
+    }
+    pub(crate) fn spawn_as(
+        exe: &Path,
+        args: &[String],
+        cwd: &Path,
+        environment: &[u16],
+        account: &crate::windows_worker_account::Account,
+    ) -> Result<Spawned, String> {
+        Self::spawn_inner(exe, args, cwd, environment, Some(account), false)
+    }
+    pub(crate) fn spawn_visible_as(
+        exe: &Path,
+        args: &[String],
+        cwd: &Path,
+        environment: &[u16],
+        account: &crate::windows_worker_account::Account,
+    ) -> Result<Spawned, String> {
+        Self::spawn_inner(exe, args, cwd, environment, Some(account), true)
+    }
+    fn spawn_inner(
+        exe: &Path,
+        args: &[String],
+        cwd: &Path,
+        environment: &[u16],
+        account: Option<&crate::windows_worker_account::Account>,
+        visible: bool,
+    ) -> Result<Spawned, String> {
+        let plain = if account.is_some() {
+            Some((
+                crate::windows_worker_account::dos_path(exe)?,
+                crate::windows_worker_account::dos_path(cwd)?,
+            ))
+        } else {
+            None
+        };
+        let (exe, cwd) = plain
+            .as_ref()
+            .map(|(e, c)| (e.as_path(), c.as_path()))
+            .unwrap_or((exe, cwd));
         if !exe.is_absolute() || !cwd.is_absolute() || !environment.ends_with(&[0, 0]) {
             return Err("invalid owned process launch configuration".into());
         }
@@ -81,28 +121,85 @@ impl InteractiveChild {
             .collect::<Vec<_>>()
             .join(" ");
         let mut command = wide(OsStr::new(&text));
-        if command.len() > 32767 {
+        if command.len() > if account.is_some() { 1024 } else { 32767 } {
             return Err("owned process command exceeds limit".into());
         }
         let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
-        if unsafe {
-            CreateProcessW(
-                application.as_ptr(),
-                command.as_mut_ptr(),
-                null(),
-                null(),
-                1,
-                CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
-                environment.as_ptr().cast(),
-                directory.as_ptr(),
-                &startup.StartupInfo,
-                &mut info,
-            )
-        } == 0
-        {
-            return Err(os_error());
+        let launched = if let Some(account) = account {
+            let user = wide(OsStr::new(&account.record.username));
+            let domain = wide(OsStr::new("."));
+            // Secondary Logon cannot use STARTUPINFOEX job attributes. Create
+            // suspended, verify the actual token, assign the job, then resume.
+            startup.StartupInfo.cb = size_of::<STARTUPINFOW>() as u32;
+            if visible {
+                startup.StartupInfo.dwFlags = 0;
+            }
+            unsafe {
+                CreateProcessWithLogonW(
+                    user.as_ptr(),
+                    domain.as_ptr(),
+                    account.password.as_ptr(),
+                    LOGON_WITH_PROFILE,
+                    application.as_ptr(),
+                    command.as_mut_ptr(),
+                    (if visible {
+                        CREATE_NEW_CONSOLE
+                    } else {
+                        CREATE_NO_WINDOW
+                    }) | CREATE_UNICODE_ENVIRONMENT
+                        | CREATE_SUSPENDED,
+                    environment.as_ptr().cast(),
+                    directory.as_ptr(),
+                    &startup.StartupInfo,
+                    &mut info,
+                )
+            }
+        } else {
+            unsafe {
+                CreateProcessW(
+                    application.as_ptr(),
+                    command.as_mut_ptr(),
+                    null(),
+                    null(),
+                    1,
+                    CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
+                    environment.as_ptr().cast(),
+                    directory.as_ptr(),
+                    &startup.StartupInfo,
+                    &mut info,
+                )
+            }
+        };
+        if launched == 0 {
+            return Err(format!("owned process creation: {}", os_error()));
         }
         let process = handle(info.hProcess)?;
+        if let Some(account) = account {
+            let verified = crate::windows_worker_account::verify_process(
+                process.as_raw_handle(),
+                &account.record.sid,
+            );
+            if verified.is_err()
+                || unsafe { AssignProcessToJobObject(job.as_raw_handle(), process.as_raw_handle()) }
+                    == 0
+            {
+                let error = verified
+                    .err()
+                    .unwrap_or_else(|| format!("isolated process job assignment: {}", os_error()));
+                unsafe {
+                    TerminateProcess(process.as_raw_handle(), 1);
+                    CloseHandle(info.hThread);
+                }
+                return Err(error);
+            }
+            if unsafe { ResumeThread(info.hThread) } == u32::MAX {
+                unsafe {
+                    TerminateJobObject(job.as_raw_handle(), 1);
+                    CloseHandle(info.hThread);
+                }
+                return Err(os_error());
+            }
+        }
         drop(handle(info.hThread)?);
         drop(stdin_read);
         drop(stdout_write);

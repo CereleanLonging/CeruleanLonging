@@ -18,6 +18,10 @@ public partial class DesktopObserver {
     [DllImport("user32.dll")] static extern bool IsIconic(IntPtr window);
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window,out int pid);
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr window,StringBuilder text,int length);
+    [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool QueryFullProcessImageName(IntPtr process,uint flags,StringBuilder name,ref int size);
+    [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(IntPtr process,out long created,out long exited,out long kernel,out long user);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
     static JavaScriptSerializer json=new JavaScriptSerializer{MaxJsonLength=128*1024};
     public class Window {public string app,hwnd,startTicks,exe,title,version;public uint pid;}
     public class Request {public int version;public string op;public Window window;public TrialReview review;public TaskReview taskReview;public StopObservation stopObservation;}
@@ -26,13 +30,20 @@ public partial class DesktopObserver {
     static string Hash(string text){using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-","").ToLowerInvariant();}
     static Window Identity(IntPtr hwnd) {
         int pid;GetWindowThreadProcessId(hwnd,out pid);
-        using(var process=Process.GetProcessById(pid)) {
-            string path=process.MainModule.FileName;
+        // Read identity with QUERY_LIMITED_INFORMATION only. MainModule also
+        // requests process-memory access, which independent users do not share.
+        IntPtr process=OpenProcess(0x1000,false,(uint)pid);
+        if(process==IntPtr.Zero)throw new InvalidOperationException("process_identity_unavailable");
+        try {
+            var image=new StringBuilder(32768);int size=image.Capacity;
+            long created,exited,kernel,user;
+            if(!QueryFullProcessImageName(process,0,image,ref size)||!GetProcessTimes(process,out created,out exited,out kernel,out user))throw new InvalidOperationException("process_identity_unavailable");
+            string path=image.ToString();
             string app=Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
             if(app!="qoder"&&app!="workbuddy")throw new InvalidOperationException("app_not_allowed");
             var title=new StringBuilder(512);GetWindowText(hwnd,title,title.Capacity);
-            return new Window{app=app,hwnd=hwnd.ToInt64().ToString(),pid=(uint)pid,startTicks=process.StartTime.ToUniversalTime().Ticks.ToString(),exe=path,title=title.ToString(),version=process.MainModule.FileVersionInfo.ProductVersion??"unknown"};
-        }
+            return new Window{app=app,hwnd=hwnd.ToInt64().ToString(),pid=(uint)pid,startTicks=DateTime.FromFileTimeUtc(created).Ticks.ToString(),exe=path,title=title.ToString(),version=FileVersionInfo.GetVersionInfo(path).ProductVersion??"unknown"};
+        } finally {CloseHandle(process);}
     }
     static bool Same(Window a,Window b){return a.app==b.app&&a.hwnd==b.hwnd&&a.pid==b.pid&&a.startTicks==b.startTicks&&String.Equals(a.exe,b.exe,StringComparison.OrdinalIgnoreCase)&&a.version==b.version&&a.title==b.title;}
     static Observation Inspect(Window expected) {return ReadView(expected, true).observation;}

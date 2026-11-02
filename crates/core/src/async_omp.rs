@@ -274,13 +274,13 @@ async fn run(
         *cleaned = true;
         return Err("OMP启动已取消，尚未分配或发送".into());
     }
-    let plan = store.revision().ok_or("OMP方案缺失")?;
+    let plan = store.revision().ok_or("OMP方案缺失")?.clone();
     let (workspace, workspace_proof) = if plan.worktree.is_some() {
         let (path, proof) =
             store.prepare_omp_workspace(&job.task_id, &job.attempt_id, preparing.clone())?;
         (path, Some(proof))
     } else {
-        (plan.project.root.clone(), None)
+        (plan.execution_root(&job.task_id, &job.attempt_id)?, None)
     };
     if preparing.load(Ordering::Acquire)
         || !matches!(
@@ -290,7 +290,21 @@ async fn run(
     {
         return Err("OMP目录准备已停止，尚未启动执行器".into());
     }
-    let (profiles, id) = if let Some(parent) = &job.worker.omp_runtime_parent {
+    let account = if plan.task(&job.task_id)?.worker_directory.is_some() {
+        Some(crate::windows_worker_account::load(
+            root,
+            &plan,
+            &job.task_id,
+        )?)
+    } else {
+        None
+    };
+    let (profiles, id) = if account.is_some() {
+        (
+            Path::new(&workspace).join(".cerulean-omp"),
+            digest(&(job.project_id.as_str(), job.attempt_id.as_str()))?,
+        )
+    } else if let Some(parent) = &job.worker.omp_runtime_parent {
         let parent = crate::omp_process::check_profile_parent(Path::new(parent))?;
         (
             parent.join("cerulean-omp-profiles"),
@@ -313,7 +327,12 @@ async fn run(
     }
     ordinary(&profiles, true)?;
     let profile = profiles.join(id);
-    let mut process = match crate::omp_process::WorkerProcess::launch(&job.worker, &profile, &key) {
+    let mut process = match crate::omp_process::WorkerProcess::launch_with_account(
+        &job.worker,
+        &profile,
+        &key,
+        account,
+    ) {
         Ok(p) => p,
         Err(e) => {
             *cleaned = true;

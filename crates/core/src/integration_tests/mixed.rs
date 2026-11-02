@@ -182,6 +182,7 @@ fn mixed_host_complete(
                 acceptance: AcceptanceDraft {
                     schema_version: 1,
                     stages: vec![AcceptanceStageDraft {
+                        expected_assertions: vec![],
                         id: format!("check-{id}"),
                         name: format!("Check {id}"),
                         validator_id: "tests".into(),

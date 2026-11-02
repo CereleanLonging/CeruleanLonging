@@ -99,6 +99,7 @@ fn plan(root: &Path, worker: ApiWorkerSelection) -> PlanRevision {
             max_bytes: 1024 * 1024,
         }),
         execution: vec![TaskExecution {
+            worker_directory: None,
             supervision_override: None,
             profile_id: None,
             task_id: "task".into(),
@@ -108,6 +109,7 @@ fn plan(root: &Path, worker: ApiWorkerSelection) -> PlanRevision {
             api_worker: Some(worker),
             artifact_paths: vec!["result.txt".into()],
             checks: vec![AcceptanceCheck {
+                expected_assertions: vec![],
                 id: "check".into(),
                 name: None,
                 program: validator.executable.path.clone(),
@@ -187,7 +189,7 @@ fn assigned(root: &Path, plan: PlanRevision) -> DurableWorkflow {
         let (workspace, proof) = store.prepare_task_workspace("task", "attempt").unwrap();
         (workspace, Some(proof))
     } else {
-        (plan.project.root.clone(), None)
+        (plan.execution_root("task", "attempt").unwrap(), None)
     };
     let attempt = Attempt {
         workspace_proof,

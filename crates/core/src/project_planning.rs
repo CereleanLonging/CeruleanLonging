@@ -74,6 +74,17 @@ impl RuntimeHost {
                 .ok_or("project setup has no registered project")?
                 .configuration();
             require_bound_worker(binding, saved.setup.worker_adapter.id())?;
+            if saved.setup.chief_directory.is_some() {
+                crate::worker_directories::verify_saved(
+                    &self.root,
+                    &binding
+                        .execution_scope
+                        .as_ref()
+                        .ok_or("项目范围缺失")?
+                        .project,
+                    &saved.setup.worker_directories,
+                )?;
+            }
             for profile in &saved.setup.profiles {
                 require_bound_worker(binding, profile.worker_adapter.id())?;
                 #[cfg(windows)]
@@ -152,11 +163,45 @@ impl RuntimeHost {
             draft.management_sources.is_some(),
         )?;
         self.planning_idle(&draft.project_id)?;
-        let setup = self.prepare_project_setup(draft)?;
+        if let Some(old) = self
+            .project_setups
+            .get(&draft.project_id)
+            .filter(|s| s.setup.chief_directory.is_some())
+        {
+            let requested = draft
+                .chief_directory
+                .as_deref()
+                .ok_or("已启用的角色隔离不能从执行配置中移除")?;
+            require(
+                crate::artifacts::root_path(requested)?
+                    == crate::artifacts::root_path(old.setup.chief_directory.as_deref().unwrap())?,
+                "已登记的主指挥目录不能通过模型切换迁移",
+            )?;
+        }
+        let mut setup = self.prepare_project_setup(draft)?;
+        if setup.chief_directory.is_some() {
+            require(
+                setup.worktree.is_none(),
+                "固定模型工作目录与Git按尝试目录池不能同时启用",
+            )?;
+            let project = &self.projects[&setup.project_id]
+                .configuration()
+                .execution_scope
+                .as_ref()
+                .ok_or("项目范围缺失")?
+                .project;
+            let mut selected = vec![setup.execution_for("workspace-primary", None)?];
+            for profile in &setup.profiles {
+                selected.push(setup.execution_for("workspace-profile", Some(&profile.id))?);
+            }
+            setup.worker_directories =
+                crate::worker_directories::register(&self.root, project, &selected)?;
+        }
         let saved = SavedProjectSetup {
             digest: digest(&setup)?,
             setup,
         };
+        crate::role_workspace::save_requirements(&saved)?;
         crate::project_setup::save(&self.root, &saved)?;
         self.project_setups
             .insert(saved.setup.project_id.clone(), saved);
@@ -237,6 +282,7 @@ impl RuntimeHost {
                             Ok(AcceptanceStage {
                                 validator_id: s.validator_id.clone(),
                                 check: AcceptanceCheck {
+                                    expected_assertions: s.expected_assertions.clone(),
                                     id: s.id.clone(),
                                     name: Some(s.name.clone()),
                                     program: validator.tool.executable.path.clone(),
@@ -255,6 +301,7 @@ impl RuntimeHost {
                 .transpose()?;
             let check = acceptance.as_ref().map_or_else(
                 || AcceptanceCheck {
+                    expected_assertions: vec![],
                     id: "project-check".into(),
                     name: None,
                     program: validator.tool.executable.path.clone(),
@@ -278,7 +325,9 @@ impl RuntimeHost {
                     "编程程序不能位于任务目录池内",
                 )?;
             }
-            let setup = ProjectSetup {
+            let mut setup = ProjectSetup {
+                worker_directories: Default::default(),
+                chief_directory: self.prepare_chief_directory(&draft)?,
                 management_sources: draft.management_sources,
                 resource_keys: draft.resource_keys,
                 profiles,
@@ -322,6 +371,12 @@ impl RuntimeHost {
                 },
                 management_max_requests: draft.management_max_requests,
             };
+            if setup.chief_directory.is_some() {
+                setup
+                    .snapshot_policy
+                    .exclude
+                    .extend([".cerulean-runtime".into(), ".cerulean-omp".into()]);
+            }
             Ok(setup)
         }
         #[cfg(not(windows))]
@@ -454,7 +509,9 @@ impl RuntimeHost {
             .map(|t| setup.execution_for(&t.id, t.profile_id.as_deref()))
             .collect::<Result<Vec<_>, String>>()?;
         let revision = PlanRevision {
-            management_setup_digest: setup.management_sources.as_ref().map(|_| saved.digest),
+            management_setup_digest: (setup.management_sources.is_some()
+                || setup.chief_directory.is_some())
+            .then_some(saved.digest),
             worktree: setup.worktree,
             schema_version: 1,
             project,
@@ -464,6 +521,14 @@ impl RuntimeHost {
             snapshot_policy: Some(setup.snapshot_policy),
         };
         revision.validate()?;
+        if let Some(chief) = &setup.chief_directory {
+            crate::role_workspace::publish(
+                chief,
+                "plans",
+                &revision.approval_digest()?,
+                &serde_json::to_value(&revision).map_err(|e| e.to_string())?,
+            )?;
+        }
         self.apply_management_decision_inner(
             operation,
             ApplicationTarget::Workflow {
@@ -505,6 +570,128 @@ pub(super) mod tests {
     use crate::management_execution::DecisionIntent;
     use cerulean_adapters::openai::DecisionObservation;
     use cerulean_domain::management::{DecisionEnvelope, ProposedTask};
+    #[test]
+    fn isolated_configuration_requires_assertions_reuses_models_and_survives_reopen() {
+        let root = tempfile::tempdir().unwrap();
+        let (mut host, mut draft) = fixture(root.path());
+        draft.chief_directory = Some(root.path().join("chief").to_string_lossy().into());
+        assert!(host.configure_project(draft.clone()).is_err());
+        draft.acceptance = Some(AcceptanceDraft {
+            schema_version: 1,
+            stages: vec![AcceptanceStageDraft {
+                id: "tests".into(),
+                name: "assertion protocol".into(),
+                validator_id: "tests".into(),
+                args: vec![],
+                timeout_seconds: 10,
+                expected_assertions: vec!["correct-sum".into()],
+            }],
+        });
+        draft.check_args = draft.acceptance.as_ref().unwrap().stages[0].args.clone();
+        host.configure_project(draft.clone()).unwrap();
+        let first = host.project_setups["project"]
+            .setup
+            .execution_for("task", None)
+            .unwrap();
+        let first_dir = first.worker_directory.clone().unwrap();
+        assert_eq!(first.checks[0].expected_assertions, vec!["correct-sum"]);
+        let context = host
+            .role_context(
+                host.management_context("project", &draft.requirement)
+                    .unwrap(),
+                Purpose::Plan,
+                true,
+            )
+            .unwrap();
+        assert_eq!(context["roleWorkspace"]["deputyChiefAccess"], "read-only");
+        assert!(context["roleWorkspace"].get("workerDirectory").is_none());
+        assert_eq!(
+            context["roleWorkspace"]["workerDirectories"][&first_dir.identity],
+            first_dir
+                .root(
+                    &host.projects["project"]
+                        .configuration()
+                        .execution_scope
+                        .as_ref()
+                        .unwrap()
+                        .project
+                        .root
+                )
+                .unwrap()
+        );
+        let mut other = host.project_setups["project"].clone();
+        other.setup.project_id = "other-project".into();
+        host.project_setups.insert("other-project".into(), other);
+        assert!(host
+            .prepare_chief_directory(&draft)
+            .unwrap_err()
+            .contains("其他项目"));
+        host.project_setups.remove("other-project");
+        assert_eq!(
+            context["roleWorkspace"]["material"]["requirement"],
+            draft.requirement
+        );
+        draft.worker_model = "second-model".into();
+        host.configure_project(draft.clone()).unwrap();
+        assert_eq!(
+            host.project_setups["project"]
+                .setup
+                .worker_directories
+                .len(),
+            2
+        );
+        draft.worker_model = "fixture-worker".into();
+        host.configure_project(draft.clone()).unwrap();
+        assert_eq!(
+            host.project_setups["project"]
+                .setup
+                .execution_for("task", None)
+                .unwrap()
+                .worker_directory,
+            Some(first_dir)
+        );
+        let saved = host.project_setups["project"].clone();
+        let mut downgrade = draft.clone();
+        downgrade.chief_directory = None;
+        assert!(host.configure_project(downgrade).is_err());
+        let chief = Path::new(saved.setup.chief_directory.as_deref().unwrap());
+        let material = chief
+            .join("requirements")
+            .join(format!("{}.json", saved.digest));
+        let original = fs::read(&material).unwrap();
+        fs::write(&material, b"{}").unwrap();
+        assert!(crate::role_workspace::read_requirements(
+            &saved,
+            &host.projects["project"]
+                .configuration()
+                .execution_scope
+                .as_ref()
+                .unwrap()
+                .project
+                .root
+        )
+        .is_err());
+        fs::write(material, original).unwrap();
+        drop(host);
+        let host = RuntimeHost::open(&root.path().join("data")).unwrap();
+        assert_eq!(host.project_setups["project"].digest, saved.digest);
+        let task = host.project_setups["project"]
+            .setup
+            .execution_for("task", None)
+            .unwrap();
+        assert!(crate::windows_worker_account::load_binding(
+            &host.root,
+            &host.projects["project"]
+                .configuration()
+                .execution_scope
+                .as_ref()
+                .unwrap()
+                .project,
+            task.worker_directory.as_ref().unwrap()
+        )
+        .is_err());
+        assert!(host.codex_jobs.is_empty());
+    }
     pub(in crate::host) fn fixture(root: &Path) -> (RuntimeHost, ProjectSetupDraft) {
         fs::create_dir(root.join("project")).unwrap();
         fixture_existing_empty_project(root)
@@ -541,6 +728,7 @@ pub(super) mod tests {
         )
         .unwrap();
         let draft = ProjectSetupDraft {
+            chief_directory: None,
             management_sources: None,
             resource_keys: vec![],
             profiles: vec![],
@@ -770,6 +958,7 @@ pub(super) mod tests {
             schema_version: 1,
             stages: vec![
                 AcceptanceStageDraft {
+                    expected_assertions: vec![],
                     id: "syntax".into(),
                     name: "语法检查".into(),
                     validator_id: "tests".into(),
@@ -777,6 +966,7 @@ pub(super) mod tests {
                     timeout_seconds: 20,
                 },
                 AcceptanceStageDraft {
+                    expected_assertions: vec![],
                     id: "unit".into(),
                     name: "单元测试".into(),
                     validator_id: "tests".into(),
@@ -844,6 +1034,7 @@ pub(super) mod tests {
             schema_version: 1,
             stages: vec![
                 AcceptanceStageDraft {
+                    expected_assertions: vec![],
                     id: "first".into(),
                     name: "First".into(),
                     validator_id: "tests".into(),
@@ -851,6 +1042,7 @@ pub(super) mod tests {
                     timeout_seconds: 30,
                 },
                 AcceptanceStageDraft {
+                    expected_assertions: vec![],
                     id: "second".into(),
                     name: "Second".into(),
                     validator_id: "tests".into(),
@@ -897,6 +1089,7 @@ pub(super) mod tests {
             schema_version: 1,
             stages: vec![
                 AcceptanceStageDraft {
+                    expected_assertions: vec![],
                     id: "first".into(),
                     name: "First".into(),
                     validator_id: "tests".into(),
@@ -904,6 +1097,7 @@ pub(super) mod tests {
                     timeout_seconds: 30,
                 },
                 AcceptanceStageDraft {
+                    expected_assertions: vec![],
                     id: "second".into(),
                     name: "Second".into(),
                     validator_id: "tests".into(),

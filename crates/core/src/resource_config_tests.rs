@@ -22,6 +22,7 @@ fn profile(d: &ProjectSetupDraft) -> WorkerProfileDraft {
         acceptance: AcceptanceDraft {
             schema_version: 1,
             stages: vec![AcceptanceStageDraft {
+                expected_assertions: vec![],
                 id: "check".into(),
                 name: "Check".into(),
                 validator_id: d.validator_id.clone(),

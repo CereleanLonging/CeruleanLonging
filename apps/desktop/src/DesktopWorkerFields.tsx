@@ -1,10 +1,25 @@
+import { useEffect } from 'react';
 import type { DesktopWorkerSelection, Snapshot } from './contracts';
 
-export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix="planning-desktop"}:{idPrefix?:string;data:Snapshot;projectId:string;app:'qoder'|'workbuddy';worker:DesktopWorkerSelection|undefined|null;onChange:(worker:DesktopWorkerSelection|undefined)=>void}) {
+export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix="planning-desktop",isolationEnabled=false}:{isolationEnabled?:boolean;idPrefix?:string;data:Snapshot;projectId:string;app:'qoder'|'workbuddy';worker:DesktopWorkerSelection|undefined|null;onChange:(worker:DesktopWorkerSelection|undefined)=>void}) {
   const project=data.workflows.find(w=>w.project.id===projectId)?.project;
+  useEffect(()=>{
+    if(!worker||!project)return;
+    let active=true;
+    async function resolve(){
+      let root=project!.root;
+      if(isolationEnabled){
+        const bytes=new TextEncoder().encode(JSON.stringify([app,null,null,[app,worker!.modelLabel]]));
+        const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');
+        root=root.replace(/[\\/]+$/,'')+'\\executors\\'+hash;
+      }
+      if(active&&root!==worker!.projectRoot)onChange({...worker!,projectRoot:root,workspaceConfirmed:false});
+    }
+    void resolve();return()=>{active=false;};
+  },[project?.root,worker?.modelLabel,isolationEnabled,app]);
   const bindings=data.desktopAccess?.bindings.filter(b=>b.projectId===projectId&&b.observation.window.app===app&&b.observation.modelLabel)??[];
   return <section className="panel" aria-label="桌面编程会话配置">
-    <h3>已有聊天与执行范围</h3>
+    <h3>已有聊天与执行范围</h3>{isolationEnabled&&<p>先保存此模型配置并设置独立账户，再打开独立应用登录、核对下方目录，重新关联新账户窗口。保存配置不会发送任务。</p>}
     <p>先在接入管理关联本项目的已有聊天。这里保存会话与权限配置；批准方案并启动调度后，副指挥分配的任务会等待你审阅并确认发送。</p>
     <label htmlFor={`${idPrefix}-binding`}>选择已保存会话</label>
     <select id={`${idPrefix}-binding`} required value={worker?.binding.id??''} onChange={e=>{const binding=bindings.find(b=>b.id===e.target.value);onChange(binding&&project?{binding,projectRoot:project.root,modelLabel:binding.observation.modelLabel!,workspaceConfirmed:false,externalToolsAcknowledged:false}:undefined);}}>

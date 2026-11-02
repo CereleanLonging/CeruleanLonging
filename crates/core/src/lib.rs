@@ -1,5 +1,7 @@
 use cerulean_domain::*;
 pub const DATA_READER_GENERATION: u32 = verification_recheck_guard::GENERATION;
+#[cfg(windows)]
+pub mod windows_worker_account;
 #[cfg(all(test, windows))]
 mod workload_fixture_252;
 /// Explicitly reviewed schema-1 backup writers; never infer future compatibility.
@@ -114,6 +116,7 @@ mod recheck_disposition_evidence;
 pub mod rejected_usage_guard;
 pub mod relay_guard;
 mod replay_checkpoint;
+mod role_workspace;
 mod run_control;
 pub mod scheduler;
 #[cfg(windows)]
@@ -140,6 +143,7 @@ pub mod verification_recheck_guard;
 mod verification_reconciliation;
 #[cfg(windows)]
 pub mod verifier;
+mod worker_directories;
 #[cfg(windows)]
 mod worker_observation;
 #[cfg(windows)]
@@ -456,6 +460,7 @@ impl Store {
     pub fn snapshot(&self) -> Snapshot {
         let cached = self.index.read(&self.root, &self.index_head()).ok();
         Snapshot {
+            worker_account_setups: vec![],
             team_import: None,
             baselines: vec![],
             baseline_review: None,
@@ -575,6 +580,8 @@ impl Store {
             | Command::ReadCodexStartup { .. }
             | Command::AbandonCodexStartup { .. }
             | Command::ConfigureProject { .. }
+            | Command::ProvisionWorkerAccounts { .. }
+            | Command::OpenWorkerLogin { .. }
             | Command::RequestChiefPlan { .. }
             | Command::AuthorizePlanningBudget { .. }
             | Command::ReviewHistoricalCharge { .. }

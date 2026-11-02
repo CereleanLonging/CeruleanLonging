@@ -210,6 +210,7 @@ fn run_production_pipeline(isolated: bool) {
         stages: [("syntax", "语法检查"), ("unit", "单元测试")]
             .into_iter()
             .map(|(id, name)| AcceptanceStageDraft {
+                expected_assertions: vec![],
                 id: id.into(),
                 name: name.into(),
                 validator_id: "dag-validator".into(),

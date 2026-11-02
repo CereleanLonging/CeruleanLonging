@@ -130,6 +130,7 @@ impl WorkerProfile {
                     .stages
                     .iter()
                     .map(|s| AcceptanceStageDraft {
+                        expected_assertions: s.check.expected_assertions.clone(),
                         id: s.check.id.clone(),
                         name: s.check.name.clone().unwrap_or_default(),
                         validator_id: s.validator_id.clone(),
@@ -156,6 +157,7 @@ impl ProjectSetup {
         let mut result = if let Some(id) = profile {
             let p = self.profile(id)?;
             TaskExecution {
+                worker_directory: None,
                 supervision_override: p.supervision_override.clone(),
                 profile_id: Some(id.into()),
                 task_id: task.into(),
@@ -173,6 +175,7 @@ impl ProjectSetup {
             }
         } else {
             TaskExecution {
+                worker_directory: None,
                 supervision_override: None,
                 profile_id: None,
                 task_id: task.into(),
@@ -188,6 +191,10 @@ impl ProjectSetup {
             result.artifact_paths = i.artifact_paths.clone();
             result.checks = vec![i.check.clone()];
         }
+        result.worker_directory = self
+            .worker_directories
+            .get(&result.model_identity()?)
+            .cloned();
         Ok(result)
     }
     pub fn validator_for(&self, task: &str, profile: Option<&str>) -> Result<&str, String> {

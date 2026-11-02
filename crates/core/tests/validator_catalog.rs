@@ -45,6 +45,7 @@ fn registration_is_immutable_restartable_and_drives_approved_binding() {
         fs::read(data.path().join("validators/tool-1.json")).unwrap()
     );
     let check = AcceptanceCheck {
+        expected_assertions: vec![],
         name: None,
         id: "check".into(),
         program: "test".into(),

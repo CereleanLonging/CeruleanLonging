@@ -106,6 +106,7 @@ impl Fixture {
                 budget_usd_cents: Some(25),
             },
             execution: vec![TaskExecution {
+                worker_directory: None,
                 supervision_override: None,
                 profile_id: None,
                 desktop_worker: None,
@@ -115,6 +116,7 @@ impl Fixture {
                 adapter_id: "codex".into(),
                 artifact_paths: vec!["src/result.txt".into()],
                 checks: vec![AcceptanceCheck {
+                    expected_assertions: vec![],
                     name: None,
                     tool: None,
                     id: "check".into(),
@@ -392,6 +394,8 @@ fn acceptance_requires_all_approved_checks_and_current_artifact_content() {
         observed_at: "2026-10-07T14:02:00Z".into(),
         manifest_digest: digest(&manifest).unwrap(),
         checks: vec![CheckObservation {
+            assertion_error: None,
+            assertions: vec![],
             check_id: "check".into(),
             command_digest: digest(&f.plan.execution[0].checks[0]).unwrap(),
             exit_code: Some(0),

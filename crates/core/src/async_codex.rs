@@ -526,7 +526,7 @@ async fn run(
                 store.prepare_codex_workspace(&job.task_id, &job.attempt_id, preparing.clone())?;
             (path, Some(proof))
         } else {
-            (plan.project.root.clone(), None)
+            (plan.execution_root(&job.task_id, &job.attempt_id)?, None)
         }
     };
     if !recovery {
@@ -540,10 +540,21 @@ async fn run(
     } else {
         CodexClient::launch
     };
-    let mut client = launch(
-        Path::new(&job.worker.executable.path),
-        Path::new(&workspace),
-    )?;
+    let mut client = if plan.task(&job.task_id)?.worker_directory.is_some() {
+        crate::windows_worker_account::codex(
+            root,
+            &plan,
+            &job.task_id,
+            Path::new(&job.worker.executable.path),
+            Path::new(&workspace),
+            recovery,
+        )?
+    } else {
+        launch(
+            Path::new(&job.worker.executable.path),
+            Path::new(&workspace),
+        )?
+    };
     *cleaned = false;
     let outcome = async {
         if let Some(capture) = observation {

@@ -22,7 +22,11 @@ impl RuntimeHost {
         require(
             digest(&self.match_original_catalog(
                 &intent.context,
-                self.context_for_snapshot(requirement, &original),
+                self.rebuild_role_context(
+                    &intent.context,
+                    self.context_for_snapshot(requirement, &original),
+                    intent.purpose,
+                )?,
             )?)? == intent.state_digest,
             "主指挥管理配置或用户答复已变化",
         )?;

@@ -80,6 +80,7 @@ fn ready(root: &Path) -> (DurableWorkflow, PlanRevision, WorkerBinding) {
         },
         snapshot_policy: None,
         execution: vec![TaskExecution {
+            worker_directory: None,
             supervision_override: None,
             profile_id: None,
             desktop_worker: None,
@@ -89,6 +90,7 @@ fn ready(root: &Path) -> (DurableWorkflow, PlanRevision, WorkerBinding) {
             worker: None,
             artifact_paths: vec!["result.txt".into()],
             checks: vec![AcceptanceCheck {
+                expected_assertions: vec![],
                 name: None,
                 id: "check".into(),
                 program: "fixture-validator".into(),

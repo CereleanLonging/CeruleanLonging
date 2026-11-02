@@ -16,6 +16,7 @@ impl Fixture {
         // All data is synthetic. These tests neither open files nor run tools.
         let exe = std::env::temp_dir().join("recheck-fixture.exe");
         let check = |id: &str| AcceptanceCheck {
+            expected_assertions: vec![],
             id: id.into(),
             name: Some(format!("Stage {id}")),
             program: "fixture".into(),
@@ -75,6 +76,8 @@ impl Fixture {
                 .checks
                 .iter()
                 .map(|c| CheckObservation {
+                    assertion_error: None,
+                    assertions: vec![],
                     check_id: c.id.clone(),
                     command_digest: digest(c).unwrap(),
                     exit_code: Some(1),

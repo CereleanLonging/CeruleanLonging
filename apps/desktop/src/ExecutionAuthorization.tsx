@@ -29,8 +29,9 @@ export function ExecutionAuthorization({revision}:{revision:PlanRevision}) {
           {execution.apiWorker && <ApiExecutionReview worker={execution.apiWorker}/>}
           <NativeWorkerCost adapter={execution.adapterId}/>
           <p>前置任务：{task.dependencies.join("、") || "无"}</p>
+          {execution.workerDirectory&&<p>绑定的模型工作目录：<code>{revision.project.root}\{execution.workerDirectory.relativePath.replaceAll("/","\\")}</code>。运行中不会切换到其他模型目录；CLI／桌面需要对应的独立 Windows 账户。</p>}
           <p>交付文件：{execution.artifactPaths.join("、")}</p>
-          <p>按顺序完成全部验收检查：</p><ol>{execution.checks.map(check => <li key={check.id}><strong>{check.name??check.id}</strong> · <code>{[check.program, ...check.args].join(" ")}</code>（最多 {check.timeoutSeconds} 秒）
+          <p>按顺序完成全部验收检查：</p><ol>{execution.checks.map(check => <li key={check.id}><strong>{check.name??check.id}</strong>{!!check.expectedAssertions?.length&&<p>必须通过的断言：{check.expectedAssertions.join("、")}</p>} · <code>{[check.program, ...check.args].join(" ")}</code>（最多 {check.timeoutSeconds} 秒）
             {check.tool ? <dl><dt>实际执行程序</dt><dd><code>{check.tool.executable.path}</code></dd><dt>程序 SHA-256</dt><dd><code>{check.tool.executable.sha256}</code></dd>
               <dt>固定验收文件</dt><dd>{check.tool.inputs.length ? check.tool.inputs.map(file=><div key={file.path}><code>{file.path}</code><br/><code>{file.sha256}</code></div>) : "无附加文件"}</dd>
               <dt>验收环境设置</dt><dd>{Object.entries(check.tool.environment).map(([key,value])=>`${key}=${value}`).join("、") || "使用核心隔离环境，不继承凭证或 PATH"}</dd></dl>

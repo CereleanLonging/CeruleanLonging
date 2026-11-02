@@ -144,6 +144,13 @@ impl RuntimeHost {
         operation: &str,
         target: ApplicationTarget,
     ) -> Result<(), String> {
+        if let ApplicationTarget::Workflow {
+            command: WorkflowCommand::Accept { task, attempt },
+            ..
+        } = &target
+        {
+            self.validate_chief_acceptance_material(operation, task, attempt)?;
+        }
         if let ApplicationTarget::Workflow { context, .. } = &target {
             if let Some(ExecutionEvidence::Revision { revision }) = &context.execution {
                 crate::reader_generation::require_revision(&self.root, revision)?;
@@ -290,6 +297,7 @@ mod tests {
                 max_bytes: 1024 * 1024,
             }),
             execution: vec![TaskExecution {
+                worker_directory: None,
                 supervision_override: None,
                 profile_id: None,
                 desktop_worker: None,
@@ -299,6 +307,7 @@ mod tests {
                 artifact_paths: vec!["sum.mjs".into()],
                 worker: None,
                 checks: vec![AcceptanceCheck {
+                    expected_assertions: vec![],
                     name: None,
                     id: "check".into(),
                     program: "fixture".into(),

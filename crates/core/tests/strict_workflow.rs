@@ -42,6 +42,7 @@ fn plan(root: &Path) -> PlanRevision {
             budget_usd_cents: Some(25),
         },
         execution: vec![TaskExecution {
+            worker_directory: None,
             supervision_override: None,
             profile_id: None,
             desktop_worker: None,
@@ -51,6 +52,7 @@ fn plan(root: &Path) -> PlanRevision {
             adapter_id: "codex".into(),
             artifact_paths: vec!["result.txt".into()],
             checks: vec![AcceptanceCheck {
+                expected_assertions: vec![],
                 name: None,
                 tool: Some(
                     cerulean_core::verifier::PinnedCheck::describe(
@@ -488,6 +490,7 @@ async fn live_codex_resident_worker_and_recovery() {
     let validator = repository.join("tests/fixtures/sum-validator.mjs");
     p.execution[0].artifact_paths = vec!["sum.mjs".into()];
     p.execution[0].checks = vec![AcceptanceCheck {
+        expected_assertions: vec![],
         name: None,
         id: "sum-behavior".into(),
         program: "independent-sum-validator".into(),
@@ -1729,6 +1732,7 @@ async fn live_codex_dispatch_and_verify() {
     let validator = repository.join("tests/fixtures/sum-validator.mjs");
     p.execution[0].artifact_paths = vec!["sum.mjs".into()];
     p.execution[0].checks = vec![AcceptanceCheck {
+        expected_assertions: vec![],
         name: None,
         id: "sum-behavior".into(),
         program: "independent-sum-validator".into(),
@@ -2553,6 +2557,8 @@ fn report(p: &PlanRevision, m: &ArtifactManifest) -> VerificationReport {
         observed_at: "2026-10-07T15:02:00Z".into(),
         manifest_digest: digest(m).unwrap(),
         checks: vec![CheckObservation {
+            assertion_error: None,
+            assertions: vec![],
             check_id: "check".into(),
             command_digest: digest(&p.execution[0].checks[0]).unwrap(),
             exit_code: Some(0),

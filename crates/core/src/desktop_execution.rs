@@ -47,8 +47,9 @@ fn prompt(plan: &PlanRevision, attempt: &Attempt, marker: &str) -> Result<String
         .iter()
         .find(|t| t.id == attempt.task_id)
         .ok_or("桌面任务不存在")?;
+    let workspace = plan.execution_root(&task.id, &attempt.id)?;
     // JSON escapes line breaks in task text; typing never injects Enter shortcuts.
-    Ok(format!("这是用户已批准的编程任务。只执行这里的任务，工作目录与模型须与当前应用配置一致；不一致请停止。任务数据：{}。工具权限沿用当前应用，遇到需用户批准的操作请等待。完成后说明修改与检查结果，并在回复末尾单独输出标记 {}。标记仅用于关联本次回复，不代表独立验收通过，不要代替主指挥宣布项目验收。",serde_json::to_string(&serde_json::json!({"projectDirectory":plan.project.root,"taskId":task.id,"attemptId":attempt.id,"goal":task.goal,"requiredArtifacts":plan.task(&task.id)?.artifact_paths,"revisionDigest":attempt.revision_digest})).map_err(|_|"任务编码失败")?,marker))
+    Ok(format!("这是用户已批准的编程任务。只执行这里的任务，工作目录与模型须与当前应用配置一致；不一致请停止。任务数据：{}。工具权限沿用当前应用，遇到需用户批准的操作请等待。完成后说明修改与检查结果，并在回复末尾单独输出标记 {}。标记仅用于关联本次回复，不代表独立验收通过，不要代替主指挥宣布项目验收。",serde_json::to_string(&serde_json::json!({"projectDirectory":workspace,"taskId":task.id,"attemptId":attempt.id,"goal":task.goal,"requiredArtifacts":plan.task(&task.id)?.artifact_paths,"revisionDigest":attempt.revision_digest})).map_err(|_|"任务编码失败")?,marker))
 }
 fn fresh(o: &DesktopObservation) -> Result<(), String> {
     let at =

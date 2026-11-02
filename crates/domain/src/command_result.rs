@@ -94,6 +94,8 @@ impl Command {
             | Self::CloseAdviceTracking { .. }
             | Self::AbandonManagementApplication { .. }
             | Self::ConfigureProject { .. }
+            | Self::ProvisionWorkerAccounts { .. }
+            | Self::OpenWorkerLogin { .. }
             | Self::RequestChiefPlan { .. }
             | Self::AuthorizePlanningBudget { .. }
             | Self::SetOpenAiKey { .. }

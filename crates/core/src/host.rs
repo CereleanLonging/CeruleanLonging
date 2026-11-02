@@ -445,6 +445,9 @@ pub(crate) fn require_bound_worker(
         "执行者未绑定到此项目的原角色表；请创建新项目",
     )
 }
+#[path = "role_workspace_host.rs"]
+mod role_workspace_host;
+
 impl RuntimeHost {
     #[cfg(windows)]
     pub fn describe_codex_worker(
@@ -1027,6 +1030,10 @@ impl RuntimeHost {
     }
     pub fn snapshot(&self) -> Snapshot {
         let mut snapshot = self.base.snapshot();
+        #[cfg(windows)]
+        {
+            snapshot.worker_account_setups = crate::windows_worker_account::views(&self.root);
+        }
         snapshot.team_timelines = self.team_timing_views();
         #[cfg(windows)]
         {
@@ -1663,6 +1670,13 @@ impl RuntimeHost {
         allow_api: bool,
         recheck: Option<&str>,
     ) -> Result<(), String> {
+        #[cfg(windows)]
+        require(
+            !crate::windows_worker_account::views(&self.root)
+                .iter()
+                .any(|v| v.project_id == project && v.state == "pending"),
+            "Windows账户设置仍在进行或结果未明，暂不修改或启动项目",
+        )?;
         require(
             match recheck {
                 None => self
@@ -3074,6 +3088,78 @@ impl RuntimeHost {
                 crate::management_execution::UserResolution::Reply { answer },
             ),
             Command::ConfigureProject { draft } => self.configure_project(*draft),
+            Command::ProvisionWorkerAccounts {
+                project_id,
+                setup_digest,
+            } => {
+                #[cfg(windows)]
+                {
+                    (|| -> Result<(), String> {
+                        self.planning_idle(&project_id)?;
+                        let saved = self
+                            .project_setups
+                            .get(&project_id)
+                            .ok_or("请先保存项目配置")?;
+                        require(saved.digest == setup_digest, "项目配置已变化")?;
+                        require(
+                            !crate::windows_worker_account::views(&self.root)
+                                .iter()
+                                .any(|v| v.project_id == project_id && v.state == "pending"),
+                            "原账户设置尚未核对，不会重复提权",
+                        )?;
+                        let chief = saved
+                            .setup
+                            .chief_directory
+                            .as_deref()
+                            .ok_or("项目尚未启用目录隔离")?;
+                        let project = &self.projects[&project_id]
+                            .configuration()
+                            .execution_scope
+                            .as_ref()
+                            .ok_or("项目范围缺失")?
+                            .project;
+                        let plan = crate::windows_worker_account::prepare(
+                            &self.root,
+                            project,
+                            chief,
+                            &saved.setup.worker_directories,
+                        )?;
+                        crate::windows_worker_account::start(plan)
+                    })()
+                }
+                #[cfg(not(windows))]
+                {
+                    let _ = (project_id, setup_digest);
+                    Err("执行账户隔离需要Windows".into())
+                }
+            }
+            Command::OpenWorkerLogin {
+                project_id,
+                setup_digest,
+                profile_id,
+            } => {
+                #[cfg(windows)]
+                {
+                    (|| -> Result<(), String> {
+                        self.planning_idle(&project_id)?;
+                        let saved = self.project_setups.get(&project_id).ok_or("项目配置缺失")?;
+                        require(saved.digest == setup_digest, "项目配置已变化")?;
+                        let task = saved.setup.execution_for("login", profile_id.as_deref())?;
+                        let project = &self.projects[&project_id]
+                            .configuration()
+                            .execution_scope
+                            .as_ref()
+                            .ok_or("项目范围缺失")?
+                            .project;
+                        crate::windows_worker_account::open_login(&self.root, project, &task)
+                    })()
+                }
+                #[cfg(not(windows))]
+                {
+                    let _ = (project_id, setup_digest, profile_id);
+                    Err("执行账户隔离需要Windows".into())
+                }
+            }
             Command::RequestChiefPlan {
                 project_id,
                 setup_digest,

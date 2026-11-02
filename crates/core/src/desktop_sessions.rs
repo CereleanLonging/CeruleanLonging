@@ -300,6 +300,10 @@ fn persist(root: &Path, binding: &DesktopBinding) -> Result<(), String> {
 fn observe(root: &Path, request: &ReadRequest) -> Result<ReadReply, String> {
     observe_cancellable(root, request, &std::sync::atomic::AtomicBool::new(false))
 }
+#[cfg(test)]
+pub(crate) fn discover_for_account_probe(root: &Path) -> Result<Vec<DesktopWindow>, String> {
+    Ok(observe(root, &ReadRequest::Discover { version: 1 })?.windows)
+}
 fn observe_cancellable(
     root: &Path,
     request: &ReadRequest,
@@ -470,7 +474,10 @@ impl RuntimeHost {
             .and_then(|s| s.configuration().execution_scope.as_ref())
             .ok_or("桌面项目范围缺失")?;
         require(
-            selection.project_root == scope.project.root,
+            selection.project_root == scope.project.root
+                || selection.project_root
+                    == cerulean_domain::execution::WorkerDirectory::for_desktop(selection)?
+                        .root(&scope.project.root)?,
             "桌面配置目录与登记项目不一致",
         )
     }

@@ -2155,6 +2155,7 @@ async fn workspace_verification_result_native_production_pages_original_and_refu
         schema_version: 1,
         stages: (0..8)
             .map(|i| AcceptanceStageDraft {
+                expected_assertions: vec![],
                 id: format!("check-{i}"),
                 name: format!("Approved local check {i}"),
                 validator_id: "dag-check".into(),

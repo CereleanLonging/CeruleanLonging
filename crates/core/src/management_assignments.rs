@@ -163,6 +163,7 @@ impl RuntimeHost {
         intent: &DecisionIntent,
         context: Value,
     ) -> Result<Value, String> {
+        let context = self.rebuild_role_context(&intent.context, context, intent.purpose)?;
         rebuild(
             intent,
             self.match_original_catalog(&intent.context, context)?,
@@ -174,7 +175,11 @@ impl RuntimeHost {
         purpose: management::Purpose,
         requirement: &str,
     ) -> Result<Value, String> {
-        let context = self.management_context(project, requirement)?;
+        let context = self.role_context(
+            self.management_context(project, requirement)?,
+            purpose,
+            true,
+        )?;
         if purpose == management::Purpose::Assign
             && self
                 .selected_management_provider(project, purpose)

@@ -93,6 +93,7 @@ impl Flow {
                 budget_usd_cents: None,
             },
             execution: vec![TaskExecution {
+                worker_directory: None,
                 supervision_override: None,
                 profile_id: None,
                 desktop_worker: None,
@@ -102,6 +103,7 @@ impl Flow {
                 adapter_id: "codex".into(),
                 artifact_paths: vec!["b.txt".into()],
                 checks: vec![AcceptanceCheck {
+                    expected_assertions: vec![],
                     id: "isolated".into(),
                     name: None,
                     program: tool.executable.path.clone(),

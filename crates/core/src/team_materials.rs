@@ -46,6 +46,7 @@ impl TeamBlueprint {
     pub fn configuration_draft(&self) -> ProjectSetupDraft {
         let s = &self.setup.setup;
         ProjectSetupDraft {
+            chief_directory: s.chief_directory.clone(),
             management_sources: s.management_sources.clone(),
             currency_budget: None,
             resource_keys: vec![],
@@ -76,6 +77,7 @@ impl TeamBlueprint {
                     .stages
                     .iter()
                     .map(|s| AcceptanceStageDraft {
+                        expected_assertions: s.check.expected_assertions.clone(),
                         id: s.check.id.clone(),
                         name: s.check.name.clone().unwrap(),
                         validator_id: s.validator_id.clone(),
@@ -94,6 +96,7 @@ impl TeamBlueprint {
 
 fn check(tool: &ValidationTool, id: &str, name: &str) -> AcceptanceCheck {
     AcceptanceCheck {
+        expected_assertions: vec![],
         id: id.into(),
         name: Some(name.into()),
         program: tool.executable.path.clone(),
@@ -314,6 +317,8 @@ pub fn compose(request: &TeamRequest) -> Result<TeamBlueprint, String> {
     }
     let full_check = check(full_tool, "fixed-workload-check", "Fixed workload");
     let setup = ProjectSetup {
+        worker_directories: Default::default(),
+        chief_directory: None,
         management_sources: sources.uses_external_provider().then_some(sources),
         resource_keys: vec![],
         profiles,

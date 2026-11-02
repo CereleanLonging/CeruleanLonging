@@ -105,6 +105,16 @@ pub fn isolated_task_key(project: &str, task: &str) -> Result<String, String> {
 }
 impl PlanRevision {
     pub fn validate_workspace_policy(&self) -> Result<(), String> {
+        for task in &self.execution {
+            if let Some(directory) = &task.worker_directory {
+                directory.validate(task)?;
+                require(
+                    self.worktree.is_none(),
+                    "固定模型目录不能与按尝试建立的Git目录池混用",
+                )?;
+                directory.root(&self.project.root)?;
+            }
+        }
         let Some(policy) = &self.worktree else {
             return Ok(());
         };
@@ -157,7 +167,10 @@ impl PlanRevision {
         self.task(task)?;
         identifier(attempt)?;
         match &self.worktree {
-            None => Ok(self.project.root.clone()),
+            None => self.task(task)?.worker_directory.as_ref().map_or_else(
+                || Ok(self.project.root.clone()),
+                |d| d.root(&self.project.root),
+            ),
             Some(policy) => Path::new(&policy.pool_root)
                 .join("trees")
                 .join(workspace_key(&self.project.id, task, attempt)?)
