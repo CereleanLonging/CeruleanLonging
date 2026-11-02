@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { DesktopWorkerSelection, Snapshot } from './contracts';
 
-export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix="planning-desktop",isolationEnabled=false}:{isolationEnabled?:boolean;idPrefix?:string;data:Snapshot;projectId:string;app:'qoder'|'workbuddy';worker:DesktopWorkerSelection|undefined|null;onChange:(worker:DesktopWorkerSelection|undefined)=>void}) {
+export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix="planning-desktop",isolationEnabled=false}:{isolationEnabled?:boolean;idPrefix?:string;data:Snapshot;projectId:string;app:'qoder';worker:DesktopWorkerSelection|undefined|null;onChange:(worker:DesktopWorkerSelection|undefined)=>void}) {
   const project=data.workflows.find(w=>w.project.id===projectId)?.project;
   useEffect(()=>{
     if(!worker||!project)return;

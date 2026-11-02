@@ -93,34 +93,17 @@ fn qoder_initial_task_rejects_semantic_identity_and_invalid_layout_changes() {
 }
 
 #[test]
-fn workbuddy_without_provider_session_keeps_strict_initial_layout_check() {
+fn retired_workbuddy_cannot_prepare_even_with_fresh_observation() {
     let root = tempfile::tempdir().unwrap();
-    let mut host = configured_for(root.path(), "CONTEXT_WORKBUDDY", DesktopApp::Workbuddy);
-    plan_and_approve(&mut host);
-    start(&mut host);
-    let attempt = assigned(&mut host);
-    let store = &host.projects["project"];
-    let mut changed = store
-        .revision()
-        .unwrap()
-        .task("task")
-        .unwrap()
-        .desktop_worker
-        .as_ref()
-        .unwrap()
-        .binding
-        .observation
-        .clone();
-    changed.captured_at = chrono::Utc::now().to_rfc3339();
-    changed.layout_digest = "f".repeat(64);
-    changed.node_count += 2;
-    assert!(crate::desktop_execution::prepare(
-        store,
+    let (host, _) = desktop_plan_fixture(root.path(), DesktopApp::Workbuddy);
+    let error = crate::desktop_execution::prepare(
+        &host.projects["project"],
         "task",
-        &attempt,
-        changed,
+        "unallocated",
+        observation(window(DesktopApp::Workbuddy)),
         vec!["a".repeat(64), "b".repeat(64)],
     )
-    .is_err());
+    .unwrap_err();
+    assert!(error.contains("支持已移除"));
     assert!(host.desktop_access.tasks.is_empty());
 }

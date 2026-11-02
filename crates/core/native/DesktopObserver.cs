@@ -40,7 +40,7 @@ public partial class DesktopObserver {
             if(!QueryFullProcessImageName(process,0,image,ref size)||!GetProcessTimes(process,out created,out exited,out kernel,out user))throw new InvalidOperationException("process_identity_unavailable");
             string path=image.ToString();
             string app=Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
-            if(app!="qoder"&&app!="workbuddy")throw new InvalidOperationException("app_not_allowed");
+            if(app!="qoder")throw new InvalidOperationException("app_not_allowed");
             var title=new StringBuilder(512);GetWindowText(hwnd,title,title.Capacity);
             return new Window{app=app,hwnd=hwnd.ToInt64().ToString(),pid=(uint)pid,startTicks=DateTime.FromFileTimeUtc(created).Ticks.ToString(),exe=path,title=title.ToString(),version=FileVersionInfo.GetVersionInfo(path).ProductVersion??"unknown"};
         } finally {CloseHandle(process);}
@@ -163,6 +163,9 @@ public partial class DesktopObserver {
             if(args.Length!=1||args[0].Length>65536)throw new InvalidOperationException("request_limit");
             var request=json.Deserialize<Request>(args[0]);
             if(request.version!=1)throw new InvalidOperationException("protocol_mismatch");
+            // Retired applications must never reach UIA, focus, typing or stop.
+            var selected=request.window??(request.taskReview!=null?request.taskReview.observation.window:request.review!=null?request.review.observation.window:null);
+            if(selected!=null&&selected.app!="qoder")throw new InvalidOperationException("app_not_allowed");
             object result;
             if(request.op=="discover") {
                 var windows=new List<Window>();

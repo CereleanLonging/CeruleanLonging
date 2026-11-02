@@ -39,7 +39,13 @@ fn old_role_bindings_reopen_with_original_plan_and_stay_byte_identical() {
         .unwrap();
     assert_eq!(
         context["workers"],
-        serde_json::to_value(cerulean_adapters::catalog()).unwrap()
+        serde_json::to_value(
+            cerulean_adapters::catalog()
+                .into_iter()
+                .filter(|a| a.id != "workbuddy")
+                .collect::<Vec<_>>()
+        )
+        .unwrap()
     );
     let history_len = workflow.history().len();
     let binding = root.path().join("data/workflows/project/bindings.json");

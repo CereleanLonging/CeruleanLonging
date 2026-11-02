@@ -290,16 +290,8 @@ fn prepared(host: &mut RuntimeHost, attempt: &str) -> String {
 fn desktop_managed_run_waits_for_user_and_requires_real_verification_before_chief_accepts() {
     managed_run_contract(DesktopApp::Qoder);
 }
-#[test]
-fn workbuddy_managed_run_verifies_artifacts_and_continues_only_after_acceptance() {
-    managed_run_contract(DesktopApp::Workbuddy);
-}
 fn managed_run_contract(app: DesktopApp) {
     managed_run_version_contract(app, None);
-}
-#[test]
-fn workbuddy_583_managed_run_verifies_artifacts_before_continuation() {
-    managed_run_version_contract(DesktopApp::Workbuddy, Some("5.8.3.0"));
 }
 fn managed_run_version_contract(app: DesktopApp, version: Option<&str>) {
     for mode in ["correct", "FAIL_OUTPUT", "TWO_TASKS", "THREE_TASKS"] {
@@ -406,16 +398,8 @@ fn managed_run_version_contract(app: DesktopApp, version: Option<&str>) {
 fn desktop_managed_pause_and_assigned_restart_never_send_until_user_confirms() {
     pause_restart_contract(DesktopApp::Qoder);
 }
-#[test]
-fn workbuddy_managed_pause_and_restart_preserve_local_assignment_without_resending() {
-    pause_restart_contract(DesktopApp::Workbuddy);
-}
 fn pause_restart_contract(app: DesktopApp) {
     pause_restart_version_contract(app, None);
-}
-#[test]
-fn workbuddy_583_pause_restart_never_resends_assignment() {
-    pause_restart_version_contract(DesktopApp::Workbuddy, Some("5.8.3.0"));
 }
 fn pause_restart_version_contract(app: DesktopApp, version: Option<&str>) {
     let root = tempfile::tempdir().unwrap();
@@ -451,50 +435,8 @@ fn pause_restart_version_contract(app: DesktopApp, version: Option<&str>) {
 fn desktop_managed_unknown_requires_original_readback_and_explicit_run_resume() {
     unknown_readback_contract(DesktopApp::Qoder);
 }
-#[test]
-fn workbuddy_managed_unknown_recovers_original_local_proof_without_resending() {
-    unknown_readback_contract(DesktopApp::Workbuddy);
-}
-#[test]
-fn workbuddy_host_rejects_missing_or_foreign_reply_evidence_without_sealing_artifacts() {
-    for mode in [
-        "MISSING_LOCAL_PROOF",
-        "FOREIGN_LOCAL_REVIEW",
-        "INVENTED_PROVIDER_ID",
-    ] {
-        let root = tempfile::tempdir().unwrap();
-        let mut host = configured_for(root.path(), mode, DesktopApp::Workbuddy);
-        plan_and_approve(&mut host);
-        start(&mut host);
-        let attempt = assigned(&mut host);
-        let review = prepared(&mut host, &attempt);
-        host.send_desktop_task(&review).unwrap();
-        until(&mut host, |h| h.runs.all()[0].state == RunState::Attention);
-        assert_eq!(
-            host.projects["project"].state().tasks["task"].state,
-            TaskState::Unknown
-        );
-        assert!(host.desktop_access.tasks[0].proof.is_none());
-        assert!(!host.desktop_access.tasks[0].submitted);
-        assert!(host.jobs.is_empty());
-        assert_eq!(host.management.statuses().len(), 2);
-        assert!(root.path().join("project/sum.mjs").exists());
-        assert!(host.send_desktop_task(&review).is_err());
-        let history = host.projects["project"].history().to_vec();
-        drop(host);
-        let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
-        attach(&mut host);
-        host.poll_verifications();
-        assert_eq!(host.projects["project"].history(), history);
-        assert!(host.jobs.is_empty());
-    }
-}
 fn unknown_readback_contract(app: DesktopApp) {
     unknown_readback_version_contract(app, None);
-}
-#[test]
-fn workbuddy_583_unknown_recovers_original_proof_without_resend() {
-    unknown_readback_version_contract(DesktopApp::Workbuddy, Some("5.8.3.0"));
 }
 fn unknown_readback_version_contract(app: DesktopApp, version: Option<&str>) {
     let root = tempfile::tempdir().unwrap();
@@ -562,10 +504,6 @@ fn desktop_managed_missing_chief_credentials_cannot_record_run_or_bill_assignmen
 #[test]
 fn desktop_continuation_rejects_changed_history_identity_and_legacy_proofs() {
     continuation_contract(DesktopApp::Qoder, &["TWO_TASKS", "TWO_TASKS LEGACY_PROOF"]);
-}
-#[test]
-fn workbuddy_continuation_rejects_changed_local_identity_history_and_forged_predecessor() {
-    continuation_contract(DesktopApp::Workbuddy, &["TWO_TASKS"]);
 }
 fn continuation_contract(app: DesktopApp, modes: &[&str]) {
     use crate::desktop_execution as execution;

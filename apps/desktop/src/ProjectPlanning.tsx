@@ -46,6 +46,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
   const pending=(statistics?.pending??0)>0;
   const workflow=data?.workflows.find(w=>w.project.id===projectId);
   const desktopAdapter=draft.workerAdapter==="qoder"||draft.workerAdapter==="workbuddy";
+  const retiredAdapter=draft.workerAdapter==="workbuddy"||(draft.profiles??[]).some(p=>p.workerAdapter==="workbuddy");
   const defaultAdapter = draft.workerAdapter ?? "codex";
   const defaultSupervisionConflict = supervisionConflictFor(defaultAdapter, draft.supervision);
   const supervisionConflict=defaultSupervisionConflict || (draft.profiles??[]).some(p=>supervisionConflictFor(p.workerAdapter,effectiveSupervision(p.supervisionOverride,draft.supervision)));
@@ -55,7 +56,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
     {!data?.workflows.length ? <p className="secondary">请先在“项目设置”关联项目目录，并登记独立验收工具。</p> : <>
       <label htmlFor="planning-project">规划项目</label><select id="planning-project" value={projectId} onChange={e=>setProjectId(e.target.value)}>{data.workflows.map(w=><option value={w.project.id} key={w.project.id}>{w.project.root}</option>)}</select>
       <p className="secondary">先保存需求与执行范围，再请求主指挥提出方案。方案生成后会出现在下方，审阅批准前不会派发编程任务。</p>
-      <form onSubmit={async e=>{e.preventDefault();if(locked){keepNextDraft();return;}if(budgetError)return;if(resourceError(draft.resourceKeys)||(draft.profiles??[]).some(p=>resourceError(p.resourceKeys,draft.resourceKeys)))return;if(await send({type:"configureProject",draft:{...draft,resourceKeys:resourceNames(draft.resourceKeys).length?resourceNames(draft.resourceKeys):undefined,profiles:draft.profiles?.map(p=>({...p,acceptance:{...p.acceptance,stages:p.acceptance.stages.map(s=>({...s,expectedAssertions:cleanAssertions(s.expectedAssertions)}))},resourceKeys:resourceNames(p.resourceKeys).length?resourceNames(p.resourceKeys):undefined})),projectId,artifactPaths:artifacts.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),validatorId:stages[0]?.validatorId??"",checkArgs:stages[0]?.args??[],acceptance:{schemaVersion:1,stages:stages.map(s=>({...s,expectedAssertions:cleanAssertions(s.expectedAssertions)}))}}})){setDirty(false);localStorage.removeItem(draftKey);setDraftMessage("");}}}>
+      <form onSubmit={async e=>{e.preventDefault();if(locked){keepNextDraft();return;}if(budgetError||retiredAdapter)return;if(resourceError(draft.resourceKeys)||(draft.profiles??[]).some(p=>resourceError(p.resourceKeys,draft.resourceKeys)))return;if(await send({type:"configureProject",draft:{...draft,resourceKeys:resourceNames(draft.resourceKeys).length?resourceNames(draft.resourceKeys):undefined,profiles:draft.profiles?.map(p=>({...p,acceptance:{...p.acceptance,stages:p.acceptance.stages.map(s=>({...s,expectedAssertions:cleanAssertions(s.expectedAssertions)}))},resourceKeys:resourceNames(p.resourceKeys).length?resourceNames(p.resourceKeys):undefined})),projectId,artifactPaths:artifacts.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),validatorId:stages[0]?.validatorId??"",checkArgs:stages[0]?.args??[],acceptance:{schemaVersion:1,stages:stages.map(s=>({...s,expectedAssertions:cleanAssertions(s.expectedAssertions)}))}}})){setDirty(false);localStorage.removeItem(draftKey);setDraftMessage("");}}}>
         <fieldset disabled={busy||pending}>
           <WorkflowTemplateImport contextKey={JSON.stringify([projectId,saved?.digest,draft])} disabled={busy||pending} onApply={(requirement,supervision)=>{setDraft(d=>({...d,requirement,...(supervision?{supervision}:{})}));setDirty(true);}}/>
           <section className="panel" aria-label="角色与模型工作目录"><h3>角色与模型工作目录</h3>
@@ -70,11 +71,12 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
             <ManagementSourceFields draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}/>
             <div><label htmlFor="planning-chief">主指挥模型 ID</label><input id="planning-chief" required readOnly={draft.managementSources?.chief.kind==="codexSession"} list="planning-chief-models" value={draft.chiefModel} onChange={e=>update("chiefModel",e.target.value)} /></div>
             <div><label htmlFor="planning-deputy">副指挥模型 ID</label><input id="planning-deputy" required list="planning-deputy-models" value={draft.deputyModel} onChange={e=>update("deputyModel",e.target.value)} /></div>
-            <div><label htmlFor="planning-adapter">编程执行器</label><select id="planning-adapter" value={draft.workerAdapter??"codex"} onChange={e=>{setDraft(d=>({...d,workerAdapter:e.target.value as ProjectWorkerAdapter,worktree:["qoder","workbuddy"].includes(e.target.value)?undefined:d.worktree,apiWorker:newApiWorker(e.target.value as ProjectWorkerAdapter),desktopWorker:undefined,codexExecutable:"",workerModel:"",ompRuntimeParent:undefined}));setDirty(true);}}><option value="codex">Codex</option><option value="omp">OMP · DeepSeek</option><option value="qoder">Qoder · 已有桌面会话</option><option value="workbuddy">WorkBuddy · 已有桌面会话</option>{apiWorkerOptions.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></div>
+            <div><label htmlFor="planning-adapter">编程执行器</label><select id="planning-adapter" value={draft.workerAdapter??"codex"} onChange={e=>{setDraft(d=>({...d,workerAdapter:e.target.value as ProjectWorkerAdapter,worktree:["qoder","workbuddy"].includes(e.target.value)?undefined:d.worktree,apiWorker:newApiWorker(e.target.value as ProjectWorkerAdapter),desktopWorker:undefined,codexExecutable:"",workerModel:"",ompRuntimeParent:undefined}));setDirty(true);}}><option value="codex">Codex</option><option value="omp">OMP · DeepSeek</option><option value="qoder">Qoder · 已有桌面会话</option>{draft.workerAdapter==="workbuddy"&&<option value="workbuddy" disabled>WorkBuddy · 支持已移除</option>}{apiWorkerOptions.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></div>
             {!draft.apiWorker&&!desktopAdapter&&<div><label htmlFor="planning-executable">编程程序路径</label><input id="planning-executable" required value={draft.codexExecutable} onChange={e=>update("codexExecutable",e.target.value)} placeholder={draft.workerAdapter==="omp"?"OMP 可执行文件的绝对路径":"Codex 可执行文件的绝对路径"} /></div>}
             {!desktopAdapter&&<div><label htmlFor="planning-worker">编程模型 ID</label><input id="planning-worker" required list="planning-worker-models" value={draft.workerModel} onChange={e=>{const model=e.target.value;setDraft(d=>({...d,workerModel:model,apiWorker:d.apiWorker?{...d.apiWorker,model}:undefined}));setDirty(true);}} /></div>}
           </div>
-          {desktopAdapter&&<DesktopWorkerFields isolationEnabled={!!draft.chiefDirectory} data={data} projectId={projectId} app={draft.workerAdapter as 'qoder'|'workbuddy'} worker={draft.desktopWorker} onChange={worker=>{setDraft(d=>({...d,desktopWorker:worker,workerModel:worker?.modelLabel??""}));setDirty(true);}}/>}
+          {draft.workerAdapter==="workbuddy"&&<p role="alert">WorkBuddy 支持已移除，历史配置保留。请选择其他执行器后保存新版配置。</p>}
+          {draft.workerAdapter==="qoder"&&<DesktopWorkerFields isolationEnabled={!!draft.chiefDirectory} data={data} projectId={projectId} app="qoder" worker={draft.desktopWorker} onChange={worker=>{setDraft(d=>({...d,desktopWorker:worker,workerModel:worker?.modelLabel??""}));setDirty(true);}}/>}
           {draft.apiWorker&&<ApiWorkerFields worker={draft.apiWorker} onChange={api=>update("apiWorker",api)}/>}
           <NativeWorkerCost adapter={draft.workerAdapter??"codex"}/>
           {draft.workerAdapter==="omp"&&(draft.chiefDirectory?<p className="secondary">OMP 运行配置固定保存在该模型目录内，与其他执行模型隔离。</p>:<><label htmlFor="planning-omp-runtime">OMP 独立运行目录（可选）</label><input id="planning-omp-runtime" value={draft.ompRuntimeParent??""} onChange={e=>update("ompRuntimeParent",e.target.value||undefined)} placeholder="已存在、可写的专用目录绝对路径"/><p className="secondary">用户目录含其他 Agent 配置时，请选择独立位置。须与项目和工作台数据目录分开，祖先目录不能含隐含配置。留空沿用工作台数据目录；更改后需重新规划和批准，历史运行文件保留。</p></>)}
@@ -120,18 +122,18 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
           </section>
           <p className="secondary">请求次数上限不等于费用上限。主副指挥分别使用所选接入，API 费用由对应供应商计收。{desktopAdapter?"桌面执行沿用所选应用的账号和模型；保存配置不会向该聊天发送消息。":draft.apiWorker?"API 执行使用接入管理中对应供应商的本机加密 Key；保存配置不发出模型请求。":draft.workerAdapter==="omp"?"OMP 使用本机保存的 DeepSeek API Key；程序应位于项目目录之外。":draft.chiefDirectory?"编程执行使用该模型独立 Windows 账户的 Codex 登录。":"编程执行使用本机 Codex 登录。"}</p>
           {supervisionConflict&&<p role="alert">请先修正默认或附加执行配置中的监督冲突，再保存。</p>}
-          <button className="secondary-button" disabled={!data.validators.length||totalSeconds>draft.maxSeconds||supervisionConflict||!!budgetError}>{locked?"保存为下一版草稿":"保存需求与执行配置"}</button>
+          <button className="secondary-button" disabled={retiredAdapter||!data.validators.length||totalSeconds>draft.maxSeconds||supervisionConflict||!!budgetError}>{locked?"保存为下一版草稿":"保存需求与执行配置"}</button>
         </fieldset>
       </form>
       {locked && <p className="secondary">已有批准的任务，仍可编辑并保存后续模型配置草稿。原尝试保持原模型与目录；任务收口后请求方案修订，再保存下一版配置、重新规划并批准。</p>}
       <button className="secondary-button" type="button" disabled={busy} onClick={loadNextDraft}>载入下一版草稿</button>
       {draftMessage&&<p role="status">{draftMessage}</p>}
       {saved&&<WorkerAccountControls saved={saved} data={data} disabled={busy||pending||locked||dirty} send={send}/>}
-      <div className="card-footer"><p className="secondary">主副指挥请求已记录 {requestCount} 次{saved?` / 上限 ${saved.setup.managementMaxRequests} 次`:""}。包含全部历史与已放弃请求，保存配置不会清零。</p><button className="primary" disabled={busy||dirty||!saved||!!saved?.setup.policy.currencyBudget||pending||locked||(managementKeyMissing(data,saved?.setup.managementSources?.chief))||requestCount>=(saved?.setup.managementMaxRequests??0)} onClick={()=>{if(saved)void send({type:"requestChiefPlan",projectId,setupDigest:saved.digest});}}>请求主指挥生成方案</button></div>
+      <div className="card-footer"><p className="secondary">主副指挥请求已记录 {requestCount} 次{saved?` / 上限 ${saved.setup.managementMaxRequests} 次`:""}。包含全部历史与已放弃请求，保存配置不会清零。</p><button className="primary" disabled={retiredAdapter||busy||dirty||!saved||!!saved?.setup.policy.currencyBudget||pending||locked||(managementKeyMissing(data,saved?.setup.managementSources?.chief))||requestCount>=(saved?.setup.managementMaxRequests??0)} onClick={()=>{if(saved)void send({type:"requestChiefPlan",projectId,setupDigest:saved.digest});}}>请求主指挥生成方案</button></div>
       {saved?.setup.policy.currencyBudget && <section className="panel" aria-label="规划金额许可">
         <p>主指挥生成方案也会产生费用。请先审阅规划预算许可，后续执行仍须批准具体方案，同一项目的费用和预留不会清零。</p>
         {data.currencyBudgets?.some(a=>a.projectId===projectId&&a.planningSetupDigest===saved.digest&&a.approvalLinked)&&<p role="status">当前配置的规划预算许可已记录。</p>}
-        <button type="button" className="secondary-button" disabled={busy||dirty||pending||locked} onClick={()=>setPlanningBudgetReview(saved)}>审阅规划预算</button>
+        <button type="button" className="secondary-button" disabled={retiredAdapter||busy||dirty||pending||locked} onClick={()=>setPlanningBudgetReview(saved)}>审阅规划预算</button>
       </section>}
       {managementKeyMissing(data,saved?.setup.managementSources?.chief) && <p className="secondary">请在“接入管理”配置所选主指挥供应商的本机凭证后发起规划；配置可以先保存。</p>}
       {decisions.map(d=><div key={d.operationId} className="planning-status"><strong>{states[d.state]??d.state}</strong>{d.message&&<p>{d.message}</p>}{d.state==="unknown"&&<p>没有可确认的回复，系统不会自动再次发送。</p>}</div>)}
@@ -144,7 +146,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
       <details><summary>配置引用</summary><code>{planningBudgetReview.digest}</code></details>
       {(dirty||saved?.digest!==planningBudgetReview.digest)&&<p role="alert">配置已变化，请返回并重新审阅。</p>}
       <div className="card-footer"><button className="secondary-button" onClick={()=>setPlanningBudgetReview(undefined)}>返回配置</button>
-        <button className="primary" disabled={busy||dirty||pending||locked||saved?.digest!==planningBudgetReview.digest} onClick={async()=>{
+        <button className="primary" disabled={retiredAdapter||busy||dirty||pending||locked||saved?.digest!==planningBudgetReview.digest} onClick={async()=>{
           if(!dirty&&saved?.digest===planningBudgetReview.digest&&await send({type:"authorizePlanningBudget",projectId:planningBudgetReview.setup.projectId,setupDigest:planningBudgetReview.digest}))setPlanningBudgetReview(undefined);
         }}>确认规划预算</button></div>
     </section></div>}

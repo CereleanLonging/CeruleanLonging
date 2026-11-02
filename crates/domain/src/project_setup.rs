@@ -24,6 +24,13 @@ pub enum ProjectWorkerAdapter {
     Workbuddy,
 }
 impl ProjectWorkerAdapter {
+    /// Applied only at live entry points, never when replaying old approvals.
+    pub fn require_available(&self) -> Result<(), String> {
+        if matches!(self, Self::Workbuddy) {
+            crate::desktop_sessions::DesktopApp::Workbuddy.require_available()?;
+        }
+        Ok(())
+    }
     pub fn is_codex(&self) -> bool {
         *self == Self::Codex
     }
@@ -277,6 +284,13 @@ pub struct AcceptanceSetup {
     pub stages: Vec<AcceptanceStage>,
 }
 impl ProjectSetup {
+    pub fn require_available_adapters(&self) -> Result<(), String> {
+        self.worker_adapter.require_available()?;
+        for profile in &self.profiles {
+            profile.worker_adapter.require_available()?;
+        }
+        Ok(())
+    }
     pub fn integration(&self) -> Option<&ProjectIntegration> {
         self.worktree
             .as_ref()

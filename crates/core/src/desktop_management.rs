@@ -33,6 +33,7 @@ impl RuntimeHost {
             return Ok(());
         }
         for d in desktops {
+            d.binding.observation.window.app.require_available()?;
             crate::desktop_execution::validate_task_window(&d.binding.observation.window)?;
             require(
                 d.binding.bridge_sha256 == desktop_sessions::fingerprint(),

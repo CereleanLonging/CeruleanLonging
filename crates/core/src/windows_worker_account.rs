@@ -955,7 +955,20 @@ fn runtime_environment(workspace: &Path) -> Result<(Vec<u16>, PathBuf), String> 
         ordinary(&p, true)?;
     }
     let system = std::env::var("SystemRoot").map_err(|_| "SystemRoot缺失")?;
+    // Windows shell components expand %SystemDrive% even with a custom user
+    // profile. Without it they can create a literal relative cache directory.
+    // Derive the drive from SystemRoot; do not inherit the host environment.
+    let system_drive = match Path::new(&system).components().next() {
+        Some(std::path::Component::Prefix(prefix)) => match prefix.kind() {
+            std::path::Prefix::Disk(drive) | std::path::Prefix::VerbatimDisk(drive) => {
+                format!("{}:", char::from(drive))
+            }
+            _ => return Err("SystemRoot必须位于本地系统盘".into()),
+        },
+        _ => return Err("SystemRoot必须位于本地系统盘".into()),
+    };
     let values = std::collections::BTreeMap::from([
+        ("SYSTEMDRIVE", system_drive),
         ("SYSTEMROOT", system.clone()),
         ("WINDIR", system.clone()),
         ("PATH", format!("{system}\\System32;{system}")),
@@ -983,6 +996,9 @@ pub(crate) fn open_login(
     project: &Project,
     task: &TaskExecution,
 ) -> Result<(), String> {
+    if let Some(desktop) = &task.desktop_worker {
+        desktop.binding.observation.window.app.require_available()?;
+    }
     use fs2::FileExt;
     require(
         task.adapter_id == "codex" || task.desktop_worker.is_some(),
@@ -1084,6 +1100,70 @@ mod native_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn isolated_environment_expands_windows_system_drive() {
+        use std::os::windows::process::CommandExt;
+        let root = tempfile::tempdir().unwrap();
+        let workspace = root.path().canonicalize().unwrap();
+        let (block, runtime) = runtime_environment(&workspace).unwrap();
+        assert!(block.ends_with(&[0, 0]));
+        let values: std::collections::BTreeMap<_, _> = block
+            .split(|c| *c == 0)
+            .filter(|entry| !entry.is_empty())
+            .map(|entry| {
+                let text = String::from_utf16(entry).unwrap();
+                let (key, value) = text.split_once('=').unwrap();
+                (key.to_owned(), value.to_owned())
+            })
+            .collect();
+        assert_eq!(
+            values.keys().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "APPDATA",
+                "CODEX_HOME",
+                "LOCALAPPDATA",
+                "PATH",
+                "SYSTEMDRIVE",
+                "SYSTEMROOT",
+                "TEMP",
+                "TMP",
+                "USERPROFILE",
+                "WINDIR"
+            ]
+        );
+        assert_eq!(
+            values["USERPROFILE"],
+            runtime.join("home").to_string_lossy()
+        );
+        assert_eq!(
+            values["CODEX_HOME"],
+            runtime.join("codex").to_string_lossy()
+        );
+        let result = std::process::Command::new(
+            Path::new(&values["SYSTEMROOT"])
+                .join("System32")
+                .join("cmd.exe"),
+        )
+        .env_clear()
+        .envs(&values)
+        .current_dir(dos_path(&runtime).unwrap())
+        .args(["/D", "/C"])
+        .raw_arg("echo %SystemDrive%\\ProgramData")
+        .output()
+        .unwrap();
+        assert!(
+            result.status.success(),
+            "status={:?}, stdout={}, stderr={}",
+            result.status.code(),
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(result.stdout).unwrap().trim(),
+            format!("{}\\ProgramData", values["SYSTEMDRIVE"])
+        );
+        assert!(!runtime.join("%SystemDrive%").exists());
+    }
     #[tokio::test]
     #[ignore = "requires explicitly provisioned disposable Windows account and credential-free Codex executable"]
     async fn native_codex_account_handshake_without_model_turn() {

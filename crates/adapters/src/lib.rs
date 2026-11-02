@@ -19,6 +19,14 @@ pub fn catalog() -> Vec<AdapterInfo> {
         .filter(|a| a.id != "a6api")
         .collect()
 }
+/// Active integrations. Historical catalogs above/below remain immutable for
+/// saved approvals and management-context verification.
+pub fn supported_catalog() -> Vec<AdapterInfo> {
+    current_catalog()
+        .into_iter()
+        .filter(|a| a.id != "workbuddy")
+        .collect()
+}
 /// Current registrations for new configuration/context and presentation. The
 /// reader16 relay extension must not overwrite historical request catalogs.
 pub fn current_catalog() -> Vec<AdapterInfo> {

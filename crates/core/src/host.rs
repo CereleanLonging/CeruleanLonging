@@ -507,7 +507,7 @@ impl RuntimeHost {
                 .get(&workflow.project.id)
                 .map(|writer| writer.owner.configuration())
         });
-        let workers: Vec<_> = cerulean_adapters::current_catalog()
+        let workers: Vec<_> = cerulean_adapters::supported_catalog()
             .into_iter()
             .filter(|adapter| {
                 binding.is_none_or(|config| require_bound_worker(config, &adapter.id).is_ok())
@@ -3101,6 +3101,7 @@ impl RuntimeHost {
                             .get(&project_id)
                             .ok_or("请先保存项目配置")?;
                         require(saved.digest == setup_digest, "项目配置已变化")?;
+                        saved.setup.require_available_adapters()?;
                         require(
                             !crate::windows_worker_account::views(&self.root)
                                 .iter()

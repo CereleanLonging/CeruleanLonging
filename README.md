@@ -75,7 +75,7 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 接入与本地数据
 
-项目覆盖模型 API、编程工具和桌面工具等不同接入方向，包括 Codex、OMP、Qoder、WorkBuddy，以及 OpenAI、Claude、DeepSeek、Qwen、Kimi、Grok 等模型服务相关路线。**各路线的角色支持、自动化能力和验证程度不同，列入范围不代表当前版本全部可用。** 请以当前版本的接入页面与说明为准。
+项目覆盖模型 API、编程工具和桌面工具等不同接入方向，包括 Codex、OMP、Qoder，以及 OpenAI、Claude、DeepSeek、Qwen、Kimi、Grok 等模型服务相关路线。**各路线的角色支持、自动化能力和验证程度不同，列入范围不代表当前版本全部可用。** 请以当前版本的接入页面与说明为准。
 
 本地优先意味着项目管理记录和工作状态主要保存在自己的电脑上。使用在线模型时，仍会按任务配置向对应服务发送请求及所需上下文，费用由相应服务计收；本地优先不等于全部离线。
 
@@ -161,7 +161,7 @@ For example, when adding a data-processing feature to an existing project, you c
 
 ### Integrations and local data
 
-The project's integration scope includes model APIs, coding tools, and desktop tools: Codex, OMP, Qoder, WorkBuddy, and routes involving services such as OpenAI, Claude, DeepSeek, Qwen, Kimi, and Grok. **Supported roles, automation capabilities, and validation coverage vary by route. Inclusion in this scope does not mean that every route is available in the current version.** Refer to the current integration interface and documentation.
+The project's integration scope includes model APIs, coding tools, and desktop tools: Codex, OMP, Qoder, and routes involving services such as OpenAI, Claude, DeepSeek, Qwen, Kimi, and Grok. **Supported roles, automation capabilities, and validation coverage vary by route. Inclusion in this scope does not mean that every route is available in the current version.** Refer to the current integration interface and documentation.
 
 Local-first means that project management records and working state primarily reside on your computer. Online models still receive requests and the context required by the configured task, and the corresponding services charge for their usage. Local-first does not mean fully offline.
 

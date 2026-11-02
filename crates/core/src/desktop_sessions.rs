@@ -71,6 +71,26 @@ pub(super) enum ReadRequest {
         review: DesktopTrialReview,
     },
 }
+impl ReadRequest {
+    fn require_available(&self) -> Result<(), String> {
+        let window = match self {
+            Self::Discover { .. } => return Ok(()),
+            Self::Inspect { window, .. }
+            | Self::TrialPrepare { window, .. }
+            | Self::TaskPrepare { window, .. } => window,
+            Self::TrialSend { review, .. } | Self::TrialRead { review, .. } => {
+                &review.observation.window
+            }
+            Self::TaskSend { review, .. }
+            | Self::TaskRead { review, .. }
+            | Self::TaskProgress { review, .. }
+            | Self::TaskStopPrepare { review, .. }
+            | Self::TaskStop { review, .. }
+            | Self::TaskStopRead { review, .. } => &review.observation.window,
+        };
+        window.app.require_available()
+    }
+}
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct ReadReply {
@@ -309,6 +329,7 @@ fn observe_cancellable(
     request: &ReadRequest,
     cancel: &std::sync::atomic::AtomicBool,
 ) -> Result<ReadReply, String> {
+    request.require_available()?;
     use std::os::windows::fs::OpenOptionsExt;
     ordinary(root, true)?;
     let directory = root.join("desktop-observer-v1");
@@ -482,6 +503,7 @@ impl RuntimeHost {
         )
     }
     fn launch_desktop(&mut self, request: ReadRequest, action: Action) -> Result<(), String> {
+        request.require_available()?;
         require(
             self.desktop_active.is_none() && self.desktop_probe.is_none(),
             "桌面观察仍在进行",
@@ -523,6 +545,7 @@ impl RuntimeHost {
         self.launch_desktop(ReadRequest::Discover { version: 1 }, Action::Discover)
     }
     pub(super) fn inspect_desktop(&mut self, window: DesktopWindow) -> Result<(), String> {
+        window.app.require_available()?;
         require(
             self.desktop_active.is_none() && self.desktop_probe.is_none(),
             "桌面观察仍在进行",
@@ -625,7 +648,11 @@ impl RuntimeHost {
                     for w in &reply.windows {
                         validate_window(w)?;
                     }
-                    self.desktop_access.windows = reply.windows;
+                    self.desktop_access.windows = reply
+                        .windows
+                        .into_iter()
+                        .filter(|w| w.app.require_available().is_ok())
+                        .collect();
                 }
                 Action::Inspect(expected) => {
                     let observation = reply.observation.ok_or("会话观察缺失")?;

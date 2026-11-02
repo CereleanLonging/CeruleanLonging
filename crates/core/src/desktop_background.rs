@@ -155,6 +155,7 @@ impl RuntimeHost {
             .task_review
             .clone()
             .ok_or("请先准备并审阅任务消息")?;
+        review.observation.window.app.require_available()?;
         require(
             review.id == id && review.bridge_sha256 == fingerprint(),
             "任务审阅内容或桥接版本已变化",
@@ -209,6 +210,7 @@ impl RuntimeHost {
             "本地跟踪已结束，原尝试不能恢复或重发",
         )?;
         let (review, _) = execution::inspect(&self.root, store, project, attempt)?;
+        review.observation.window.app.require_available()?;
         cancellation::review::require_unrestricted(&self.root, store, &review)?;
         check_task_reader(&review.bridge_sha256, &fingerprint(), reader)?;
         require(
@@ -253,6 +255,7 @@ impl RuntimeHost {
         review: TaskReview,
         operation: Operation,
     ) -> Result<(), String> {
+        review.observation.window.app.require_available()?;
         let project = review.project_id.clone();
         let account = crate::windows_worker_account::desktop(
             &self.root,
@@ -469,6 +472,53 @@ impl RuntimeHost {
 #[cfg(test)]
 mod reader_tests {
     use super::*;
+    #[test]
+    fn retired_workbuddy_cannot_acquire_writer_or_record_stop_intent() {
+        let root = tempfile::tempdir().unwrap();
+        let (mut host, mut review) = super::super::tests::assigned_desktop_task(root.path());
+        review.observation.window.app = DesktopApp::Workbuddy;
+        let history = host.projects["project"].history().to_vec();
+        assert!(host
+            .launch_desktop_operation(review.clone(), Operation::Task(None))
+            .unwrap_err()
+            .contains("支持已移除"));
+        assert!(host.desktop_active.is_none());
+        assert_eq!(host.projects["project"].history(), history);
+        let (_, receiver) = mpsc::channel();
+        host.desktop_active = Some(Active {
+            progress: Default::default(),
+            snapshot: crate::async_verification::snapshot(&host.projects["project"]),
+            config: host.projects["project"].configuration().clone(),
+            receiver,
+            thread: None,
+            fault: false,
+            cancel: Arc::new(AtomicBool::new(false)),
+            pending_stop: None,
+            status: DesktopTaskStatus {
+                review: review.clone(),
+                proof: None,
+                submitted: false,
+                active: true,
+                reading: false,
+                error: None,
+                cancellation: None,
+                stopping: false,
+                retired: false,
+                retirement_digest: None,
+                reviewed_stop_record: None,
+                progress: None,
+            },
+        });
+        assert!(host
+            .cancel_desktop_task("project", &review.attempt.id, &review.id, "retired")
+            .unwrap_err()
+            .contains("支持已移除"));
+        let active = host.desktop_active.take().unwrap();
+        assert!(active.pending_stop.is_none() && !active.status.stopping);
+        assert!(!active.cancel.load(Ordering::Acquire));
+        assert_eq!(host.projects["project"].history(), history);
+        assert!(!host.root.join("desktop-task-dispatch-v1").exists());
+    }
     #[test]
     fn upgraded_reader_requires_explicit_current_identity() {
         assert!(check_task_reader("old", "new", None).is_err());

@@ -265,6 +265,7 @@ fn prepare_inner(
     baseline: Vec<String>,
     continuation: Option<TaskContinuation>,
 ) -> Result<TaskReview, String> {
+    observation.window.app.require_available()?;
     let attempt = store
         .attempt_record(task, id)
         .ok_or("桌面尝试尚未分配")?
@@ -462,6 +463,7 @@ fn reserve_observed(
     r: &TaskReview,
     checkpoint: &mut impl FnMut(&str) -> Result<(), String>,
 ) -> Result<ReservedSend, String> {
+    r.observation.window.app.require_available()?;
     validate(store, r)?;
     continuity::validate_chain(root, store, r)?;
     fresh(&r.observation)?;

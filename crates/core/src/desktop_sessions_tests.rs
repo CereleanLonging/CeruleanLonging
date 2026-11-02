@@ -77,11 +77,109 @@ fn inspect(host: &mut RuntimeHost, app: DesktopApp) {
     spin(host);
     assert!(host.desktop_access.error.is_none());
 }
+fn historical_workbuddy_binding(host: &mut RuntimeHost) -> DesktopBinding {
+    let mut binding = DesktopBinding {
+        id: String::new(),
+        project_id: "project".into(),
+        label: "Historical WorkBuddy".into(),
+        observation: observation(window(DesktopApp::Workbuddy)),
+        confirmed_at: chrono::Utc::now().to_rfc3339(),
+        bridge_sha256: fingerprint(),
+    };
+    binding.id = binding_digest(&binding).unwrap();
+    persist(&host.root, &binding).unwrap();
+    host.desktop_access.bindings.push(binding.clone());
+    binding
+}
 #[test]
-fn user_binding_rechecks_both_apps_and_reopens_only_as_historical_observation() {
+fn retired_workbuddy_is_hidden_and_rejected_before_observation_or_publication() {
     let root = tempfile::tempdir().unwrap();
     let mut host = fixture(root.path());
-    for app in [DesktopApp::Qoder, DesktopApp::Workbuddy] {
+    host.discover_desktop().unwrap();
+    spin(&mut host);
+    assert_eq!(host.desktop_access.windows, vec![window(DesktopApp::Qoder)]);
+    assert!(host
+        .inspect_desktop(window(DesktopApp::Workbuddy))
+        .unwrap_err()
+        .contains("支持已移除"));
+    let old = observation(window(DesktopApp::Workbuddy));
+    let old_digest = digest(&old).unwrap();
+    host.desktop_access.observation = Some(old.clone());
+    host.desktop_access.observation_digest = Some(old_digest.clone());
+    assert!(host
+        .bind_desktop("project", &old_digest, "stale")
+        .unwrap_err()
+        .contains("支持已移除"));
+    assert!(host.desktop_probe.is_none() && load(&host.root).unwrap().is_empty());
+    assert!(observe(
+        &host.root,
+        &ReadRequest::Inspect {
+            version: 1,
+            window: old.window
+        }
+    )
+    .unwrap_err()
+    .contains("支持已移除"));
+    assert!(!host.root.join("desktop-observer-v1").exists());
+}
+#[test]
+fn retired_workbuddy_configurations_remain_readable_but_cannot_start_new_work() {
+    let root = tempfile::tempdir().unwrap();
+    let (mut host, draft) = desktop_plan_fixture(root.path(), DesktopApp::Workbuddy);
+    draft.validate().unwrap(); // Historical format remains valid.
+    assert!(host
+        .configure_project(draft.clone())
+        .unwrap_err()
+        .contains("支持已移除"));
+    assert!(host.project_setups.is_empty());
+    // Additional profiles cannot bypass the default-executor restriction.
+    let mut extra = draft.clone();
+    extra.worker_adapter = cerulean_domain::project_setup::ProjectWorkerAdapter::Codex;
+    extra
+        .profiles
+        .push(cerulean_domain::project_setup::WorkerProfileDraft {
+            supervision_override: None,
+            resource_keys: vec![],
+            id: "retired".into(),
+            description: "old".into(),
+            worker_adapter: draft.worker_adapter,
+            codex_executable: String::new(),
+            worker_model: draft.worker_model.clone(),
+            omp_runtime_parent: None,
+            api_worker: None,
+            desktop_worker: draft.desktop_worker.clone(),
+            artifact_paths: vec!["sum.mjs".into()],
+            acceptance: cerulean_domain::project_setup::AcceptanceDraft {
+                schema_version: 1,
+                stages: vec![],
+            },
+        });
+    assert!(host
+        .configure_project(extra)
+        .unwrap_err()
+        .contains("支持已移除"));
+    project_planning::tests::save_historical_workbuddy_setup(&mut host, draft);
+    let saved = host.project_setups["project"].clone();
+    drop(host);
+    let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
+    assert_eq!(host.project_setups["project"].digest, saved.digest);
+    assert!(host
+        .request_chief_plan("project", &saved.digest)
+        .unwrap_err()
+        .contains("支持已移除"));
+    assert!(host
+        .start_project_run("project", &"a".repeat(64), &saved.digest)
+        .unwrap_err()
+        .contains("支持已移除"));
+    assert!(host.management.statuses().is_empty() && host.runs.all().is_empty());
+    assert_eq!(host.desktop_access.bindings.len(), 1);
+}
+#[test]
+fn user_binding_rechecks_qoder_and_retains_historical_workbuddy_on_reopen() {
+    let root = tempfile::tempdir().unwrap();
+    let mut host = fixture(root.path());
+    {
+        let app = DesktopApp::Qoder;
         inspect(&mut host, app);
         let digest = host.desktop_access.observation_digest.clone().unwrap();
         assert!(host.bind_desktop("missing", &digest, "chat").is_err());
@@ -95,6 +193,7 @@ fn user_binding_rechecks_both_apps_and_reopens_only_as_historical_observation() 
         assert!(host.desktop_access.error.is_none());
         assert!(host.bind_desktop("project", &digest, "replay").is_err());
     }
+    historical_workbuddy_binding(&mut host);
     let history = host.projects["project"].history().to_vec();
     let bindings = host.desktop_access.bindings.clone();
     assert_eq!(bindings.len(), 2);
@@ -113,7 +212,7 @@ fn user_binding_rechecks_both_apps_and_reopens_only_as_historical_observation() 
 fn changed_session_or_expired_observation_never_persists_binding() {
     let root = tempfile::tempdir().unwrap();
     let mut host = fixture(root.path());
-    inspect(&mut host, DesktopApp::Workbuddy);
+    inspect(&mut host, DesktopApp::Qoder);
     let digest = host.desktop_access.observation_digest.clone().unwrap();
     host.desktop_fixture = Some(changed);
     host.bind_desktop("project", &digest, "chat").unwrap();
@@ -438,11 +537,7 @@ fn desktop_trial_rejects_wrong_app_version_stale_binding_and_expired_confirmatio
     let root = tempfile::tempdir().unwrap();
     let mut host = fixture(root.path());
     host.desktop_fixture = Some(trial_reply);
-    inspect(&mut host, DesktopApp::Workbuddy);
-    let digest = host.desktop_access.observation_digest.clone().unwrap();
-    host.bind_desktop("project", &digest, "WB").unwrap();
-    spin(&mut host);
-    let wb = host.desktop_access.bindings.last().unwrap().id.clone();
+    let wb = historical_workbuddy_binding(&mut host).id;
     assert!(host
         .prepare_desktop_trial(&wb)
         .unwrap_err()
@@ -601,12 +696,16 @@ fn desktop_plan_fixture(
     use cerulean_domain::project_setup::ProjectWorkerAdapter;
     let (mut host, mut draft) = project_planning::tests::fixture(root);
     host.desktop_fixture = Some(reply);
-    inspect(&mut host, app.clone());
-    let observed = host.desktop_access.observation_digest.clone().unwrap();
-    host.bind_desktop("project", &observed, "编程验证聊天")
-        .unwrap();
-    spin(&mut host);
-    let binding = host.desktop_access.bindings[0].clone();
+    let binding = if app == DesktopApp::Workbuddy {
+        historical_workbuddy_binding(&mut host)
+    } else {
+        inspect(&mut host, app.clone());
+        let observed = host.desktop_access.observation_digest.clone().unwrap();
+        host.bind_desktop("project", &observed, "编程验证聊天")
+            .unwrap();
+        spin(&mut host);
+        host.desktop_access.bindings[0].clone()
+    };
     draft.worker_adapter = match app {
         DesktopApp::Qoder => ProjectWorkerAdapter::Qoder,
         DesktopApp::Workbuddy => ProjectWorkerAdapter::Workbuddy,
@@ -631,7 +730,8 @@ fn desktop_proposal(adapter: &str) -> cerulean_domain::management::ManagementDec
 }
 #[test]
 fn desktop_plan_preserves_approval_and_reopens_without_dispatch_or_model_calls() {
-    for app in [DesktopApp::Qoder, DesktopApp::Workbuddy] {
+    {
+        let app = DesktopApp::Qoder;
         let root = tempfile::tempdir().unwrap();
         let (mut host, draft) = desktop_plan_fixture(root.path(), app);
         let selection = draft.desktop_worker.clone().unwrap();
@@ -807,7 +907,7 @@ fn desktop_plan_cannot_reopen_after_binding_removed_and_legacy_observation_is_st
     let root = tempfile::tempdir().unwrap();
     let (mut host, draft) = desktop_plan_fixture(root.path(), DesktopApp::Workbuddy);
     let binding = draft.desktop_worker.as_ref().unwrap().binding.clone();
-    host.configure_project(draft).unwrap();
+    project_planning::tests::save_historical_workbuddy_setup(&mut host, draft);
     drop(host);
     let path = root
         .path()
@@ -864,7 +964,9 @@ fn native_desktop_plan_proposal_fixture() {
     assert!(host.projects["project"].revision().is_some());
 }
 
-fn assigned_desktop_task(root: &Path) -> (RuntimeHost, crate::desktop_execution::TaskReview) {
+pub(super) fn assigned_desktop_task(
+    root: &Path,
+) -> (RuntimeHost, crate::desktop_execution::TaskReview) {
     assigned_desktop_task_with_validator(root, false)
 }
 pub(crate) fn assigned_desktop_task_with_validator(

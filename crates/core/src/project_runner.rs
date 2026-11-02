@@ -22,6 +22,7 @@ impl RuntimeHost {
             .project_setups
             .get(&run.project_id)
             .ok_or("运行配置缺失")?;
+        setup.setup.require_available_adapters()?;
         require(
             setup.digest == run.setup_digest,
             "运行配置已变化，需要重新授权",
@@ -131,6 +132,11 @@ impl RuntimeHost {
         revision: &str,
         setup: &str,
     ) -> Result<(), String> {
+        self.project_setups
+            .get(project)
+            .ok_or("运行配置缺失")?
+            .setup
+            .require_available_adapters()?;
         // Only fully synthetic count/generation transports can exercise the
         // monetary run in tests. No flag or permission exists in production.
         #[cfg(test)]

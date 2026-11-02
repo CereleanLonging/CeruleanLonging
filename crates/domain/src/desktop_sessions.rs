@@ -4,7 +4,16 @@ use ts_rs::TS;
 #[serde(rename_all = "lowercase")]
 pub enum DesktopApp {
     Qoder,
+    // Decode historical records only. No new observation or execution support.
     Workbuddy,
+}
+impl DesktopApp {
+    pub fn require_available(&self) -> Result<(), String> {
+        crate::execution::require(
+            *self != Self::Workbuddy,
+            "WorkBuddy 支持已移除；历史记录保留，请改用其他执行器",
+        )
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

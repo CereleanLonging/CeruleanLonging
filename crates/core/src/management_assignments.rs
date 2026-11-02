@@ -8,6 +8,44 @@ use serde_json::{json, Value};
 #[path = "management_assignments/planning_tests.rs"]
 mod planning_tests;
 
+fn preserved_catalog(original: &Value, current: &Value) -> Result<Value, String> {
+    let legacy = serde_json::to_value(cerulean_adapters::catalog()).map_err(|e| e.to_string())?;
+    let extended =
+        serde_json::to_value(cerulean_adapters::current_catalog()).map_err(|e| e.to_string())?;
+    let supported =
+        serde_json::to_value(cerulean_adapters::supported_catalog()).map_err(|e| e.to_string())?;
+    let legacy_supported = serde_json::to_value(
+        cerulean_adapters::catalog()
+            .into_iter()
+            .filter(|a| a.id != "workbuddy")
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|e| e.to_string())?;
+    require(
+        (original == &legacy
+            && [extended.clone(), supported.clone(), legacy_supported].contains(current))
+            || (original == &extended && current == &supported),
+        "original management catalog is not a known preserved version",
+    )?;
+    Ok(original.clone())
+}
+
+#[cfg(test)]
+#[test]
+fn retired_workbuddy_catalog_preserves_only_exact_historical_bytes() {
+    let current = serde_json::to_value(cerulean_adapters::supported_catalog()).unwrap();
+    for catalog in [
+        cerulean_adapters::catalog(),
+        cerulean_adapters::current_catalog(),
+    ] {
+        let original = serde_json::to_value(catalog).unwrap();
+        assert_eq!(preserved_catalog(&original, &current).unwrap(), original);
+        let mut forged = original.clone();
+        forged[0]["note"] = "modified historical description".into();
+        assert!(preserved_catalog(&forged, &current).is_err());
+    }
+}
+
 pub(super) fn add_bindings(mut context: Value) -> Result<Value, String> {
     let snapshot: ExecutionSnapshot = serde_json::from_value(context["workflow"].clone())
         .map_err(|_| "assignment workflow context invalid")?;
@@ -62,15 +100,7 @@ pub(super) fn rebuild(intent: &DecisionIntent, mut context: Value) -> Result<Val
     if let (Some(original), Some(current)) = (intent.context.get("workers"), context.get("workers"))
     {
         if original != current {
-            let legacy =
-                serde_json::to_value(cerulean_adapters::catalog()).map_err(|e| e.to_string())?;
-            let extended = serde_json::to_value(cerulean_adapters::current_catalog())
-                .map_err(|e| e.to_string())?;
-            require(
-                original == &legacy && current == &extended,
-                "management worker catalog changed beyond the known reader16 extension",
-            )?;
-            context["workers"] = legacy;
+            context["workers"] = preserved_catalog(original, current)?;
         }
     }
     if let Some(original) = intent.context.get("assignmentBindings") {
@@ -111,15 +141,14 @@ impl RuntimeHost {
         if original.get("workers") == context.get("workers") {
             return Ok(context);
         }
-        let legacy =
-            serde_json::to_value(cerulean_adapters::catalog()).map_err(|e| e.to_string())?;
-        let extended = serde_json::to_value(cerulean_adapters::current_catalog())
-            .map_err(|e| e.to_string())?;
-        require(
-            original.get("workers") == Some(&legacy) && context.get("workers") == Some(&extended),
-            "original management catalog is not a known preserved version",
+        context["workers"] = preserved_catalog(
+            original
+                .get("workers")
+                .ok_or("original worker catalog missing")?,
+            context
+                .get("workers")
+                .ok_or("current worker catalog missing")?,
         )?;
-        context["workers"] = legacy;
         // Assignment/supervision fields are added after the base reply budget.
         // Measure only the exact base fields, without copying old mutable state.
         let map = context

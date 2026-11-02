@@ -4,13 +4,12 @@ use cerulean_domain::AdapterInfo;
 /// Describes implemented scope and bounded verification, never current login,
 /// permission to dispatch, or blanket capability certification.
 pub fn display_catalog() -> Vec<AdapterInfo> {
-    let mut entries = super::current_catalog();
+    let mut entries = super::supported_catalog();
     for entry in &mut entries {
         let note = match entry.id.as_str() {
             "codex" => "支持编程执行；当前 Codex 会话可担任主指挥，执行仍需方案批准",
             "omp" => "所测配置已完成真实编程、原任务建议及验收；其他版本和模型仍需核验",
             "qoder" => "所测 Qwen-3.8-Flash 配置已完成产品编程验收和自动发送；完整故障矩阵及严格原任务监督仍待验收",
-            "workbuddy" => "所测现有聊天已完成编程、独立验收及重开验证；严格原任务监督仍待验收",
             "openai" => {
                 "支持 GPT 执行者和 API 管理来源；官方直连实测延期，兼容中转的证据按对应供应商分别记录"
             }
@@ -19,9 +18,6 @@ pub fn display_catalog() -> Vec<AdapterInfo> {
             _ => continue,
         };
         entry.note = note.into();
-        if entry.id == "workbuddy" {
-            entry.status = "partial".into();
-        }
     }
     entries
 }
@@ -40,8 +36,12 @@ mod tests {
         let current = super::super::current_catalog();
         assert_eq!(current.len(), legacy.len() + 1);
         assert_eq!(current.iter().filter(|a| a.id == "a6api").count(), 1);
-        assert_eq!(display.len(), current.len());
-        for (shown, original) in display.iter().zip(current) {
+        assert_eq!(display.len(), current.len() - 1);
+        assert!(!display.iter().any(|a| a.id == "workbuddy"));
+        for (shown, original) in display
+            .iter()
+            .zip(current.into_iter().filter(|a| a.id != "workbuddy"))
+        {
             assert_eq!(shown.id, original.id);
             assert_eq!(shown.name, original.name);
             assert_eq!(shown.transport, original.transport);

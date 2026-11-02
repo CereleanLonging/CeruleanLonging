@@ -68,6 +68,7 @@ impl RuntimeHost {
             .ok_or("project setup missing")?
             .clone();
         require(setup.digest == setup_digest, "project setup changed")?;
+        setup.setup.require_available_adapters()?;
         let count = self.management_operation_ids(project).len();
         let context = self.role_context(
             self.management_context(project, &setup.setup.requirement)?,

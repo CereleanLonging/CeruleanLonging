@@ -106,6 +106,7 @@ impl RuntimeHost {
             )?;
             review
         };
+        review.observation.window.app.require_available()?;
         require(
             review.id == expected && review.bridge_sha256 == fingerprint(),
             "停止审阅或桥接版本已变化",

@@ -21,6 +21,7 @@ function cancellationBlock(
   data: Snapshot,
   workflow: ExecutionSnapshot,
 ): string | null {
+  if(workflow.revision?.execution.some(e=>e.adapterId==="workbuddy"))return "WorkBuddy 支持已移除，请修订方案并选择其他执行器。";
   const sources = data.projectSetups.find(s => s.setup.projectId === workflow.project.id)?.setup.managementSources;
   if (managementKeyMissing(data,sources?.chief)) return "请先配置所选主指挥供应商的本机凭证。";
   if (managementKeyMissing(data,sources?.deputy)) return "请先配置所选副指挥供应商的本机凭证。";
@@ -30,7 +31,7 @@ function cancellationBlock(
   if(desktops.length){
     for(const desktop of desktops){
       const window=desktop.binding.observation.window;
-      if(!((window.app==="qoder"&&window.version==="0.4.3.0")||(window.app==="workbuddy"&&(window.version==="5.7.7.0"||window.version==="5.8.3.0"))))return "当前桌面应用或版本尚未接入编程调度，需要先完成适配。";
+      if(!(window.app==="qoder"&&window.version==="0.4.3.0"))return "当前桌面应用或版本尚未接入编程调度，需要先完成适配。";
       if(desktop.binding.bridgeSha256!==data.desktopAccess?.bridgeSha256)return "桌面桥接版本变化，需要重新配置和批准。";
     }
     if(Object.values(workflow.state.tasks).some(t=>t?.state==="unknown"||t?.state==="cancelling"))return "原桌面任务结果待核对，完成回读或处置后再恢复调度。";

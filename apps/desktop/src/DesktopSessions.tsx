@@ -6,24 +6,24 @@ export function DesktopSessions({data,busy,send}:{data:Snapshot|null;busy:boolea
   const [review,setReview]=useState<string|null>(null);
   const [trialReview,setTrialReview]=useState<string|null>(null);const [trialAck,setTrialAck]=useState(false);
   const trial=access?.trialReview;const unresolved=access?.trials.some(t=>!t.proof);
-  const observation=access?.observation;
+  const observation=access?.observation?.window.app==='qoder'?access.observation:undefined;
   const disabled=busy||!!access?.checking;
   const current=!!review&&review===access?.observationDigest;
   return <section className="workflow-plans desktop-sessions" aria-label="已有桌面会话">
-    <h2>Qoder / WorkBuddy 已有会话</h2>
+    <h2>Qoder 已有会话</h2>
     <p className="secondary">选择已打开的聊天，读取后关联工作台项目。Qoder 0.4.3.0 可另行确认固定文本验证。批准方案并启动后，副指挥分配的编程任务会在“需求与计划”等待你审阅发送；后续任务会先核对上一条任务及回复，历史或聊天身份变化时停止。</p>
     <button className="secondary-button" disabled={!access||disabled} onClick={()=>void send({type:'discoverDesktop'})}>发现已打开窗口</button>
     {access?.checking&&<p role="status">正在核对桌面会话或验证消息，请保持目标聊天不变…</p>}
     {access?.error&&<p role="alert">{access.error}</p>}
-    {access?.windows.map(window=><article className="panel" key={`${window.hwnd}:${window.startTicks}`}>
-      <h3>{window.app==='qoder'?'Qoder':'WorkBuddy'} · {window.title||'无标题窗口'}</h3>
+    {access?.windows.filter(window=>window.app==='qoder').map(window=><article className="panel" key={`${window.hwnd}:${window.startTicks}`}>
+      <h3>Qoder · {window.title||'无标题窗口'}</h3>
       <p className="secondary">版本 {window.version} · 进程 {window.pid}</p>
       <button className="secondary-button" disabled={disabled} onClick={()=>void send({type:'inspectDesktop',window})}>读取当前会话</button>
     </article>)}
     {observation&&<article className="panel" aria-label="当前会话观察">
       <h3>{observation.window.title}</h3>
       <p>模型显示名：{observation.modelLabel??"当前未取得；需补充适配后才能用于编程方案"}</p>
-      <p>{observation.sessionId?`Qoder 会话 ID：${observation.sessionId}`:'WorkBuddy 未提供可靠的供应商会话 ID，仅保留本次可见内容指纹。切换、重启或内容变化后需要重新核对。'}</p>
+      <p>{observation.sessionId?`Qoder 会话 ID：${observation.sessionId}`:'会话 ID 未取得，请重新核对。'}</p>
       <p className="secondary">读取于 {new Date(observation.capturedAt).toLocaleString('zh-CN')}。未读取到草稿或忙碌控件；这不保证后台没有其他活动。</p>
       <button className="primary" disabled={disabled} onClick={()=>{setReview(access?.observationDigest??null);setAck(false);setLabel('');setProject(data?.workflows[0]?.project.id??'');}}>审阅项目关联</button>
     </article>}
@@ -31,6 +31,7 @@ export function DesktopSessions({data,busy,send}:{data:Snapshot|null;busy:boolea
       <h3>{binding.label}</h3><p>{binding.projectId} · {binding.observation.window.app} · {binding.observation.window.title}</p>
       <p className="secondary">模型显示名：{binding.observation.modelLabel??"旧观察未记录，请重新读取并关联"}</p>
       <p className="secondary">保存于 {new Date(binding.confirmedAt).toLocaleString('zh-CN')} · 历史观察，使用前需重新读取核对。</p>
+      {binding.observation.window.app==='workbuddy'&&<p>WorkBuddy 支持已移除，此关联仅作历史记录。</p>}
       {binding.observation.window.app==='qoder'&&binding.observation.window.version==='0.4.3.0'&&<button className="secondary-button" disabled={disabled||unresolved} onClick={()=>void send({type:'prepareDesktopTrial',bindingId:binding.id})}>准备固定消息验证</button>}
     </article>)}</details>}
     {trial&&<article className="panel"><h3>验证消息已准备</h3><p>核对目标聊天和完整消息后，再确认发送。准备操作不会发送消息。</p><button className="primary" disabled={disabled} onClick={()=>{setTrialReview(trial.id);setTrialAck(false);}}>审阅验证消息</button></article>}
@@ -54,7 +55,7 @@ export function DesktopSessions({data,busy,send}:{data:Snapshot|null;busy:boolea
       <h2 id="desktop-binding-title">确认已有会话关联</h2>
       <p>{observation?`${observation.window.app==='qoder'?'Qoder':'WorkBuddy'} · ${observation.window.title}`:'原观察已失效'}</p>
       {observation&&<p className="secondary">版本 {observation.window.version} · {observation.window.exe}</p>}
-      <p>关联只记录你选择的项目，不验证外部应用的实际工作目录。WorkBuddy 内容指纹不能证明供应商会话身份；版本或会话变化后必须重新核对。</p>
+      <p>关联只记录你选择的项目，不验证外部应用的实际工作目录；版本或会话变化后必须重新核对。</p>
       <label htmlFor="desktop-project">工作台项目</label><select id="desktop-project" value={project} onChange={e=>setProject(e.target.value)}>{data?.workflows.map(w=><option key={w.project.id} value={w.project.id}>{w.project.id} · {w.project.root}</option>)}</select>
       <label htmlFor="desktop-label">关联名称</label><input id="desktop-label" value={label} maxLength={120} onChange={e=>setLabel(e.target.value)}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)}/>我确认这是要关联的已有聊天，并已核对项目选择</label>

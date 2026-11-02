@@ -55,6 +55,9 @@ impl RuntimeHost {
         &self,
         project: &str,
     ) -> Result<(), String> {
+        if let Some(saved) = self.project_setups.get(project) {
+            saved.setup.require_available_adapters()?;
+        }
         if self.require_currency_execution_available(project).is_ok() {
             return Ok(());
         }

@@ -136,6 +136,7 @@ impl RuntimeHost {
         for adapter in std::iter::once(&draft.worker_adapter)
             .chain(draft.profiles.iter().map(|p| &p.worker_adapter))
         {
+            adapter.require_available()?;
             require_bound_worker(binding, adapter.id())?;
         }
         crate::relay_guard::require_protected(
@@ -393,6 +394,7 @@ impl RuntimeHost {
             .ok_or("请先保存项目需求和执行配置")?
             .clone();
         require(saved.digest == wanted, "配置已改变，请重新读取后发起规划")?;
+        saved.setup.require_available_adapters()?;
         if let Some(ManagementSources {
             chief: ChiefSource::CodexSession { session_id },
             ..
@@ -695,6 +697,23 @@ pub(super) mod tests {
     pub(in crate::host) fn fixture(root: &Path) -> (RuntimeHost, ProjectSetupDraft) {
         fs::create_dir(root.join("project")).unwrap();
         fixture_existing_empty_project(root)
+    }
+    // Seed an already-saved legacy configuration to test read compatibility.
+    // This bypasses only the new-configuration entry point in test fixtures.
+    pub(in crate::host) fn save_historical_workbuddy_setup(
+        host: &mut RuntimeHost,
+        draft: ProjectSetupDraft,
+    ) {
+        assert_eq!(draft.worker_adapter, ProjectWorkerAdapter::Workbuddy);
+        assert!(draft.chief_directory.is_none());
+        let setup = host.prepare_project_setup(draft).unwrap();
+        let saved = SavedProjectSetup {
+            digest: digest(&setup).unwrap(),
+            setup,
+        };
+        crate::project_setup::save(&host.root, &saved).unwrap();
+        host.project_setups
+            .insert(saved.setup.project_id.clone(), saved);
     }
     pub(in crate::host) fn fixture_existing_empty_project(
         root: &Path,
