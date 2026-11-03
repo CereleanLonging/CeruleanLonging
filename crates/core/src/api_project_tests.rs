@@ -80,7 +80,7 @@ fn api_project_routes_save_plan_approve_reopen_without_executable_or_key() {
         let error = host
             .start_project_run("project", &approved, &saved.digest)
             .unwrap_err();
-        assert!(error.contains("OpenAI 凭证"));
+        assert!(error.contains("正常执行必须"));
         assert!(host.runs.all().is_empty());
         assert_eq!(host.projects["project"].history().len(), events);
         assert_eq!(host.management.statuses().len(), requests);

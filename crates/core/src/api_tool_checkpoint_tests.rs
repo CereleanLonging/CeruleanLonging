@@ -191,7 +191,8 @@ fn api_failure_context_tracks_cross_round_errors_and_reopens_without_success_con
     api_host_tests::drain(&mut host);
     assert_eq!(host.api_jobs[&key()].state, ApiJobState::Submitted);
     assert_eq!(
-        fs::read_to_string(temp.path().join("project/result.txt")).unwrap(),
+        fs::read_to_string(project_planning::tests::worker_root(temp.path()).join("result.txt"))
+            .unwrap(),
         "checkpoint fixture"
     );
     drop(host);
@@ -251,7 +252,8 @@ fn two_real_tool_batches_wait_for_owner_ack_and_replay_the_same_incident() {
     assert_eq!(second.checkpoint.call.round, 2);
     assert_waiting(&host, 2);
     assert_eq!(
-        fs::read_to_string(temp.path().join("project/result.txt")).unwrap(),
+        fs::read_to_string(project_planning::tests::worker_root(temp.path()).join("result.txt"))
+            .unwrap(),
         "checkpoint fixture"
     );
     let journal = ApiCallJournal::read_existing(&attempt_root(&host).join("rounds/002")).unwrap();
@@ -351,7 +353,10 @@ fn lost_ack_cancel_or_changed_authority_preserves_file_and_stops_without_resend(
         assert!(!root.join("rounds/003").exists(), "{mode}");
         assert!(!root.join("completion.json").exists(), "{mode}");
         assert_eq!(
-            fs::read_to_string(temp.path().join("project/result.txt")).unwrap(),
+            fs::read_to_string(
+                project_planning::tests::worker_root(temp.path()).join("result.txt")
+            )
+            .unwrap(),
             "checkpoint fixture"
         );
         let tools = crate::omp_tool_journal::OmpToolJournal::open(&root.join("files/events"), &run)
@@ -398,7 +403,8 @@ fn held_ack_times_out_with_original_tool_effects_and_no_followup_request() {
     assert!(!root.join("rounds/003").exists());
     assert!(!root.join("completion.json").exists());
     assert_eq!(
-        fs::read_to_string(temp.path().join("project/result.txt")).unwrap(),
+        fs::read_to_string(project_planning::tests::worker_root(temp.path()).join("result.txt"))
+            .unwrap(),
         "checkpoint fixture"
     );
     let journal = crate::omp_tool_journal::OmpToolJournal::open(

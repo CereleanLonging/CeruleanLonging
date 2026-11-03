@@ -212,7 +212,7 @@ fn desktop_cancellation_background_request_precedes_observer_release_and_preserv
         if !completes {
             fs::write(root.path().join("project/lost-reply"), "lost").unwrap();
         }
-        host.send_desktop_task(&r.id).unwrap();
+        host.retain_desktop_fixture_owner(r.clone());
         let response = cancel(&mut host, &r);
         assert!(response.error.is_none(), "{:?}", response.error);
         assert!(sealed_directory(root.path())

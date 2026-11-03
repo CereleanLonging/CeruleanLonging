@@ -232,7 +232,8 @@ mod tests {
         cancelled_with_dependent(root, false)
     }
     fn cancelled_with_dependent(root: &Path, pending: bool) -> (RuntimeHost, ProjectSetupDraft) {
-        let (mut host, draft) = fixture(root);
+        let (mut host, mut draft) = fixture(root);
+        project_planning::tests::isolate_draft(root, &mut draft);
         host.configure_project(draft.clone()).unwrap();
         let mut decision = proposal("tests");
         if pending {
@@ -264,7 +265,7 @@ mod tests {
                 adapter_version: "synthetic".into(),
                 session_id: "old-thread".into(),
                 identity_strength: IdentityStrength::ProviderId,
-                workspace: revision.project.root.clone(),
+                workspace: revision.execution_root("task", "old-attempt").unwrap(),
             },
         };
         store

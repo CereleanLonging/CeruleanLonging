@@ -50,7 +50,7 @@ try {
   assert.equal(await plan.isDisabled(), true);
   assert.equal(await page.evaluate(() => window.commands.length), 2);
   cases.push('waiting for external plan prevents duplicate requests');
-  const running = { ...fixture, projectSetups: [saved], providerCredentials: [{provider:'deepseek', keyConfigured:true}], workflows: [{...fixture.workflows[0], approval: {}, revisionDigest: 'b'.repeat(64), revision:{execution:[]}}] };
+  const running = { ...fixture, projectSetups: [saved], providerCredentials: [{provider:'deepseek', keyConfigured:true}], workflows: [{...fixture.workflows[0], approval: {}, revisionDigest: 'b'.repeat(64), revision:{execution:[{taskId:'task',workerDirectory:{identity:'a'.repeat(64),relativePath:'executors/'+ 'a'.repeat(64)}}]}}] };
   await page.evaluate(data=>window.renderRuns(data), running);
   const start=page.getByRole('button',{name:'启动已批准项目',exact:true});
   await start.waitFor(); assert.equal(await start.isEnabled(),true);
@@ -59,7 +59,7 @@ try {
   await confirm.waitFor(); assert.equal(await confirm.isEnabled(),true);
   // Losing the selected provider key while a review is open revokes that review's action.
   await page.evaluate(data=>window.renderRuns(data), {...running,providerCredentials:[]});
-  await page.getByRole('alert').filter({hasText:'DeepSeek'}).waitFor();
+  await page.getByRole('alert').filter({hasText:'副指挥供应商'}).waitFor();
   assert.equal(await confirm.isDisabled(),true);
   await page.getByRole('button',{name:'返回',exact:true}).click();
   assert.equal(await start.isDisabled(),true);
@@ -74,7 +74,7 @@ try {
   await page.getByRole('button',{name:'暂停后续调度',exact:true}).waitFor();
   assert.equal(await start.count(),0); assert.equal(await page.evaluate(()=>window.commands.length),3);
   cases.push('external Accept wait remains active and does not start a duplicate run');
-  const openaiWorker={...running,workflows:[{...running.workflows[0],revision:{execution:[{taskId:'first',apiWorker:{target:{kind:'provider',endpoint:{kind:'deepSeek'}}}},{taskId:'task',apiWorker:{target:{kind:'openAi'}}}]}}]};
+  const openaiWorker={...running,workflows:[{...running.workflows[0],revision:{execution:[{taskId:'first',workerDirectory:{identity:'a'.repeat(64),relativePath:'executors/'+ 'a'.repeat(64)},apiWorker:{target:{kind:'provider',endpoint:{kind:'deepSeek'}}}},{taskId:'task',workerDirectory:{identity:'b'.repeat(64),relativePath:'executors/'+ 'b'.repeat(64)},apiWorker:{target:{kind:'openAi'}}}]}}]};
   await page.evaluate(data=>window.renderRuns(data),openaiWorker);
   await page.getByRole('status').filter({hasText:'openai 编程模型凭证'}).waitFor();
   assert.equal(await start.isDisabled(),true);

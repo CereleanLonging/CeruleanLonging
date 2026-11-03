@@ -235,6 +235,9 @@ mod verification_recheck;
 mod verification_recheck_host;
 #[path = "verification_recovery.rs"]
 mod verification_recovery;
+#[cfg(all(test, windows))]
+#[path = "worker_boundaries_host_tests.rs"]
+mod worker_boundaries_host_tests;
 #[path = "workspace_host.rs"]
 pub(crate) mod workspace_host;
 #[cfg(all(test, windows))]
@@ -1582,6 +1585,7 @@ impl RuntimeHost {
         revision: PlanRevision,
     ) -> Result<(), String> {
         crate::reader_generation::require_revision(&self.root, &revision)?;
+        crate::worker_boundaries::validate(&revision, false)?;
         self.poll_verifications();
         self.require_available(project_id)?;
         require(
@@ -1630,6 +1634,7 @@ impl RuntimeHost {
         if store.approval().is_some() {
             return self.reconcile_currency_account(project);
         }
+        crate::worker_boundaries::validate(revision, false)?;
         let currency_approval = self.prepare_currency_approval(project)?;
         let store = self
             .projects
@@ -1912,6 +1917,7 @@ impl RuntimeHost {
         self.poll_verifications();
         self.require_available_inner(project, true)?;
         self.require_task_resources(project, task, attempt)?;
+        self.require_execution_boundaries(project)?;
         self.management.check_attempt_reservation(
             project,
             attempt,

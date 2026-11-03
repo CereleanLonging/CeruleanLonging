@@ -305,6 +305,7 @@ impl RuntimeHost {
             return Err("需要副指挥分配决定".into());
         };
         self.require_task_resources(&project, task_id, attempt)?;
+        self.require_execution_boundaries(&project)?;
         let view = self.api_read(&project, task_id, attempt)?;
         let store = &*view;
         let plan = store.revision().ok_or("API方案缺失")?;

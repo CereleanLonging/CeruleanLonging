@@ -80,6 +80,7 @@ fn configured(temp: &Path, chief: E, deputy: E) -> RuntimeHost {
         "--exact".into(),
         "host::api_run_tests::api_dag_validator".into(),
     ];
+    project_planning::tests::isolate_draft(temp, &mut draft);
     host.configure_project(draft).unwrap();
     for provider in providers {
         host.set_provider_key(
@@ -153,7 +154,7 @@ fn document_refinement_uses_configured_provider_without_workflow_mutation() {
 }
 
 #[test]
-fn flexible_managers_plan_and_accept_a6api_worker_without_official_key_and_reopen() {
+fn flexible_managers_plan_assign_and_gate_a6api_worker_without_official_key_and_reopen() {
     let all = endpoints();
     for (index, chief) in all.iter().enumerate() {
         let temp = tempfile::tempdir().unwrap();
@@ -182,20 +183,27 @@ fn flexible_managers_plan_and_accept_a6api_worker_without_official_key_and_reope
         });
         assert_eq!(
             host.runs.all()[0].state,
-            RunState::Completed,
+            RunState::Attention,
             "{:?}",
             host.runs.all()
         );
         assert_eq!(
-            fs::read_to_string(temp.path().join("project/result.txt")).unwrap(),
-            "alpha beta"
+            fs::read_to_string(
+                project_planning::tests::worker_root(temp.path()).join("result.txt")
+            )
+            .unwrap(),
+            "alpha"
         );
-        assert!(host.projects["project"]
-            .state()
-            .tasks
-            .values()
-            .all(|t| t.state == TaskState::Accepted));
-        assert_eq!(host.management.statuses().len(), 5);
+        assert_eq!(
+            host.projects["project"].state().tasks["a"].state,
+            TaskState::Submitted
+        );
+        assert_eq!(
+            host.projects["project"].state().tasks["b"].state,
+            TaskState::Pending
+        );
+        assert!(!host.projects["project"].state().tasks["a"].verified);
+        assert_eq!(host.management.statuses().len(), 2);
         let ids = host.management_operation_ids("project");
         for id in &ids {
             let (request, result, _) = host.read_deepseek_management(id).unwrap();
@@ -223,7 +231,7 @@ fn flexible_managers_plan_and_accept_a6api_worker_without_official_key_and_reope
             let mut host = RuntimeHost::open(&temp.path().join("data")).unwrap();
             host.poll_verifications();
             assert_eq!(host.projects["project"].history(), history);
-            assert_eq!(host.runs.all()[0].state, RunState::Completed);
+            assert_eq!(host.runs.all()[0].state, RunState::Attention);
             assert!(host.management_active.is_empty() && host.api_active.is_empty());
             assert_eq!(
                 crate::reader_generation::tests::snapshot(
@@ -311,16 +319,6 @@ fn flexible_management_lost_reply_is_unknown_and_never_falls_back_or_resends_on_
 fn submitted_retirement_shutdown_280_preserves_unaccepted_delivery_and_requires_disposition() {
     let temp = tempfile::tempdir().unwrap();
     let mut host = configured(temp.path(), E::A6Api {}, E::DeepSeek {});
-    host.deputy_management_fixture = Some(|p| {
-        if p.request().handoff.purpose == Purpose::Accept {
-            deputy_management::fixture_result(
-                p,
-                json!({"id":"unusable-accept","model":"fixture-planner","usage":{"prompt_tokens":12,"completion_tokens":8},"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"unusable decision"}}]}),
-            )
-        } else {
-            reply(p)
-        }
-    });
     approved(&mut host);
     start(&mut host);
     spin(&mut host, |h| {
@@ -333,31 +331,12 @@ fn submitted_retirement_shutdown_280_preserves_unaccepted_delivery_and_requires_
         TaskState::Submitted
     );
     assert!(!host.can_shutdown());
-    let decision = host
+    assert!(host
         .management
         .statuses()
-        .into_iter()
-        .find(|s| s.purpose == Purpose::Accept)
-        .unwrap();
-    let evidence = host.management.review(&decision.operation_id).unwrap().0;
-    assert!(host
-        .management_detail(&decision.operation_id)
-        .unwrap()
-        .message
-        .unwrap()
-        .contains("DecisionJson"));
-    host.resolve_management(
-        &decision.operation_id,
-        &evidence,
-        crate::management_execution::UserResolution::Discard {
-            reason: "retain unusable original response; no retry".into(),
-        },
-    )
-    .unwrap();
-    assert!(
-        !host.can_shutdown(),
-        "discarding a decision alone must not retire delivered work"
-    );
+        .iter()
+        .all(|s| s.purpose != Purpose::Accept));
+    assert!(!host.projects["project"].state().tasks["a"].verified);
     let review = host.project_revision_candidates().pop().unwrap();
     assert!(host
         .request_project_revision(
@@ -378,21 +357,16 @@ fn submitted_retirement_shutdown_280_preserves_unaccepted_delivery_and_requires_
         host.projects["project"].state().tasks["a"].state,
         TaskState::Submitted
     );
-    assert!(host.projects["project"].state().tasks["a"].verified);
+    assert!(!host.projects["project"].state().tasks["a"].verified);
     let history = host.projects["project"].history().to_vec();
-    let artifact = fs::read(temp.path().join("project/result.txt")).unwrap();
+    let artifact =
+        fs::read(project_planning::tests::worker_root(temp.path()).join("result.txt")).unwrap();
     drop(host);
     let mut reopened = RuntimeHost::open(&temp.path().join("data")).unwrap();
     assert!(reopened.can_shutdown());
-    assert!(reopened
-        .management_detail(&decision.operation_id)
-        .unwrap()
-        .message
-        .unwrap()
-        .contains("DecisionJson"));
     assert_eq!(reopened.projects["project"].history(), history);
     assert_eq!(
-        fs::read(temp.path().join("project/result.txt")).unwrap(),
+        fs::read(project_planning::tests::worker_root(temp.path()).join("result.txt")).unwrap(),
         artifact
     );
     assert_eq!(

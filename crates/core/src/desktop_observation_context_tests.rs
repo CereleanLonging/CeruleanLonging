@@ -6,7 +6,7 @@ fn qoder_initial_task_uses_fresh_layout_without_changing_approved_scope() {
     let root = tempfile::tempdir().unwrap();
     let mut host = configured(root.path(), "CONTEXT_LAYOUT");
     plan_and_approve(&mut host);
-    start(&mut host);
+    assert_new_run_blocked(&mut host);
     let attempt = assigned(&mut host);
     let store = &host.projects["project"];
     let revision = store.revision().unwrap();
@@ -44,7 +44,7 @@ fn qoder_initial_task_rejects_semantic_identity_and_invalid_layout_changes() {
     let root = tempfile::tempdir().unwrap();
     let mut host = configured(root.path(), "CONTEXT_NEGATIVE");
     plan_and_approve(&mut host);
-    start(&mut host);
+    assert_new_run_blocked(&mut host);
     let attempt = assigned(&mut host);
     let store = &host.projects["project"];
     let original = store

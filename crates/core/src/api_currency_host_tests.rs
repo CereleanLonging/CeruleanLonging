@@ -52,7 +52,15 @@ fn fixture_with_configuration(
         }
     }
     let h = super::scoped_count::fixture_with_configuration(
-        root, true, settings, true, None, configure,
+        root,
+        true,
+        settings,
+        true,
+        None,
+        |draft| {
+            configure(draft);
+            project_planning::tests::isolate_draft(root, draft);
+        },
     );
     drop(h);
     crate::currency_scoped_execution_guard::tests::promote_fixture(&root.join("data"));
@@ -358,7 +366,9 @@ fn scoped_api_host_two_rounds_settle_before_tools_and_reopen_without_recount() {
             c_order.lock().unwrap().push(format!("count{n}"));
             if n == 2 {
                 assert!(round_root(&c_root, 1).join("02.json").exists());
-                assert!(c_root.join("project/sum.mjs").exists());
+                assert!(project_planning::tests::worker_root(&c_root)
+                    .join("sum.mjs")
+                    .exists());
             }
             fixture_counted_api(draft, quote, 100).map_err(|_| ApiFailure::InvalidResponse {})
         }),
@@ -367,7 +377,9 @@ fn scoped_api_host_two_rounds_settle_before_tools_and_reopen_without_recount() {
             assert!(round_root(&s_root, n).join("00.json").exists());
             assert!(!round_root(&s_root, n).join("02.json").exists());
             if n == 1 {
-                assert!(!s_root.join("project/sum.mjs").exists());
+                assert!(!project_planning::tests::worker_root(&s_root)
+                    .join("sum.mjs")
+                    .exists());
             }
             fixture_scoped_api_result(prepared, response(n))
                 .map_err(|_| ApiFailure::InvalidResponse {})
@@ -400,9 +412,11 @@ fn scoped_api_host_two_rounds_settle_before_tools_and_reopen_without_recount() {
     for n in [1, 2] {
         assert!(round_root(&r, n).join("02.json").exists());
     }
-    assert!(fs::read_to_string(r.join("project/sum.mjs"))
-        .unwrap()
-        .contains("a+b"));
+    assert!(
+        fs::read_to_string(project_planning::tests::worker_root(&r).join("sum.mjs"))
+            .unwrap()
+            .contains("a+b")
+    );
     drop(h);
     let before = snapshot(&r.join("data/currency-budgets"));
     let h = RuntimeHost::open(&r.join("data")).unwrap();
@@ -466,7 +480,9 @@ fn scoped_api_checkpoint_recovery_requires_original_fee_ack_and_never_recounts()
     );
     assert_eq!(counts.load(Ordering::SeqCst), 2);
     assert_eq!(host.currency_accounts["project"].state(), &book);
-    assert!(temp.path().join("project/sum.mjs").is_file());
+    assert!(project_planning::tests::worker_root(temp.path())
+        .join("sum.mjs")
+        .is_file());
 }
 #[test]
 fn scoped_api_host_unpriced_or_invalid_response_stops_before_tools_or_next_count() {
@@ -501,7 +517,9 @@ fn scoped_api_host_unpriced_or_invalid_response_stops_before_tools_or_next_count
             h.api_jobs[&("project".into(), "attempt".into())].state,
             ApiJobState::Unknown
         );
-        assert!(!temp.path().join("project/sum.mjs").exists());
+        assert!(!project_planning::tests::worker_root(temp.path())
+            .join("sum.mjs")
+            .exists());
         assert_eq!(h.currency_accounts["project"].state().bookings.len(), 1);
         let outcome = &h.currency_accounts["project"]
             .state()
@@ -612,7 +630,9 @@ fn scoped_api_host_cancelled_count_or_generation_retains_original_fee_without_to
         }
         assert_eq!(state.reserved_usd_nanos, 1000);
         assert_count_view(&h, [0, 1, 0, u32::from(at_count)], 1000);
-        assert!(!temp.path().join("project/sum.mjs").exists());
+        assert!(!project_planning::tests::worker_root(temp.path())
+            .join("sum.mjs")
+            .exists());
         assert!(!round_root(temp.path(), 1).join("02.json").exists());
         drop(h);
         let h = RuntimeHost::open(&temp.path().join("data")).unwrap();
@@ -658,7 +678,9 @@ fn scoped_api_host_count_failure_or_insufficient_generation_balance_never_genera
             ],
             1000,
         );
-        assert!(!temp.path().join("project/sum.mjs").exists());
+        assert!(!project_planning::tests::worker_root(temp.path())
+            .join("sum.mjs")
+            .exists());
         drop(h);
         let h = RuntimeHost::open(&temp.path().join("data")).unwrap();
         assert_eq!(h.currency_accounts["project"].state(), &state);
@@ -726,7 +748,9 @@ fn scoped_api_host_pause_resume_during_count_invalidates_generation_authority() 
     ));
     assert!(state.bookings.is_empty());
     assert_eq!(state.reserved_usd_nanos, 1000);
-    assert!(!temp.path().join("project/sum.mjs").exists());
+    assert!(!project_planning::tests::worker_root(temp.path())
+        .join("sum.mjs")
+        .exists());
 }
 
 #[test]
@@ -797,7 +821,9 @@ fn scoped_api_host_lost_prepare_or_fee_ack_keeps_original_liability_and_never_ru
         drop(original_reply);
         drain(&mut h);
         assert_eq!(sends.load(Ordering::SeqCst), usize::from(!at_prepare));
-        assert!(!temp.path().join("project/sum.mjs").exists());
+        assert!(!project_planning::tests::worker_root(temp.path())
+            .join("sum.mjs")
+            .exists());
         assert!(!round_root(temp.path(), 1).join("02.json").exists());
         let reserved = h.currency_accounts["project"].state().reserved_usd_nanos;
         let outcome = &h.currency_accounts["project"]
@@ -856,7 +882,9 @@ fn scoped_api_host_response_publication_failure_preserves_reserve_without_tools_
     h.start_managed_api("scoped-api-deputy", "attempt").unwrap();
     drain(&mut h);
     assert_eq!(sends.load(Ordering::SeqCst), 1);
-    assert!(!temp.path().join("project/sum.mjs").exists());
+    assert!(!project_planning::tests::worker_root(temp.path())
+        .join("sum.mjs")
+        .exists());
     assert!(h.currency_accounts["project"].state().reserved_usd_nanos > 1000);
     assert!(!round_root(temp.path(), 1).join("01.json").exists());
     drop(h);

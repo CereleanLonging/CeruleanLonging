@@ -1,0 +1,41 @@
+// Offline production component; no native IPC, credentials or model calls.
+import {mkdtemp,writeFile,readFile} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import assert from 'node:assert/strict';
+import {build} from 'vite';
+import {chromium} from 'playwright-core';
+const dir=await mkdtemp(resolve('reports/worker-boundaries-ui-782-'));
+const entry=join(dir,'entry.tsx');
+await writeFile(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import {ProjectRuns} from '../../apps/desktop/src/ProjectRuns';const root=createRoot(document.getElementById('root')!);window.commands=[];window.renderFixture=(data)=>root.render(<ProjectRuns data={data} busy={false} send={async c=>{window.commands.push(c);return true;}}/>);`);
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(dir,'bundle'),emptyOutDir:false,lib:{entry,name:'WorkerBoundaries',formats:['iife'],fileName:()=> 'ui.js'}}});
+const data={workflows:[{project:{id:'project',root:'D:\\fixture-project'},state:{tasks:{}},approval:{revisionDigest:'revision'},revisionDigest:'revision',revision:{execution:[{taskId:'one',adapterId:'codex'}]}}],projectSetups:[{digest:'setup',setup:{projectId:'project',chiefModel:'chief',deputyModel:'deputy',managementMaxRequests:4}}],openaiConnection:{keyConfigured:true},codexJobs:[],projectRuns:[]};
+const cases=[],errors=[];let browser,network=0;
+try{
+  browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+  const page=await browser.newPage({viewport:{width:1250,height:900}});page.setDefaultTimeout(10000);
+  page.on('pageerror',e=>errors.push(String(e)));await page.route('**/*',r=>{network++;return r.abort();});
+  await page.setContent(`<html lang="zh-CN"><meta charset="utf-8"><style>${await readFile('apps/desktop/src/style.css','utf8')}</style><div id="root"></div></html>`);
+  await page.addScriptTag({content:await readFile(join(dir,'bundle/ui.js'),'utf8')});
+  await page.evaluate(data=>window.renderFixture(data),data);
+  const start=page.getByRole('button',{name:'启动已批准项目',exact:true});
+  assert.equal(await start.isDisabled(),true);
+  assert.match(await page.locator('[role="status"]').innerText(),/独立工作目录/);
+  cases.push('legacy plan remains visible but cannot dispatch');
+  const empty=structuredClone(data);empty.workflows[0].revision.execution=[];
+  await page.evaluate(data=>window.renderFixture(data),empty);
+  assert.equal(await start.isDisabled(),true);cases.push('empty execution roster cannot dispatch');
+  const bound=structuredClone(data);bound.workflows[0].revision.execution[0].workerDirectory={identity:'a'.repeat(64),relativePath:'executors/'+ 'a'.repeat(64)};
+  await page.evaluate(data=>window.renderFixture(data),bound);await start.click();
+  const confirm=page.getByRole('button',{name:'确认启动调度',exact:true});
+  assert.equal(await confirm.isDisabled(),false);
+  await page.evaluate(data=>window.renderFixture(data),data);
+  await page.waitForFunction(()=>document.querySelector('[role="dialog"] [role="alert"]')?.textContent.includes('独立工作目录'));
+  assert.equal(await confirm.isDisabled(),true);assert.deepEqual(await page.evaluate(()=>window.commands),[]);
+  await page.screenshot({path:join(dir,'stale-boundary-review.png'),fullPage:true});
+  cases.push('removing binding invalidates an open dispatch confirmation');
+  await page.evaluate(data=>window.renderFixture(data),bound);await confirm.click();
+  assert.deepEqual(await page.evaluate(()=>window.commands),[{type:'startProjectRun',projectId:'project',revisionDigest:'revision',setupDigest:'setup'}]);
+  cases.push('bound plan keeps explicit user confirmation');
+  assert.deepEqual(errors,[]);assert.equal(network,0);
+}finally{await browser?.close();}
+const result={status:'passed',cases,errors,networkRequests:network,modelCalls:0,artifact:dir};await writeFile(join(dir,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));

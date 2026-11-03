@@ -367,8 +367,8 @@ mod dispatch {
                     )?;
                 }
                 require(
-                    digest(&self.match_original_catalog(
-                        &intent.context,
+                    digest(&self.rebuild_management_context(
+                        intent,
                         self.context_for_snapshot(requirement, &original),
                     )?)? == intent.state_digest,
                     "management configuration or user answers changed during count",
@@ -378,8 +378,8 @@ mod dispatch {
                     self.planning_idle(&intent.project_id)?;
                 }
                 require(
-                    digest(&self.match_original_catalog(
-                        &intent.context,
+                    digest(&self.rebuild_management_context(
+                        intent,
                         self.management_context(&intent.project_id, requirement)?,
                     )?)? == intent.state_digest,
                     "original management context changed during count",

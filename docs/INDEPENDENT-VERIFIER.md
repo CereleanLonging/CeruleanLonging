@@ -42,4 +42,8 @@ Requests and replies use anonymous pipes, bounded to 1 MiB and 10 seconds. Exist
 
 原有材料上限、全票要求、用户确认及不自动重发规则不变。脱敏不能证明消除任意暗号；独立 EXE 也不证明模型推理质量。新增程序改变发行资源布局，从旧版使用完整安装器升级；旧签名专用的七文件重封包脚本拒绝新布局，常规构建使用 `node scripts/desktop.mjs package`。
 
+执行与评审权限分别处理：正常执行端只读写自己绑定的工作目录；评审仅接收经独立工具处理并获批准的源码片段，不取得其他执行目录、整个仓库或通用文件接口。副指挥分配时收到每端目录和文件归属，跨端重复的源码分工在派发前被拒绝。详情见 [角色目录与执行边界](ROLE-WORKSPACE-ISOLATION.md)。
+
+Execution and review use separate access paths: workers operate only in their assigned model directory. Review receives approved fragments processed by the independent verifier, without access to other directories, the whole repository or general file tools. Managers receive each executor's directory and declared file ownership; overlapping cross-executor assignments are rejected before dispatch.
+
 Existing material bounds, unanimity, final user confirmation and no automatic retries remain. Redaction cannot prove the absence of arbitrary covert signals, and a separate executable is not evidence of model quality. The added resource requires full-installer upgrades from the old layout. The historical seven-file signing helper rejects the new layout; normal builds use `node scripts/desktop.mjs package`.

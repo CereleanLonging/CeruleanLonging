@@ -154,6 +154,7 @@ impl RuntimeHost {
         if let ApplicationTarget::Workflow { context, .. } = &target {
             if let Some(ExecutionEvidence::Revision { revision }) = &context.execution {
                 crate::reader_generation::require_revision(&self.root, revision)?;
+                crate::worker_boundaries::validate(revision, false)?;
             }
         }
         require(

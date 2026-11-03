@@ -17,9 +17,7 @@ pub(crate) fn fixture(root: &Path) -> RuntimeHost {
     let revision = host.projects["project"].revision().unwrap().clone();
     let revision_digest = revision.approval_digest().unwrap();
     host.approve("project", &revision_digest).unwrap();
-    let setup = host.project_setups["project"].digest.clone();
-    host.start_project_run("project", &revision_digest, &setup)
-        .unwrap();
+    crate::host::project_planning::tests::retain_legacy_run(&mut host);
     let run = host.runs.all()[0].clone();
     // No scheduler tick occurs in this fixture: pause before any dispatch.
     host.pause_project_run(&run.id).unwrap();

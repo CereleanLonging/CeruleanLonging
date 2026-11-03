@@ -81,7 +81,7 @@ fn collect(host: &mut RuntimeHost) {
     host.orchestrating = false;
 }
 #[test]
-fn executor_selection_preserves_legacy_digest_and_binds_omp_approval() {
+fn executor_selection_preserves_legacy_digest_and_blocks_unbound_dispatch() {
     for adapter in [ProjectWorkerAdapter::Codex, ProjectWorkerAdapter::Omp] {
         let root = tempfile::tempdir().unwrap();
         let (mut host, mut draft) = super::project_planning::tests::fixture(root.path());
@@ -115,10 +115,11 @@ fn executor_selection_preserves_legacy_digest_and_binds_omp_approval() {
             .start_project_run("project", &wanted, &saved.digest)
             .is_err());
         host.approve("project", &wanted).unwrap();
-        host.start_project_run("project", &wanted, &saved.digest)
-            .unwrap();
-        host.pause_project_run(&host.runs.all()[0].id.clone())
-            .unwrap();
+        assert!(host
+            .start_project_run("project", &wanted, &saved.digest)
+            .unwrap_err()
+            .contains("正常执行必须"));
+        assert!(host.runs.all().is_empty());
         drop(host);
         let host = RuntimeHost::open(&root.path().join("data")).unwrap();
         assert_eq!(host.project_setups["project"].digest, saved.digest);

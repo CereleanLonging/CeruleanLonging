@@ -121,6 +121,10 @@ fn worker(prepared: &PreparedRequest, round: u32) -> Result<ApiReply, ApiFailure
             "cerulean_write_file",
             json!({"path":"result.txt","content":if prompt.contains("FAIL_VALIDATOR"){"invalid"}else{"alpha"},"expectedSha256":"absent"}),
         )),
+        (false, 2) if prompt.contains("EXHAUST_BUDGET") => Some((
+            "cerulean_read_file",
+            json!({"path":"result.txt","offset":0}),
+        )),
         (true, 1) => Some((
             "cerulean_read_file",
             json!({"path":"result.txt","offset":0}),
@@ -399,7 +403,7 @@ fn configured_inputs(
     if isolated {
         draft.worktree = Some(dependency_host_fixture::configure(root));
     }
-    if mode == "ROLE_ISOLATION" {
+    if !isolated {
         let script = root.join("assertions.ps1");
         fs::write(&script, ROLE_ASSERTION_SCRIPT).unwrap();
         let shell = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
@@ -458,8 +462,10 @@ fn spin(host: &mut RuntimeHost, done: impl Fn(&RuntimeHost) -> bool) {
         }
         assert!(
             Instant::now() < deadline,
-            "DAG timeout: {:?}",
-            host.runs.all()
+            "DAG timeout: runs={:?}; planning={:?}; management={:?}",
+            host.runs.all(),
+            host.planning_errors,
+            host.management.statuses()
         );
         std::thread::sleep(Duration::from_millis(4));
     }
@@ -561,80 +567,58 @@ fn dependency_worktree_eight_api_routes_complete_and_reopen() {
     }
 }
 #[test]
-fn eight_api_routes_complete_dependent_tasks_only_after_independent_verification_and_chief_acceptance(
-) {
+fn eight_api_routes_bind_directories_and_block_downstream_without_checker_account() {
     for (adapter, target) in api_project_tests::routes() {
         let root = tempfile::tempdir().unwrap();
         let mut host = configured(root.path(), adapter, target, "success", 8);
         approved(&mut host);
         start(&mut host);
-        // Attention stops new scheduling immediately; collect the owned worker
-        // before inspecting the returned idle ledger or reopening it.
         spin(&mut host, |h| {
             h.runs.all()[0].state != RunState::Active && h.api_active.is_empty()
         });
+        assert_eq!(host.runs.all()[0].state, RunState::Attention);
         assert_eq!(
-            host.runs.all()[0].state,
-            RunState::Completed,
-            "{:?}",
-            host.runs.all()
+            fs::read_to_string(
+                project_planning::tests::worker_root(root.path()).join("result.txt")
+            )
+            .unwrap(),
+            "alpha"
         );
-        assert_eq!(
-            fs::read_to_string(root.path().join("project/result.txt")).unwrap(),
-            "alpha beta"
-        );
+        assert!(!root.path().join("project/result.txt").exists());
         let store = &host.projects["project"];
-        assert!(store
-            .state()
-            .tasks
-            .values()
-            .all(|t| t.state == TaskState::Accepted));
-        assert_eq!(crate::api_execution::prior_requests(store).unwrap(), 5);
-        let sequence = |task: &str, kind: &str| {
-            store
-                .history()
-                .iter()
-                .find(|e| {
-                    e.body.event.command.task() == Some(task)
-                        && serde_json::to_value(&e.body.event.command).unwrap()["kind"] == kind
-                })
-                .unwrap()
-                .body
-                .event
-                .sequence
-        };
-        for task in ["a", "b"] {
-            assert!(sequence(task, "submit") < sequence(task, "verify"));
-            assert!(sequence(task, "verify") < sequence(task, "accept"));
-        }
-        assert!(sequence("a", "accept") < sequence("b", "assign"));
-        assert_eq!(host.jobs.len(), 2);
+        assert_eq!(store.state().tasks["a"].state, TaskState::Submitted);
+        assert!(!store.state().tasks["a"].verified);
+        assert_eq!(store.state().tasks["b"].state, TaskState::Pending);
+        assert_eq!(crate::api_execution::prior_requests(store).unwrap(), 2);
+        assert_eq!(host.jobs.len(), 1);
         assert!(host
             .jobs
             .values()
-            .all(|j| j.state == VerificationState::Succeeded));
-        assert_eq!(host.management.statuses().len(), 5);
+            .all(|j| j.state == VerificationState::Failed
+                && j.message.as_deref().unwrap_or("").contains("隔离账户")));
+        assert_eq!(host.management.statuses().len(), 2);
         let history = store.history().to_vec();
         drop(host);
         let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
         attach(&mut host);
         host.poll_verifications();
         assert_eq!(host.projects["project"].history(), history.as_slice());
-        assert_eq!(host.runs.all()[0].state, RunState::Completed);
+        assert_eq!(host.runs.all()[0].state, RunState::Attention);
         assert!(host.api_active.is_empty());
     }
 }
+
 #[test]
-fn api_dag_pause_resume_and_reopen_after_first_acceptance_do_not_repeat_original_attempts() {
+fn api_dag_pause_resume_and_reopen_after_first_submission_do_not_repeat_original_attempts() {
     let root = tempfile::tempdir().unwrap();
     let (adapter, target) = api_project_tests::routes().remove(2);
     let mut host = configured(root.path(), adapter, target, "pause", 8);
     approved(&mut host);
     start(&mut host);
     spin(&mut host, |h| {
-        h.projects
-            .get("project")
-            .is_some_and(|s| s.state().tasks["a"].state == TaskState::Accepted)
+        h.projects.get("project").is_some_and(|s| {
+            s.state().tasks["a"].state == TaskState::Submitted && h.active.is_empty()
+        })
     });
     let run = host.runs.all()[0].clone();
     host.pause_project_run(&run.id).unwrap();
@@ -657,19 +641,21 @@ fn api_dag_pause_resume_and_reopen_after_first_acceptance_do_not_repeat_original
     spin(&mut host, |h| {
         h.runs.all()[0].state != RunState::Active && h.api_active.is_empty()
     });
-    assert_eq!(host.runs.all()[0].state, RunState::Completed);
+    assert_eq!(host.runs.all()[0].state, RunState::Attention);
     assert_eq!(
         &host.projects["project"].history()[..before.len()],
         before.as_slice()
     );
-    assert_eq!(host.api_jobs.len(), 2);
+    assert_eq!(host.api_jobs.len(), 1);
 }
 #[test]
 fn api_dag_failure_budget_and_missing_credentials_stop_before_downstream_billing() {
     for (mode, budget, expected_requests) in [
         ("FAIL_PROVIDER", 8, 2),
         ("FAIL_VALIDATOR", 8, 2),
-        ("budget", 2, 3),
+        // Two planned tasks require capacity for at least two requests. The
+        // first task consumes both on tool calls and cannot request a third.
+        ("EXHAUST_BUDGET", 2, 2),
     ] {
         let root = tempfile::tempdir().unwrap();
         let (adapter, target) = api_project_tests::routes().remove(2);

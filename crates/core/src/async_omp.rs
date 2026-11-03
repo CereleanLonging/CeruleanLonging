@@ -290,6 +290,7 @@ async fn run(
     {
         return Err("OMP目录准备已停止，尚未启动执行器".into());
     }
+    crate::worker_boundaries::validate(&plan, true)?;
     crate::blind_review_guard::require_isolated_execution(
         root,
         plan.task(&job.task_id)?.worker_directory.is_some(),

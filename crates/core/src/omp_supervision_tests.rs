@@ -87,6 +87,7 @@ fn fixture_source(root: &Path, limit: u32, delivery_enabled: bool, deepseek: boo
         max_advice_per_attempt: 1,
         delivery_enabled,
     });
+    super::super::project_planning::tests::isolate_draft(root, &mut draft);
     host.configure_project(draft).unwrap();
     let mut proposed = super::super::project_planning::tests::proposal("tests");
     if let ManagementDecision::Plan { tasks, .. } = &mut proposed {
@@ -116,7 +117,7 @@ fn fixture_source(root: &Path, limit: u32, delivery_enabled: bool, deepseek: boo
             adapter_id: "omp".into(),
             adapter_version: "18.4.4".into(),
             session_id: "session".into(),
-            workspace: plan.project.root.clone(),
+            workspace: plan.execution_root("task", "attempt").unwrap(),
             identity_strength: IdentityStrength::ControllerRequest(ControllerRequestIdentity {
                 connection_id: "connection".into(),
                 request_id: "prompt-request".into(),
@@ -154,7 +155,7 @@ fn fixture_source(root: &Path, limit: u32, delivery_enabled: bool, deepseek: boo
             },
             CommandContext {
                 thread_id: Some("session".into()),
-                cwd: Some(plan.project.root.clone()),
+                cwd: Some(plan.execution_root("task", "attempt").unwrap()),
                 ..Default::default()
             },
         )

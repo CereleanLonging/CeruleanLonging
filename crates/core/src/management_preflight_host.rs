@@ -95,8 +95,8 @@ impl RuntimeHost {
         let requirement = intent.context["requirement"]
             .as_str()
             .ok_or("management requirement missing")?;
-        let current = self.match_original_catalog(
-            &intent.context,
+        let current = self.rebuild_management_context(
+            intent,
             self.management_context(&intent.project_id, requirement)?,
         )?;
         require(

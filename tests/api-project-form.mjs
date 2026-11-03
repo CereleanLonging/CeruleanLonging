@@ -20,8 +20,14 @@ try {
   browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
   const page=await browser.newPage({viewport:{width:1250,height:940},deviceScaleFactor:1});
   page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/*',route=>{blockedNetwork++;return route.abort();});
-  await page.setContent(`<html lang="zh-CN"><meta charset="utf-8"><style>${css}</style><div id="root"></div></html>`);
+  const origin='http://localhost/api-project-form-fixture';
+  await page.route('**/*',route=>{
+    if(route.request().url()===origin&&route.request().isNavigationRequest()) {
+      return route.fulfill({contentType:'text/html',body:`<html lang="zh-CN"><meta charset="utf-8"><style>${css}</style><div id="root"></div></html>`});
+    }
+    blockedNetwork++;return route.abort();
+  });
+  await page.goto(origin);
   await page.addScriptTag({content:script});
   await page.locator('#planning-requirement').fill('实现求和函数并通过独立测试');
   await page.locator('#planning-chief').fill('fixture-chief');
@@ -32,7 +38,7 @@ try {
     await page.locator('#planning-adapter').selectOption(provider);
     await page.locator('#planning-worker').fill('vendor/fixture-model');
     assert.equal(await page.locator('#planning-executable').count(),0);
-    assert.equal(await page.getByLabel('记录连续命令失败').isDisabled(),true);
+    assert.equal(await page.getByLabel('记录连续命令失败').isDisabled(),false);
     const regions=provider==='qwen'?['qwenBeijing','qwenSingapore','qwenHongKong']:[null];
     for(const region of regions) {
       if(region)await page.locator('#planning-api-region').selectOption(region);
@@ -83,7 +89,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#planning-api-workspace')?.value==='approved-space');
   assert.equal(await page.locator('#planning-api-files').inputValue(),'read');
   assert.equal(await page.locator('#planning-worker').inputValue(),'vendor/fixture-model');
-  const approved={...reloaded,openaiConnection:{models:[],keyConfigured:true},workflows:[{...snapshot.workflows[0],approval:{revisionDigest:'fixture-revision'},revisionDigest:'fixture-revision',revision:{execution:[{apiWorker:qwen.apiWorker}]}}]};
+  const approved={...reloaded,openaiConnection:{models:[],keyConfigured:true},workflows:[{...snapshot.workflows[0],approval:{revisionDigest:'fixture-revision'},revisionDigest:'fixture-revision',revision:{execution:[{apiWorker:qwen.apiWorker,workerDirectory:{identity:'a'.repeat(64),relativePath:'executors/'+ 'a'.repeat(64)}}]}}]};
   await page.evaluate(data=>window.renderFixture(data,'runs'),approved);
   assert.equal(await page.getByRole('button',{name:'启动已批准项目'}).isDisabled(),true);
   assert.ok((await page.locator('body').innerText()).includes('qwen 编程模型凭证'));

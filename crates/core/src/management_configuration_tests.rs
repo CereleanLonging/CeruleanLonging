@@ -22,6 +22,7 @@ fn configured(root: &Path) -> RuntimeHost {
     draft.management_sources = Some(sources());
     draft.chief_model = "external-codex-session".into();
     draft.deputy_model = "deepseek-flash".into();
+    super::project_planning::tests::isolate_draft(root, &mut draft);
     host.configure_project(draft).unwrap();
     host
 }

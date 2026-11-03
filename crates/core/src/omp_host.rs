@@ -308,6 +308,7 @@ impl RuntimeHost {
         self.require_available_inner(project, true)?;
         self.require_worker_slot()?;
         self.require_task_resources(project, task, attempt)?;
+        self.require_execution_boundaries(project)?;
         require(
             !self.management.statuses().iter().any(|s| {
                 s.project_id == project

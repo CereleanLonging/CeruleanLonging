@@ -57,6 +57,7 @@ fn fresh(root: &Path) -> Fresh {
     draft.worker_adapter = project_setup::ProjectWorkerAdapter::Omp;
     draft.management_max_requests = 4;
     draft.supervision = Some(policy.clone());
+    crate::host::project_planning::tests::isolate_draft(root, &mut draft);
     host.configure_project(draft).unwrap();
     let mut proposed = crate::host::project_planning::tests::proposal("tests");
     if let ManagementDecision::Plan { tasks, .. } = &mut proposed {
@@ -86,7 +87,7 @@ fn fresh(root: &Path) -> Fresh {
             adapter_id: "omp".into(),
             adapter_version: "18.4.4".into(),
             session_id: "session".into(),
-            workspace: plan.project.root.clone(),
+            workspace: plan.execution_root("task", "attempt").unwrap(),
             identity_strength: IdentityStrength::ControllerRequest(ControllerRequestIdentity {
                 connection_id: "connection".into(),
                 request_id: "prompt-request".into(),
@@ -509,7 +510,10 @@ fn omp_original_files_management_and_native_transport_cross_the_same_boundary() 
         }
         drop(journal);
         assert_eq!(
-            fs::read_to_string(temp.path().join("project/sum.mjs")).unwrap(),
+            fs::read_to_string(
+                crate::host::project_planning::tests::worker_root(temp.path()).join("sum.mjs")
+            )
+            .unwrap(),
             "export const sum = (a, b) => a + b;\n"
         );
         drop(worker);

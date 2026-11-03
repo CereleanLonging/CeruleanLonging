@@ -84,7 +84,8 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
             <label htmlFor="planning-chief-directory">主指挥独立目录</label><input id="planning-chief-directory" readOnly={!!saved?.setup.chiefDirectory} value={draft.chiefDirectory??""} onChange={e=>{update("chiefDirectory",e.target.value||undefined);if(e.target.value)update("worktree",undefined);}} placeholder={(workflow?.project.root??"")+"-chief"}/>
             <p>副指挥与执行端总目录：<code>{workflow?.project.root}</code></p>
             <p className="secondary">副指挥只读调取主指挥原需求与方案。执行模型首次接入时，在总目录的 executors 下建立独立子目录；最多五个，切回已有模型复用原目录。模型切换不能改变正在运行尝试的目录。</p>
-            {!draft.chiefDirectory&&<p role="status">当前保持旧配置；填写独立目录后，保存新版配置并重新批准，启用目录隔离与完整交付审阅。</p>}
+            <p className="secondary">正常执行只能读写该模型的工作目录。不同执行端须负责不同源码文件；副指挥会收到目录与文件边界，冲突分工不能派发。评审只提供独立验收工具处理后的只读片段，不开放其他目录。</p>
+            {!draft.chiefDirectory&&<p role="status">当前配置未绑定独立执行目录，不能启动任务。请填写主指挥独立目录，保存新版配置并重新规划、批准；历史记录仍保留。</p>}
             {saved?.setup.workerDirectories&&<ul>{Object.values(saved.setup.workerDirectories).map(d=>d&&<li key={d.identity}><code>{d.relativePath}</code></li>)}</ul>}
           </section>
           <label htmlFor="planning-requirement">项目需求</label><textarea id="planning-requirement" required rows={4} value={draft.requirement} onChange={e=>update("requirement",e.target.value)} placeholder="描述要解决的问题、预期行为和完成标准。" />

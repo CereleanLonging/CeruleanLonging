@@ -46,19 +46,23 @@ fn historical_failed_verification_does_not_stop_new_api_attempt() {
     spin(&mut host, |h| {
         h.runs.all()[0].state != RunState::Active && h.api_active.is_empty()
     });
-    assert_eq!(host.runs.all()[0].state, RunState::Completed);
+    assert_eq!(host.runs.all()[0].state, RunState::Attention);
     assert_eq!(
         host.jobs[&(old.project_id.clone(), old.operation_id.clone())],
         old
     );
-    assert!(host.projects["project"]
-        .state()
-        .tasks
-        .values()
-        .all(|t| t.state == TaskState::Accepted));
     assert_eq!(
-        fs::read(root.path().join("project/result.txt")).unwrap(),
-        b"alpha beta"
+        host.projects["project"].state().tasks["a"].state,
+        TaskState::Submitted
+    );
+    assert_eq!(
+        host.projects["project"].state().tasks["b"].state,
+        TaskState::Pending
+    );
+    assert_eq!(host.api_jobs.len(), 1);
+    assert_eq!(
+        fs::read(project_planning::tests::worker_root(root.path()).join("result.txt")).unwrap(),
+        b"alpha"
     );
 }
 

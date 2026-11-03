@@ -189,10 +189,28 @@ impl RuntimeHost {
         task: &str,
         attempt: &str,
     ) -> Result<(), String> {
-        match self.task_resource_conflict(project, task, attempt)? {
-            Some(message) => Err(message),
-            None => Ok(()),
+        let snapshots = self.snapshot().workflows;
+        let plan = snapshots
+            .iter()
+            .find(|s| s.project.id == project)
+            .and_then(|s| s.revision.as_ref())
+            .ok_or("执行边界缺少批准方案")?;
+        if let Some(message) = self.task_resource_conflict(project, task, attempt)? {
+            return Err(message);
         }
+        crate::worker_boundaries::validate(plan, false)
+    }
+
+    // New execution needs a bound directory. Reading retained resource leases
+    // and replaying an original assignment must remain possible without it.
+    pub(super) fn require_execution_boundaries(&self, project: &str) -> Result<(), String> {
+        let snapshots = self.snapshot().workflows;
+        let plan = snapshots
+            .iter()
+            .find(|s| s.project.id == project)
+            .and_then(|s| s.revision.as_ref())
+            .ok_or("执行边界缺少批准方案")?;
+        crate::worker_boundaries::validate(plan, true)
     }
     // A normal occupied resource is a scheduling wait. Corrupt authority remains
     // an error and must never be swallowed as ordinary resource contention.

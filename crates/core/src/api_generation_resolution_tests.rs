@@ -108,7 +108,9 @@ fn api_generation_resolution_host_user_event_gap_and_reopen_preserve_unknown_too
                 h.api_jobs[&("project".into(), "attempt".into())].state,
                 ApiJobState::Unknown
             );
-            assert!(!t.path().join("project/sum.mjs").exists());
+            assert!(!project_planning::tests::worker_root(t.path())
+                .join("sum.mjs")
+                .exists());
             assert_eq!(snapshot(&round_root(t.path(), 1)), original_round);
             let journal =
                 crate::api_call_journal::ApiCallJournal::read_existing(&round_root(t.path(), 1))
@@ -226,7 +228,9 @@ fn api_generation_resolution_host_rejects_live_worker_then_preserves_stopped_unk
         h.api_jobs[&("project".into(), "attempt".into())].state,
         ApiJobState::Unknown
     );
-    assert!(!t.path().join("project/sum.mjs").exists());
+    assert!(!project_planning::tests::worker_root(t.path())
+        .join("sum.mjs")
+        .exists());
 }
 #[test]
 fn api_generation_resolution_reader_preflight_covers_workflow_and_pending_ledger() {

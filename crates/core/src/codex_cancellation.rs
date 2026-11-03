@@ -168,9 +168,7 @@ mod tests {
             .approval_digest()
             .unwrap();
         host.approve("project", &revision).unwrap();
-        let setup = host.project_setups["project"].digest.clone();
-        host.start_project_run("project", &revision, &setup)
-            .unwrap();
+        project_planning::tests::retain_legacy_run(&mut host);
         let store = host.projects.remove("project").unwrap();
         let mut snapshot = crate::async_verification::snapshot(&store);
         // Host control fixture: execution persistence/transport are covered separately.

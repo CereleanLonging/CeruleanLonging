@@ -527,6 +527,7 @@ impl RuntimeHost {
             snapshot_policy: Some(setup.snapshot_policy),
         };
         revision.validate()?;
+        crate::worker_boundaries::validate(&revision, false)?;
         if let Some(chief) = &setup.chief_directory {
             crate::role_workspace::publish(
                 chief,
@@ -698,6 +699,54 @@ pub(super) mod tests {
         )
         .is_err());
         assert!(host.codex_jobs.is_empty());
+    }
+    // Reconstruct a retained pre-isolation run for stop/cancel/read-only tests.
+    // This does not authorize or launch any new worker.
+    pub(in crate::host) fn retain_legacy_run(host: &mut RuntimeHost) {
+        let plan = host.projects["project"].revision().unwrap();
+        assert!(plan.execution.iter().all(|t| t.worker_directory.is_none()));
+        let revision = plan.approval_digest().unwrap();
+        host.runs
+            .save(
+                cerulean_domain::project_setup::ProjectRun {
+                    id: format!("run-{}", &digest(&("project", &revision)).unwrap()[..32]),
+                    project_id: "project".into(),
+                    revision_digest: revision,
+                    setup_digest: host.project_setups["project"].digest.clone(),
+                    state: cerulean_domain::project_setup::RunState::Active,
+                    message: "Retained legacy run fixture".into(),
+                    acknowledged_decisions: host.management_operation_total() as u32,
+                },
+                "user",
+            )
+            .unwrap();
+    }
+    // Normal-dispatch fixtures opt into the same persisted role configuration as users.
+    pub(in crate::host) fn isolate_draft(root: &Path, draft: &mut ProjectSetupDraft) {
+        draft.chief_directory = Some(root.join("chief").to_string_lossy().into());
+        if draft.acceptance.is_none() {
+            draft.acceptance = Some(AcceptanceDraft {
+                schema_version: 1,
+                stages: vec![AcceptanceStageDraft {
+                    id: "tests".into(),
+                    name: "Fixture assertions".into(),
+                    validator_id: draft.validator_id.clone(),
+                    args: draft.check_args.clone(),
+                    timeout_seconds: 10,
+                    expected_assertions: vec!["fixture".into()],
+                }],
+            });
+        }
+    }
+    pub(in crate::host) fn worker_root(root: &Path) -> PathBuf {
+        let parent = root.join("project/executors");
+        let mut children = fs::read_dir(parent).unwrap().map(|e| e.unwrap().path());
+        let worker = children.next().unwrap();
+        assert!(
+            children.next().is_none(),
+            "fixture expects one bound model directory"
+        );
+        worker
     }
     pub(in crate::host) fn fixture(root: &Path) -> (RuntimeHost, ProjectSetupDraft) {
         fs::create_dir(root.join("project")).unwrap();
@@ -978,11 +1027,12 @@ pub(super) mod tests {
         let legacy_value: serde_json::Value = serde_json::from_slice(&legacy_bytes).unwrap();
         assert!(legacy_value["setup"].get("acceptance").is_none());
         assert!(legacy_value["setup"]["check"].get("name").is_none());
+        draft.chief_directory = Some(root.path().join("chief").to_string_lossy().into());
         draft.acceptance = Some(AcceptanceDraft {
             schema_version: 1,
             stages: vec![
                 AcceptanceStageDraft {
-                    expected_assertions: vec![],
+                    expected_assertions: vec!["syntax".into()],
                     id: "syntax".into(),
                     name: "语法检查".into(),
                     validator_id: "tests".into(),
@@ -990,7 +1040,7 @@ pub(super) mod tests {
                     timeout_seconds: 20,
                 },
                 AcceptanceStageDraft {
-                    expected_assertions: vec![],
+                    expected_assertions: vec!["unit".into()],
                     id: "unit".into(),
                     name: "单元测试".into(),
                     validator_id: "tests".into(),
@@ -1287,6 +1337,7 @@ mod run_tests {
     fn configured(root: &Path) -> RuntimeHost {
         let (mut host, mut draft) = fixture(root);
         draft.management_max_requests = 6;
+        super::tests::isolate_draft(root, &mut draft);
         host.configure_project(draft).unwrap();
         complete(&mut host, proposal("tests"));
         let hash = host.snapshot().workflows[0]

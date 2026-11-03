@@ -182,7 +182,7 @@ fn fixture(root: &Path) -> Value {
         TaskState::Submitted
     );
     assert_eq!(
-        fs::read_to_string(root.join("project/result.txt")).unwrap(),
+        fs::read_to_string(project_planning::tests::worker_root(root).join("result.txt")).unwrap(),
         "background fixture result"
     );
     assert!(host.management.application("deputy-api").unwrap().1);

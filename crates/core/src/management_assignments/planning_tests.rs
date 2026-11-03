@@ -115,7 +115,7 @@ fn planning_bindings_are_only_added_to_new_provider_plan_contexts() {
     assert_eq!(
         host.management_dispatch_context("project", management::Purpose::Plan, "fixed task")
             .unwrap(),
-        original
+        crate::worker_boundaries::annotate(original.clone(), management::Purpose::Plan).unwrap()
     );
     host.project_setups
         .get_mut("project")

@@ -57,6 +57,7 @@ pub(super) fn fixture_with_configuration(
     let mut draft = api_project_tests::draft_for(draft, adapter, target);
     draft.artifact_paths = vec!["result.txt".into()];
     configure(&mut draft);
+    project_planning::tests::isolate_draft(root, &mut draft);
     host.configure_project(draft).unwrap();
     let mut proposal = project_planning::tests::proposal("tests");
     if let ManagementDecision::Plan { tasks, .. } = &mut proposal {
@@ -236,7 +237,10 @@ fn api_background_eight_routes_use_two_durable_acks_and_reopen_without_resend() 
             host.snapshot().api_jobs[0]
         );
         assert_eq!(
-            fs::read_to_string(root.path().join("project/result.txt")).unwrap(),
+            fs::read_to_string(
+                project_planning::tests::worker_root(root.path()).join("result.txt")
+            )
+            .unwrap(),
             "background fixture result"
         );
         assert_eq!(
@@ -282,7 +286,9 @@ fn api_missing_key_never_reserves_startup_and_cancel_before_dispatch_stays_unkno
         .unwrap();
     drain(&mut host);
     assert_eq!(host.snapshot().api_jobs[0].state, ApiJobState::Unknown);
-    assert!(!root.path().join("project/result.txt").exists());
+    assert!(!project_planning::tests::worker_root(root.path())
+        .join("result.txt")
+        .exists());
     let store = &host.projects["project"];
     assert!(!store
         .history()

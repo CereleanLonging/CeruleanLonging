@@ -416,8 +416,12 @@ mod tests {
             .unwrap()
             .approval_digest()
             .unwrap();
-        host.start_project_run("project", &revision, &setup.digest)
-            .unwrap();
+        assert!(host
+            .start_project_run("project", &revision, &setup.digest)
+            .unwrap_err()
+            .contains("正常执行必须"));
+        // Reconstruct retained authorization; do not grant new unbound dispatch.
+        project_planning::tests::retain_legacy_run(&mut host);
         assert!(close(&mut host, &hash).error.is_some());
         assert!(
             host.management_active.is_empty(),

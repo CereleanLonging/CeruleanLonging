@@ -209,7 +209,8 @@ fn api_waiting_for_provider_does_not_hold_the_journal_writer() {
     // The model response is still withheld. The real writer can answer independently.
     let state = host.api_writers["project"].owner.snapshot().unwrap();
     assert_eq!(state.state.tasks["task"].state, TaskState::Dispatching);
-    assert!(!root.path().join("project/result.txt").exists());
+    let worker_root = project_planning::tests::worker_root(root.path());
+    assert!(!worker_root.join("result.txt").exists());
     assert_eq!(
         host.snapshot().workflows[0].state.tasks["task"].state,
         TaskState::Dispatching
@@ -221,9 +222,10 @@ fn api_waiting_for_provider_does_not_hold_the_journal_writer() {
         TaskState::Submitted
     );
     assert_eq!(
-        fs::read_to_string(root.path().join("project/result.txt")).unwrap(),
+        fs::read_to_string(worker_root.join("result.txt")).unwrap(),
         "background fixture result"
     );
+    assert!(!root.path().join("project/result.txt").exists());
     let history = host.projects["project"].history().to_vec();
     drop(host);
     let host = RuntimeHost::open(&root.path().join("data")).unwrap();

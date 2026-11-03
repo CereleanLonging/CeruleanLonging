@@ -252,7 +252,7 @@ fn desktop_progress_original_background_owner_observes_without_resending_and_reo
     let (mut host, status) = pair(root.path());
     host.desktop_fixture = Some(live_owner_fixture);
     host.desktop_access.task_review = Some(status.review.clone());
-    host.send_desktop_task(&status.review.id).unwrap();
+    host.retain_desktop_fixture_owner(status.review.clone());
     let until = Instant::now() + Duration::from_secs(20);
     while host.desktop_active.is_some() {
         assert!(Instant::now() < until);

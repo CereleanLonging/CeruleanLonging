@@ -150,13 +150,9 @@ impl RuntimeHost {
                 return Ok(request.context.clone());
             }
         }
-        self.match_original_catalog(
-            &request.context,
-            self.rebuild_role_context(
-                &request.context,
-                self.management_context(&request.project_id, requirement)?,
-                request.purpose,
-            )?,
+        self.rebuild_management_context(
+            self.management.intent(operation)?,
+            self.management_context(&request.project_id, requirement)?,
         )
     }
 }

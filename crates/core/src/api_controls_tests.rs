@@ -52,7 +52,8 @@ fn unknown_after_write(root: &Path) -> RuntimeHost {
 fn api_unknown_retirement_preserves_files_budget_identity_and_survives_replanning() {
     let root = tempfile::tempdir().unwrap();
     let mut host = unknown_after_write(root.path());
-    let content = fs::read(root.path().join("project/result.txt")).unwrap();
+    let content =
+        fs::read(project_planning::tests::worker_root(root.path()).join("result.txt")).unwrap();
     let reserved = crate::api_execution::prior_requests(&host.projects["project"]).unwrap();
     let original = host.projects["project"]
         .history()
@@ -136,7 +137,7 @@ fn api_unknown_retirement_preserves_files_budget_identity_and_survives_replannin
         reserved
     );
     assert_eq!(
-        fs::read(root.path().join("project/result.txt")).unwrap(),
+        fs::read(project_planning::tests::worker_root(root.path()).join("result.txt")).unwrap(),
         content
     );
     assert!(host.api_active.is_empty());
@@ -330,7 +331,9 @@ fn api_unassigned_startup_user_closure_binds_review_and_management_response() {
     assert!(host.projects["project"]
         .attempt_record("task", "attempt")
         .is_none());
-    assert!(!root.path().join("project/result.txt").exists());
+    assert!(!project_planning::tests::worker_root(root.path())
+        .join("result.txt")
+        .exists());
 }
 #[test]
 fn api_prepared_application_can_close_without_assigning_or_calling_provider() {
@@ -402,5 +405,7 @@ fn api_original_result_check_never_reissues_unknown_provider_request() {
     assert!(host.api_active.is_empty());
     assert!(host.snapshot().api_jobs[0].closure_digest.is_none());
     assert!(host.snapshot().unsent_assignments.is_empty());
-    assert!(!root.path().join("project/result.txt").exists());
+    assert!(!project_planning::tests::worker_root(root.path())
+        .join("result.txt")
+        .exists());
 }

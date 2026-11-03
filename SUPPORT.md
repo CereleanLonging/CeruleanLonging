@@ -1,10 +1,10 @@
-# 0.1.39 接入与能力说明 / Integration and capability notes
+# 0.1.40 接入与能力说明 / Integration and capability notes
 
 [简体中文](#zh-support) · [English](#en-support)
 
-0.1.39 为公开预览，改善首次项目与主指挥桌面绑定的配置引导、退出按钮布局；沿用由已保存 API 主指挥提炼 .md 文档、审阅确认后读入草稿，长文档分段处理。下表继承 0.1.34 已完成的约定范围实测记录，不表示全部供应商已在本版重测。0.1.35 引入的隔离与盲评使用本地合成回包及真实 Windows 账户验证；本版扫描只发现候选位置，登录和执行需分别确认，延期项保持原状态。
+0.1.40 强制正常执行目录绑定并检查跨执行端文件归属；旧未隔离方案必须重新规划批准。本版为公开预览，改善首次项目与主指挥桌面绑定的配置引导、退出按钮布局；沿用由已保存 API 主指挥提炼 .md 文档、审阅确认后读入草稿，长文档分段处理。下表继承 0.1.34 已完成的约定范围实测记录，不表示全部供应商已在本版重测。0.1.35 引入的隔离与盲评使用本地合成回包及真实 Windows 账户验证；本版扫描只发现候选位置，登录和执行需分别确认，延期项保持原状态。
 
-0.1.39 is a public preview improving first-project and desktop-chief setup and exit layout, retaining .md refinement by the saved API chief, segmented long-document processing, and user confirmation before draft insertion. The table retains live-test records from the agreed 0.1.34 scope; it does not claim every provider was retested in this version. Isolation and review introduced in 0.1.35 use local synthetic responses and real Windows accounts. Discovery only lists candidate paths; login and execution require separate checks. Deferred items remain deferred.
+0.1.40 enforces normal-dispatch directory bindings and checks declared cross-worker file ownership. Legacy unisolated plans require replanning and approval. It retains desktop-chief setup, exit confirmation, .md refinement by the saved API chief, segmented document processing, and user confirmation before draft insertion. The table retains live-test records from the agreed 0.1.34 scope; it does not claim every provider was retested in this version. Isolation and review introduced in 0.1.35 use local synthetic responses and real Windows accounts. Discovery only lists candidate paths; login and execution require separate checks. Deferred items remain deferred.
 
 桌面主指挥使用绑定的外部 Codex 聊天领取并回填方案与收口；配置引导不会创建聊天、发送消息、批准或启动任务。Markdown 自动提炼仍只支持已保存的 API 主指挥。Windows 程序须保留同目录核心及配套资源；单独复制 GUI EXE 不能独立运行。
 

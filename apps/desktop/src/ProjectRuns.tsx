@@ -23,6 +23,7 @@ function cancellationBlock(
   workflow: ExecutionSnapshot,
 ): string | null {
   if(workflow.revision?.execution.some(e=>e.adapterId==="workbuddy"))return "WorkBuddy 支持已移除，请修订方案并选择其他执行器。";
+  if(!workflow.revision?.execution.length||workflow.revision.execution.some(e=>!e.workerDirectory))return "执行端尚未全部绑定独立工作目录，请启用角色隔离并重新规划、批准；旧方案不能继续派发。";
   const sources = data.projectSetups.find(s => s.setup.projectId === workflow.project.id)?.setup.managementSources;
   if (managementKeyMissing(data,sources?.chief)) return "请先配置所选主指挥供应商的本机凭证。";
   if (managementKeyMissing(data,sources?.deputy)) return "请先配置所选副指挥供应商的本机凭证。";
@@ -100,7 +101,7 @@ export function ProjectRuns({
     <section className="workflow-plans" aria-label="项目持续执行">
       <h2>项目持续执行</h2>
       <p className="secondary">
-        启动后，核心会按已批准方案调用副指挥、编程模型、独立验收与主指挥收口。桌面任务会等待你审阅并确认发送。关闭窗口后核心仍继续；暂停会阻止后续调度，已发送任务继续收集结果。
+        启动后，核心会按已批准方案调用副指挥、编程模型、独立验收与主指挥收口。执行端只能访问各自绑定目录，评审只读取批准片段。桌面任务会等待你审阅并确认发送。退出工作台会按确认流程正常停止后台；暂停会阻止后续调度，已发送任务继续收集结果。
       </p>
       {data?.workflows
         .filter((w) => w.approval)

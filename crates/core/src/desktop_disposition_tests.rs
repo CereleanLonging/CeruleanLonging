@@ -1,16 +1,18 @@
 use super::*;
 use crate::desktop_execution as execution;
 
-fn unknown(root: &Path) -> (RuntimeHost, String) {
+pub(super) fn unknown(root: &Path) -> (RuntimeHost, String) {
     let mut host = configured(root, "LOST_REPLY");
     plan_and_approve(&mut host);
-    start(&mut host);
     let attempt = assigned(&mut host);
     assert!(host.desktop_retirement_digest("project", &attempt).is_err());
     let review = prepared(&mut host, &attempt);
-    host.send_desktop_task(&review).unwrap();
+    project_planning::tests::retain_legacy_run(&mut host);
+    retain_send(&mut host, &review);
     assert!(host.desktop_retirement_digest("project", &attempt).is_err());
-    until(&mut host, |h| h.runs.all()[0].state == RunState::Attention);
+    until(&mut host, |h| {
+        h.runs.all()[0].state == RunState::Attention && h.desktop_active.is_none()
+    });
     (host, attempt)
 }
 fn retire(host: &mut RuntimeHost, attempt: &str, hash: &str, reason: &str) -> Response {
@@ -171,9 +173,9 @@ fn desktop_retirement_review_expires_when_readback_produces_a_real_submission() 
         .is_none());
     assert!(host.jobs.is_empty());
     assert_eq!(host.runs.all()[0].state, RunState::Attention);
-    start(&mut host);
-    until(&mut host, |h| h.runs.all()[0].state == RunState::Completed);
-    assert_eq!(host.management.statuses().len(), 3);
+    assert_new_run_blocked(&mut host);
+    assert_eq!(host.runs.all()[0].state, RunState::Attention);
+    assert_eq!(host.management.statuses().len(), 2);
     assert_eq!(
         fs::read_dir(root.path().join("project"))
             .unwrap()

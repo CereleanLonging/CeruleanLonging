@@ -115,7 +115,7 @@ pub(super) fn rebuild(intent: &DecisionIntent, mut context: Value) -> Result<Val
         )?;
         context = current;
     }
-    if let Some(original) = intent.context.get("planningBindings") {
+    context = if let Some(original) = intent.context.get("planningBindings") {
         require(
             intent.purpose == management::Purpose::Plan,
             "planning bindings require Plan purpose",
@@ -125,9 +125,19 @@ pub(super) fn rebuild(intent: &DecisionIntent, mut context: Value) -> Result<Val
             original == &current["planningBindings"],
             "approved planning bindings changed",
         )?;
-        Ok(current)
+        current
     } else {
         // Absence is the original context format, including already-pending requests.
+        context
+    };
+    if let Some(original) = intent.context.get("executionBoundaries") {
+        let current = crate::worker_boundaries::annotate(context, intent.purpose)?;
+        require(
+            original == &current["executionBoundaries"],
+            "副指挥获知的执行边界已变化，必须重新审阅分配",
+        )?;
+        Ok(current)
+    } else {
         Ok(context)
     }
 }
@@ -216,23 +226,24 @@ impl RuntimeHost {
             purpose,
             true,
         )?;
-        if purpose == management::Purpose::Assign
+        let context = if purpose == management::Purpose::Assign
             && self
                 .selected_management_provider(project, purpose)
                 .is_some()
             && context["workflow"]["revision"].is_object()
         {
-            add_bindings(context)
+            add_bindings(context)?
         } else if purpose == management::Purpose::Plan
             && self
                 .selected_management_provider(project, purpose)
                 .is_some()
             && context["executionSetup"].is_object()
         {
-            add_planning_bindings(context)
+            add_planning_bindings(context)?
         } else {
-            Ok(context)
-        }
+            context
+        };
+        crate::worker_boundaries::annotate(context, purpose)
     }
 }
 

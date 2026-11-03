@@ -63,7 +63,7 @@ fn submitted_store(f: &mut Fixture) -> DurableWorkflow {
     let mut store = writer.owner.finish(false).unwrap();
     let (plan, attempt, _, _) = crate::omp_execution::scope(&store, "task", "attempt").unwrap();
     fs::write(
-        Path::new(&plan.project.root).join("sum.mjs"),
+        Path::new(&attempt.binding.workspace).join("sum.mjs"),
         b"export const sum = (a,b) => a+b;\n",
     )
     .unwrap();
@@ -221,7 +221,7 @@ fn exclusive_verification_waits_before_observed_advice_then_accepts_once() {
             .unwrap();
     // Trusted synthetic runner observations, bound to the actual sealed source tree.
     // No validator executable is started.
-    let report = VerificationReport {
+    let mut report = VerificationReport {
         schema_version: 1,
         verifier_id: store.configuration().core_id.clone(),
         observed_at: chrono::Utc::now().to_rfc3339(),
@@ -233,7 +233,15 @@ fn exclusive_verification_waits_before_observed_advice_then_accepts_once() {
             .iter()
             .map(|check| CheckObservation {
                 assertion_error: None,
-                assertions: vec![],
+                assertions: check
+                    .expected_assertions
+                    .iter()
+                    .map(|id| AssertionResult {
+                        id: id.clone(),
+                        passed: true,
+                        detail: "Controlled checker result bound to the sealed sum source".into(),
+                    })
+                    .collect(),
                 check_id: check.id.clone(),
                 command_digest: digest(check).unwrap(),
                 exit_code: Some(0),
@@ -246,6 +254,46 @@ fn exclusive_verification_waits_before_observed_advice_then_accepts_once() {
             .collect(),
         source_snapshot: Some(lease.seal.clone()),
     };
+    // The isolated chief reviews the same complete, sealed evidence as the
+    // product. A synthetic Verify event without its original files is not proof.
+    use sha2::{Digest, Sha256};
+    let pins = plan
+        .task("task")
+        .unwrap()
+        .checks
+        .iter()
+        .map(crate::verifier::PinnedCheck::from_approved)
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    let mut record = json!({"schemaVersion":1,"operationId":"exclusive-check",
+        "manifestDigest":digest(&manifest).unwrap(),"pins":pins,
+        "report":null,"error":null});
+    fs::write(
+        dir.join("intent.json"),
+        serde_json::to_vec(&record).unwrap(),
+    )
+    .unwrap();
+    for check in &mut report.checks {
+        let stdout = serde_json::to_vec(&AssertionReport {
+            schema_version: 1,
+            assertions: check.assertions.clone(),
+        })
+        .unwrap();
+        check.stdout_sha256 = format!("{:x}", Sha256::digest(&stdout));
+        fs::write(dir.join(format!("{}.stdout", check.check_id)), stdout).unwrap();
+        fs::write(dir.join(format!("{}.stderr", check.check_id)), b"").unwrap();
+        fs::write(
+            dir.join(format!("{}.json", check.check_id)),
+            serde_json::to_vec(check).unwrap(),
+        )
+        .unwrap();
+    }
+    record["report"] = serde_json::to_value(&report).unwrap();
+    fs::write(
+        dir.join("result.json"),
+        serde_json::to_vec(&record).unwrap(),
+    )
+    .unwrap();
     report
         .require_pass(&plan, &manifest, &store.configuration().core_id)
         .unwrap();

@@ -159,10 +159,11 @@ impl RuntimeHost {
             revision_digest: revision.into(),
             setup_digest: setup.into(),
             state: RunState::Active,
-            message: "已授权持续调度；关闭界面后核心继续运行".into(),
+            message: "已授权持续调度；确认退出工作台时将正常停止后台".into(),
             acknowledged_decisions: self.management_operation_total() as u32,
         };
         self.run_scope(&run)?;
+        self.require_execution_boundaries(project)?;
         #[cfg(windows)]
         self.validate_desktop_run(project)?;
         #[cfg(not(windows))]
@@ -319,6 +320,7 @@ impl RuntimeHost {
                 "项目已暂停后续调度",
             )?;
             self.run_scope(&run)?;
+            self.require_execution_boundaries(&run.project_id)?;
         }
         Ok(())
     }
@@ -349,6 +351,7 @@ impl RuntimeHost {
     #[cfg(windows)]
     fn advance_run(&mut self, run: &ProjectRun) -> Result<(), String> {
         self.run_scope(run)?;
+        self.require_execution_boundaries(&run.project_id)?;
         let project = &run.project_id;
         // Exclusive verification temporarily owns the store outside `projects`.
         // Wait for its return before rechecking advice against that store.

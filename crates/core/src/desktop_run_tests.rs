@@ -270,190 +270,126 @@ fn start(host: &mut RuntimeHost) {
     host.start_project_run("project", &revision, &setup)
         .unwrap();
 }
+// Reconstruct retained synthetic history below the dispatch boundary. None of
+// these helpers grants current dispatch authority or calls a desktop application.
 fn assigned(host: &mut RuntimeHost) -> String {
-    until(host, |h| {
-        h.projects
-            .get("project")
-            .is_some_and(|s| s.state().tasks["task"].state == TaskState::Assigned)
-    });
-    host.projects["project"].state().tasks["task"]
-        .attempt
-        .clone()
-        .unwrap()
+    assigned_task(host, "task")
+}
+fn assigned_task(host: &mut RuntimeHost, task: &str) -> String {
+    use crate::management_execution::DecisionIntent;
+    let setup = &host.project_setups["project"].setup;
+    let context = host
+        .management_context("project", &setup.requirement)
+        .unwrap();
+    let operation = format!("retained-assignment-{}", host.management.statuses().len());
+    let intent = DecisionIntent {
+        operation_id: operation.clone(),
+        project_id: "project".into(),
+        purpose: Purpose::Assign,
+        model: setup.deputy_model.clone(),
+        state_digest: digest(&context).unwrap(),
+        context,
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+    let response = manager(intent.clone());
+    host.management.begin(intent).unwrap();
+    host.management.finish(&operation, response).unwrap();
+    let attempt = format!("retained-{task}");
+    host.assign_managed_desktop(&operation, &attempt).unwrap();
+    attempt
 }
 fn prepared(host: &mut RuntimeHost, attempt: &str) -> String {
-    host.prepare_desktop_task("project", "task", attempt)
-        .unwrap();
-    spin(host);
-    host.desktop_access.task_review.as_ref().unwrap().id.clone()
+    let store = &host.projects["project"];
+    let task = store.attempt_record("task", attempt).unwrap();
+    let observation = store
+        .revision()
+        .unwrap()
+        .task("task")
+        .unwrap()
+        .desktop_worker
+        .as_ref()
+        .unwrap()
+        .binding
+        .observation
+        .clone();
+    let review = crate::desktop_execution::prepare(
+        store,
+        "task",
+        &task.id,
+        observation,
+        vec!["a".repeat(64), "b".repeat(64), "c".repeat(64)],
+    )
+    .unwrap();
+    let id = review.id.clone();
+    host.desktop_access.task_review = Some(review);
+    id
 }
-#[test]
-fn desktop_managed_run_waits_for_user_and_requires_real_verification_before_chief_accepts() {
-    managed_run_contract(DesktopApp::Qoder);
-}
-fn managed_run_contract(app: DesktopApp) {
-    managed_run_version_contract(app, None);
-}
-fn managed_run_version_contract(app: DesktopApp, version: Option<&str>) {
-    for mode in ["correct", "FAIL_OUTPUT", "TWO_TASKS", "THREE_TASKS"] {
-        let root = tempfile::tempdir().unwrap();
-        let mut host = configured_for_version(root.path(), mode, app.clone(), version);
-        plan_and_approve(&mut host);
-        start(&mut host);
-        let attempt = assigned(&mut host);
-        for _ in 0..12 {
-            host.poll_verifications();
-        }
-        assert_eq!(host.management.statuses().len(), 2);
-        assert!(!root.path().join("project/sent-once-task").exists());
-        let review = prepared(&mut host, &attempt);
-        host.send_desktop_task(&review).unwrap();
-        let count = if mode == "THREE_TASKS" {
-            3
-        } else if mode == "TWO_TASKS" {
-            2
-        } else {
-            1
-        };
-        let mut prior_id = review;
-        for task in ["second", "third"].into_iter().take(count - 1) {
-            until(&mut host, |h| {
-                h.projects
-                    .get("project")
-                    .is_some_and(|s| s.state().tasks[task].state == TaskState::Assigned)
-            });
-            let attempt = host.projects["project"].state().tasks[task]
-                .attempt
-                .clone()
-                .unwrap();
-            host.prepare_desktop_task("project", task, &attempt)
-                .unwrap();
-            spin(&mut host);
-            let next = host
-                .desktop_access
-                .task_review
-                .clone()
-                .expect("continuation review");
-            assert_eq!(
-                next.continuation.as_ref().unwrap().previous_review_digest,
-                prior_id
-            );
-            prior_id = next.id.clone();
-            host.send_desktop_task(&next.id).unwrap();
-        }
-        until(&mut host, |h| {
-            h.runs
-                .all()
-                .iter()
-                .any(|r| matches!(r.state, RunState::Completed | RunState::Attention))
-        });
-        if mode == "FAIL_OUTPUT" {
-            let state = &host.projects["project"].state().tasks["task"];
-            assert_eq!(state.state, TaskState::Submitted);
-            assert!(!state.verified);
-            assert_eq!(host.management.statuses().len(), 2);
-            let prior = &host.desktop_access.tasks[0].review;
-            assert!(crate::desktop_execution::predecessor(
-                &host.root,
-                &host.projects["project"],
-                &prior.binding_id
-            )
-            .unwrap_err()
-            .contains("尚未独立验收"));
-        } else {
-            assert!(host.projects["project"]
-                .state()
-                .tasks
-                .values()
-                .all(|t| t.state == TaskState::Accepted && t.verified));
-            assert_eq!(host.management.statuses().len(), 1 + 2 * count);
-        }
-        assert_eq!(host.jobs.len(), count);
-        assert!(host.desktop_access.tasks[0].submitted);
-        if app == DesktopApp::Workbuddy {
-            for task in &host.desktop_access.tasks {
-                let proof = task.proof.as_ref().unwrap();
-                assert!(proof.session_id.is_none());
-                assert_eq!(
-                    proof.local_binding.as_ref().unwrap().binding_id,
-                    task.review.binding_id
-                );
-                assert_eq!(
-                    task.review.attempt.binding.session_id,
-                    format!("ui-binding-{}", task.review.binding_id)
-                );
-            }
-        }
-        assert!(host.api_jobs.is_empty() && host.codex_jobs.is_empty() && host.omp_jobs.is_empty());
-        let history = host.projects["project"].history().to_vec();
-        let decisions = host.management.statuses().len();
-        drop(host);
-        let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
-        attach(&mut host);
-        host.poll_verifications();
-        assert_eq!(host.projects["project"].history(), history);
-        assert_eq!(host.management.statuses().len(), decisions);
-    }
-}
-#[test]
-fn desktop_managed_pause_and_assigned_restart_never_send_until_user_confirms() {
-    pause_restart_contract(DesktopApp::Qoder);
-}
-fn pause_restart_contract(app: DesktopApp) {
-    pause_restart_version_contract(app, None);
-}
-fn pause_restart_version_contract(app: DesktopApp, version: Option<&str>) {
-    let root = tempfile::tempdir().unwrap();
-    let mut host = configured_for_version(root.path(), "correct", app, version);
-    plan_and_approve(&mut host);
-    start(&mut host);
-    let attempt = assigned(&mut host);
-    let review = prepared(&mut host, &attempt);
-    let run = host.runs.all()[0].id.clone();
-    host.pause_project_run(&run).unwrap();
+fn retain_send(host: &mut RuntimeHost, id: &str) {
+    let review = host.desktop_access.task_review.clone().unwrap();
+    assert_eq!(review.id, id);
+    let before = host.projects["project"].history().len();
     assert!(host
-        .send_desktop_task(&review)
+        .send_desktop_task(id)
         .unwrap_err()
-        .contains("暂停"));
-    assert!(host.desktop_access.tasks.is_empty());
-    drop(host);
-    let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
-    attach(&mut host);
-    host.poll_verifications();
-    assert_eq!(host.runs.all()[0].state, RunState::Paused);
-    assert!(host.desktop_access.task_review.is_none());
-    assert!(!root.path().join("project/sent-once-task").exists());
-    start(&mut host);
-    for _ in 0..12 {
-        host.poll_verifications();
-    }
-    assert_eq!(host.management.statuses().len(), 2);
-    let review = prepared(&mut host, &attempt);
-    host.send_desktop_task(&review).unwrap();
-    until(&mut host, |h| h.runs.all()[0].state == RunState::Completed);
+        .contains("正常执行必须"));
+    assert_eq!(host.projects["project"].history().len(), before);
+    host.retain_desktop_fixture_owner(review);
 }
-#[test]
-fn desktop_managed_unknown_requires_original_readback_and_explicit_run_resume() {
-    unknown_readback_contract(DesktopApp::Qoder);
+fn verify_retained(host: &mut RuntimeHost, task: &str, attempt: &str) -> bool {
+    let pins = host.projects["project"]
+        .revision()
+        .unwrap()
+        .task(task)
+        .unwrap()
+        .checks
+        .iter()
+        .map(crate::verifier::PinnedCheck::from_approved)
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    host.start_verification(
+        "project",
+        &format!("retained-check-{task}"),
+        task,
+        attempt,
+        pins,
+    )
+    .unwrap();
+    until(host, |h| h.active.is_empty());
+    host.projects["project"].state().tasks[task].verified
 }
-fn unknown_readback_contract(app: DesktopApp) {
-    unknown_readback_version_contract(app, None);
+fn accept_retained(host: &mut RuntimeHost, task: &str, attempt: &str) {
+    use crate::management_execution::{ApplicationTarget, DecisionIntent};
+    let setup = &host.project_setups["project"].setup;
+    let context = host
+        .management_context("project", &setup.requirement)
+        .unwrap();
+    let operation = format!("retained-accept-{task}");
+    let intent = DecisionIntent {
+        operation_id: operation.clone(),
+        project_id: "project".into(),
+        purpose: Purpose::Accept,
+        model: setup.chief_model.clone(),
+        state_digest: digest(&context).unwrap(),
+        context,
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+    let response = manager(intent.clone());
+    host.management.begin(intent).unwrap();
+    host.management.finish(&operation, response).unwrap();
+    host.apply_management_decision(
+        &operation,
+        ApplicationTarget::Workflow {
+            principal: "chief".into(),
+            command: WorkflowCommand::Accept {
+                task: task.into(),
+                attempt: attempt.into(),
+            },
+            context: Box::default(),
+        },
+    )
+    .unwrap();
 }
-fn unknown_readback_version_contract(app: DesktopApp, version: Option<&str>) {
-    let root = tempfile::tempdir().unwrap();
-    let mut host = configured_for_version(root.path(), "LOST_REPLY", app, version);
-    plan_and_approve(&mut host);
-    start(&mut host);
-    let attempt = assigned(&mut host);
-    let review = prepared(&mut host, &attempt);
-    host.send_desktop_task(&review).unwrap();
-    until(&mut host, |h| h.runs.all()[0].state == RunState::Attention);
-    assert_eq!(
-        host.projects["project"].state().tasks["task"].state,
-        TaskState::Unknown
-    );
-    assert_eq!(host.management.statuses().len(), 2);
-    assert!(host.jobs.is_empty());
+fn assert_new_run_blocked(host: &mut RuntimeHost) {
     let revision = host.projects["project"]
         .revision()
         .unwrap()
@@ -463,8 +399,81 @@ fn unknown_readback_version_contract(app: DesktopApp, version: Option<&str>) {
     assert!(host
         .start_project_run("project", &revision, &setup)
         .is_err());
+}
+#[test]
+fn desktop_retained_submission_still_needs_real_verification_and_chief_acceptance() {
+    for mode in ["correct", "FAIL_OUTPUT"] {
+        let root = tempfile::tempdir().unwrap();
+        let mut host = configured(root.path(), mode);
+        plan_and_approve(&mut host);
+        assert_new_run_blocked(&mut host);
+        let attempt = assigned(&mut host);
+        let review = prepared(&mut host, &attempt);
+        retain_send(&mut host, &review);
+        background_spin(&mut host);
+        assert_eq!(
+            host.projects["project"].state().tasks["task"].state,
+            TaskState::Submitted
+        );
+        assert!(!host.projects["project"].state().tasks["task"].verified);
+        let correct = mode == "correct";
+        assert_eq!(verify_retained(&mut host, "task", &attempt), correct);
+        if correct {
+            accept_retained(&mut host, "task", &attempt);
+        }
+        assert_eq!(
+            host.projects["project"].state().tasks["task"].state,
+            if correct {
+                TaskState::Accepted
+            } else {
+                TaskState::Submitted
+            }
+        );
+        let history = host.projects["project"].history().to_vec();
+        drop(host);
+        let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
+        assert_new_run_blocked(&mut host);
+        assert_eq!(host.projects["project"].history(), history);
+        assert!(host.desktop_active.is_none());
+    }
+}
+#[test]
+fn desktop_retained_paused_assignment_cannot_resume_unbound_after_restart() {
+    let root = tempfile::tempdir().unwrap();
+    let mut host = configured(root.path(), "correct");
+    plan_and_approve(&mut host);
+    let attempt = assigned(&mut host);
+    let review = prepared(&mut host, &attempt);
+    project_planning::tests::retain_legacy_run(&mut host);
+    let run = host.runs.all()[0].id.clone();
+    host.pause_project_run(&run).unwrap();
+    assert!(host
+        .send_desktop_task(&review)
+        .unwrap_err()
+        .contains("正常执行必须"));
+    assert!(host.desktop_access.tasks.is_empty());
+    let history = host.projects["project"].history().to_vec();
     drop(host);
     let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
+    attach(&mut host);
+    host.poll_verifications();
+    assert_eq!(host.runs.all()[0].state, RunState::Paused);
+    assert!(host.desktop_access.task_review.is_none());
+    assert_new_run_blocked(&mut host);
+    assert_eq!(host.projects["project"].history(), history);
+    assert!(!root.path().join("project/sent-once-task").exists());
+}
+#[test]
+fn desktop_retained_unknown_allows_original_readback_but_never_unbound_resume() {
+    let root = tempfile::tempdir().unwrap();
+    let (mut host, attempt) = disposition_tests::unknown(root.path());
+    assert_eq!(
+        host.projects["project"].state().tasks["task"].state,
+        TaskState::Unknown
+    );
+    assert_new_run_blocked(&mut host);
+    drop(host);
+    host = RuntimeHost::open(&root.path().join("data")).unwrap();
     attach(&mut host);
     host.read_desktop_task("project", &attempt).unwrap();
     background_spin(&mut host);
@@ -473,10 +482,9 @@ fn unknown_readback_version_contract(app: DesktopApp, version: Option<&str>) {
         TaskState::Submitted
     );
     assert!(host.jobs.is_empty());
-    assert_eq!(host.runs.all()[0].state, RunState::Attention);
-    start(&mut host);
-    until(&mut host, |h| h.runs.all()[0].state == RunState::Completed);
-    assert_eq!(host.management.statuses().len(), 3);
+    assert_new_run_blocked(&mut host);
+    assert_eq!(host.management.statuses().len(), 2);
+    assert!(!host.projects["project"].state().tasks["task"].verified);
 }
 
 #[test]
@@ -512,23 +520,24 @@ fn continuation_contract(app: DesktopApp, modes: &[&str]) {
         let root = tempfile::tempdir().unwrap();
         let mut host = configured_for(root.path(), mode, app.clone());
         plan_and_approve(&mut host);
-        start(&mut host);
+        assert_new_run_blocked(&mut host);
         let attempt = assigned(&mut host);
         let id = prepared(&mut host, &attempt);
-        host.send_desktop_task(&id).unwrap();
-        until(&mut host, |h| {
-            h.projects
-                .get("project")
-                .is_some_and(|s| s.state().tasks["task"].state == TaskState::Accepted)
-        });
+        retain_send(&mut host, &id);
+        background_spin(&mut host);
+        assert!(verify_retained(&mut host, "task", &attempt));
+        accept_retained(&mut host, "task", &attempt);
         if mode.contains("LEGACY") {
-            until(&mut host, |h| h.runs.all()[0].state == RunState::Attention);
+            assert!(host
+                .require_desktop_assignment_ready("project")
+                .unwrap_err()
+                .contains("整轮消息摘要"));
             assert_eq!(host.management.statuses().len(), 3);
             assert_eq!(
                 host.projects["project"].state().tasks["second"].state,
                 TaskState::Pending
             );
-            assert!(host.runs.all()[0].message.contains("整轮消息摘要"));
+            assert!(host.runs.all().is_empty());
             let old = &host.desktop_access.tasks[0];
             let json = serde_json::to_value(old.proof.as_ref().unwrap()).unwrap();
             assert!(json.get("roundSha256").is_none());
@@ -546,9 +555,7 @@ fn continuation_contract(app: DesktopApp, modes: &[&str]) {
             RuntimeHost::open(&root.path().join("data")).unwrap();
             continue;
         }
-        until(&mut host, |h| {
-            h.projects["project"].state().tasks["second"].state == TaskState::Assigned
-        });
+        assigned_task(&mut host, "second");
         let prior = host.desktop_access.tasks[0].review.clone();
         let mut reply = worker(&ReadRequest::TaskPrepare {
             version: 1,

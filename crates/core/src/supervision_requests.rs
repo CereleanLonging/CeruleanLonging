@@ -727,6 +727,7 @@ mod tests {
             delivery_enabled: false,
         });
         draft.management_max_requests = budget;
+        super::super::project_planning::tests::isolate_draft(root, &mut draft);
         host.configure_project(draft).unwrap();
         super::super::project_planning::tests::complete(
             &mut host,

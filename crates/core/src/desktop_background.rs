@@ -100,6 +100,8 @@ impl RuntimeHost {
         attempt: &str,
     ) -> Result<(), String> {
         self.require_available(project)?;
+        self.require_task_resources(project, task, attempt)?;
+        self.require_execution_boundaries(project)?;
         self.require_desktop_tasks_resolved()?;
         require(
             load_trials(&self.root)?.iter().all(|t| t.proof.is_some()),
@@ -161,7 +163,13 @@ impl RuntimeHost {
             "任务审阅内容或桥接版本已变化",
         )?;
         self.require_available(&review.project_id)?;
+        self.require_task_resources(
+            &review.project_id,
+            &review.attempt.task_id,
+            &review.attempt.id,
+        )?;
         self.require_worker_slot()?;
+        self.require_execution_boundaries(&review.project_id)?;
         self.authorize_desktop_send(&review.project_id, &review.attempt.id)?;
         self.require_desktop_tasks_resolved()?;
         require(
@@ -249,6 +257,28 @@ impl RuntimeHost {
         permit: Option<ReservedSend>,
     ) -> Result<(), String> {
         self.launch_desktop_operation(review, Operation::Task(permit.map(Box::new)))
+    }
+    #[cfg(test)]
+    pub(in crate::host) fn retain_desktop_fixture_owner(&mut self, review: TaskReview) {
+        // Tests of retained in-flight work enter below the new-dispatch gate.
+        // A synthetic transport is mandatory: never launches a real desktop send.
+        assert!(self.desktop_fixture.is_some());
+        assert!(self.projects[&review.project_id]
+            .revision()
+            .unwrap()
+            .task(&review.attempt.task_id)
+            .unwrap()
+            .worker_directory
+            .is_none());
+        self.desktop_access.task_review = None;
+        let permit = execution::reserve(
+            &self.root,
+            self.projects.get_mut(&review.project_id).unwrap(),
+            &review,
+        )
+        .unwrap();
+        self.refresh_desktop_tasks().unwrap();
+        self.launch_desktop_task(review, Some(permit)).unwrap();
     }
     fn launch_desktop_operation(
         &mut self,

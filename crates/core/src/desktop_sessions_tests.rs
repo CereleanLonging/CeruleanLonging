@@ -775,7 +775,7 @@ fn desktop_plan_preserves_approval_and_reopens_without_dispatch_or_model_calls()
         assert!(host
             .start_project_run("project", &digest, &setup_digest)
             .unwrap_err()
-            .contains("尚未接入"));
+            .contains("正常执行必须"));
         assert_eq!(host.management.statuses().len(), decisions);
         assert!(host.runs.all().is_empty());
         assert!(host.api_jobs.is_empty() && host.codex_jobs.is_empty() && host.jobs.is_empty());
@@ -1194,7 +1194,7 @@ fn background_spin(host: &mut RuntimeHost) {
 #[test]
 fn desktop_background_ipc_keeps_snapshot_responsive_and_exclusive_until_submission() {
     let root = tempfile::tempdir().unwrap();
-    let (mut host, _) = assigned_desktop_task(root.path());
+    let (mut host, review) = assigned_desktop_task(root.path());
     host.desktop_fixture = Some(background_reply);
     let request = |command| Request {
         id: "desktop-background".into(),
@@ -1208,9 +1208,10 @@ fn desktop_background_ipc_keeps_snapshot_responsive_and_exclusive_until_submissi
             attempt_id: "desktop-attempt".into()
         }))
         .error
-        .is_none());
-    spin(&mut host);
-    let review = host.desktop_access.task_review.clone().unwrap();
+        .is_some());
+    assert!(host.desktop_access.task_review.is_none());
+    assert!(host.desktop_active.is_none());
+    host.desktop_access.task_review = Some(review.clone());
     assert!(!root.path().join("project/send-once").exists());
     assert!(host.send_desktop_task(&"f".repeat(64)).is_err());
     assert!(host
@@ -1218,7 +1219,9 @@ fn desktop_background_ipc_keeps_snapshot_responsive_and_exclusive_until_submissi
             review_digest: review.id.clone()
         }))
         .error
-        .is_none());
+        .is_some());
+    assert!(!sealed_directory(root.path()).join("intent.json").exists());
+    host.retain_desktop_fixture_owner(review.clone());
     assert!(!host.projects.contains_key("project"));
     let snapshot = host.handle(request(Command::Snapshot)).result.unwrap();
     assert_eq!(snapshot.workflows.len(), 1);
@@ -1271,7 +1274,7 @@ fn desktop_background_loss_and_panic_recover_by_read_only_without_second_send() 
         write_sum(root.path(), true);
         fs::write(root.path().join("project").join(fault), "fault").unwrap();
         fs::write(root.path().join("project/release-send"), "release").unwrap();
-        host.send_desktop_task(&review.id).unwrap();
+        host.retain_desktop_fixture_owner(review.clone());
         background_spin(&mut host);
         assert_eq!(
             host.projects["project"].state().tasks["task"].state,

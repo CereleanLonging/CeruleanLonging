@@ -166,15 +166,16 @@ fn reviewed_incomplete_intents_reopen_without_fabrication_or_id_reuse() {
                         .is_err());
                 }
             }
-            // Both production entry points must reject before authentication or launch.
+            // Original reservations above remain authoritative. These retained legacy
+            // plans also fail the newer isolation gate before authentication or launch.
             assert!(host
                 .start_codex("project", "task", "attempt", &wanted)
                 .unwrap_err()
-                .contains("reserved"));
+                .contains("正常执行必须"));
             assert!(host
                 .start_omp("project", "task", "attempt", &wanted)
                 .unwrap_err()
-                .contains("reserved"));
+                .contains("正常执行必须"));
             assert!(host.codex_active.is_empty() && host.omp_active.is_empty());
             assert_eq!(
                 host.projects["project"].state().tasks["task"].state,

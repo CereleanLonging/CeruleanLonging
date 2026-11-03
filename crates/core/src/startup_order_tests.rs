@@ -8,7 +8,8 @@ use cerulean_domain::management::{DecisionEnvelope, ManagementDecision, Purpose}
 fn startup_intent_survives_job_io_failure_and_blocks_duplicate_production_starts() {
     for managed in [false, true] {
         let dir = tempfile::tempdir().unwrap();
-        let (mut host, draft) = super::project_planning::tests::fixture(dir.path());
+        let (mut host, mut draft) = super::project_planning::tests::fixture(dir.path());
+        super::project_planning::tests::isolate_draft(dir.path(), &mut draft);
         host.configure_project(draft).unwrap();
         super::project_planning::tests::complete(
             &mut host,

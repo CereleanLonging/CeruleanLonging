@@ -24,7 +24,7 @@ try{
     window.fixture=fixture;window.commands=[];window.unexpected=[];window.pendingSnapshots=[];window.delaySnapshots=false;
     window.__TAURI_EVENT_PLUGIN_INTERNALS__={unregisterListener:()=>{}};
     window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:()=>1,invoke:async(name,args)=>{
-      if(name==='independent_verifier_status')return window.verifierStatus??{ready:true,version:'0.1.39',path:'D:\\fixture-program\\cerulean-verifier.exe',sha256:'a'.repeat(64),error:null};
+      if(name==='independent_verifier_status')return window.verifierStatus??{ready:true,version:'0.1.40',path:'D:\\fixture-program\\cerulean-verifier.exe',sha256:'a'.repeat(64),error:null};
       if(name==='plugin:event|listen')return 1;
       if(name==='plugin:event|unlisten'||name==='cancel_workbench_exit')return;
       if(name==='experiment_workbenches')return {currentLabel:'main',currentDirectory:'D:\\fixture-data',catalogRoot:'D:\\fixture-experiments',entries:[]};
@@ -123,13 +123,13 @@ try{
   cases.push('Leaving during a delayed read cancels the configuration intent; late results cannot switch a later draft');
   await page.getByRole('navigation').getByRole('button',{name:'项目设置'}).click();
   const verifier=page.getByRole('region',{name:'验收工具登记'});
-  await verifier.getByText('已绑定 · 0.1.39 · 程序摘要匹配',{exact:true}).waitFor();
+  await verifier.getByText('已绑定 · 0.1.40 · 程序摘要匹配',{exact:true}).waitFor();
   assert.equal(await page.getByLabel('默认独立验收工具',{exact:true}).isDisabled(),true);
   assert.equal(await page.getByLabel('程序完整路径',{exact:true}).isVisible(),false);
   assert.equal(await page.evaluate(()=>window.commands.length),2);
   await verifier.screenshot({path:join(dir,'bound-verifier.png')});
   cases.push('The independent tool has a fixed binding; project-specific checks are advanced settings and no model task is started');
-  await page.evaluate(()=>window.verifierStatus={ready:false,version:'0.1.39',path:'D:\\fixture-program\\cerulean-verifier.exe',sha256:null,error:'独立验收工具与工作台构建摘要不符；未启动'});
+  await page.evaluate(()=>window.verifierStatus={ready:false,version:'0.1.40',path:'D:\\fixture-program\\cerulean-verifier.exe',sha256:null,error:'独立验收工具与工作台构建摘要不符；未启动'});
   await page.getByRole('button',{name:'重新核对绑定',exact:true}).click();
   await page.getByText('独立验收工具未就绪，不能开始盲评。',{exact:true}).waitFor();
   assert.equal(await page.getByLabel('默认独立验收工具',{exact:true}).isDisabled(),true);
@@ -138,7 +138,7 @@ try{
   cases.push('A verifier integrity error remains unavailable with a locked binding and no model or fallback command');
   await page.evaluate(()=>window.verifierStatus=null);
   await page.getByRole('button',{name:'重新核对绑定',exact:true}).click();
-  await verifier.getByText('已绑定 · 0.1.39 · 程序摘要匹配',{exact:true}).waitFor();
+  await verifier.getByText('已绑定 · 0.1.40 · 程序摘要匹配',{exact:true}).waitFor();
   // Match the minimum native window size; this desktop app does not expose a 390px window.
   const windowConfig=JSON.parse(await readFile('apps/desktop/src-tauri/tauri.conf.json','utf8')).app.windows[0];
   await page.setViewportSize({width:windowConfig.minWidth,height:windowConfig.minHeight});
