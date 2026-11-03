@@ -4,7 +4,7 @@
 
 **Make every step of AI collaboration traceable.**
 
-[简体中文](#zh) · [English](#en) · [界面预览 / Screenshots](#screenshots) · [项目反馈 / Feedback](#feedback)
+[简体中文](#zh) · [English](#en) · [版本更新](#changelog-zh) / [Changelog](#changelog-en) · [界面预览 / Screenshots](#screenshots) · [项目反馈 / Feedback](#feedback)
 
 发布者 / Publisher：**lantu**  
 
@@ -104,6 +104,34 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 安装包与源码包见 [0.1.35 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
+<a id="changelog-zh"></a>
+
+### 版本更新记录
+
+按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.35 · 2026-11-03 · 公开预览
+
+- **角色与执行目录隔离：** 主指挥需求单独保存，副指挥只读核对；执行身份使用各自固定子目录，上限五个，支持模型替换与目录复用。新隔离任务的 CLI、桌面执行和客观检查使用绑定的普通 Windows 账户。
+- **项目级 API 盲评：** 审阅并批准脱敏分片材料后，主副指挥及各执行身份独立投票，收齐后统一揭晓，全票通过仍需用户确认。首版仅支持无工具 API 评审，保留客观检查和主指挥接受环节。
+- **调度修复：** 修正并行调度将旧方案的失败检查错误关联到新尝试的问题，保留历史记录及当前失败的阻断。
+- **备份兼容修复：** 补齐 0.1.35 的备份写入版本声明，确保新版能够识别本版生成的备份。
+- **接入调整：** 移除 WorkBuddy 新接入与执行支持，保留既有历史记录。
+
+升级前请备份；启用盲评后的数据要求 reader19，旧核心不能读取。新盲评机制的模型回包验证使用合成数据，尚无新增真实供应商质量结论。
+
+[版本说明](docs/releases/0.1.35.md) · [发布页与下载](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35)
+
+#### 0.1.34 · 2026-11-02 · 公开预览
+
+- **公开预览基线：** 完成当时约定范围的功能验收，开放 Windows x64 安装包与源码，项目自有代码采用 MIT 许可。
+- **协作与验证：** 提供需求规划、分角色执行、独立检查、原提交复验及交接记录。
+- **实验与维护：** 支持独立实验工作台、本地工作流导入，以及备份、恢复和升级维护。
+
+[发布页与下载](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.34)
+
+更早的 0.1.30、0.1.32、0.1.33 及 0.1.34 内部候选保留在[历史发布记录](https://github.com/CereleanLonging/CeruleanLonging/releases)中，属于开发阶段记录。
+
 ---
 
 <a id="en"></a>
@@ -196,6 +224,34 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 Try blind review in a separate experiment workbench and configure checking accounts before plan approval. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
 Download the installer and source package from the [0.1.35 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+
+<a id="changelog-en"></a>
+
+### Changelog
+
+Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.35 · 2026-11-03 · Public Preview
+
+- **Role and worker directory isolation:** Lead-planner requirements are stored separately for read-only coordinator review. Worker identities use up to five fixed directories, with model replacement and directory reuse. CLI, desktop execution, and objective checks for new isolated tasks use bound standard Windows accounts.
+- **Project-level API blind review:** After redacted, fragmented material is reviewed and approved, the lead, coordinator, and each worker identity vote independently. Results are revealed together, and unanimity still requires user confirmation. The first version supports tool-free API review, retaining objective checks and lead acceptance.
+- **Scheduling fix:** Fixed parallel scheduling incorrectly associating an old plan's failed check with a new attempt, while retaining historical records and blocking on current failures.
+- **Backup compatibility fix:** Added 0.1.35 to the supported backup-writer versions so the new core recognizes backups created by this version.
+- **Integration change:** Removed new WorkBuddy integrations and execution support while retaining existing historical records.
+
+Back up before upgrading. Enabling blind review requires reader19 data support; older cores cannot read that format. Validation of the new review mechanism uses synthetic model responses, with no new live-provider quality conclusion.
+
+[Release notes](docs/releases/0.1.35.md) · [Release and downloads](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35)
+
+#### 0.1.34 · 2026-11-02 · Public Preview
+
+- **Public-preview baseline:** Completed functional acceptance within the scope agreed at that time, with Windows x64 installer and source downloads and MIT licensing for original project code.
+- **Collaboration and verification:** Provided requirements planning, role-based execution, independent checks, rechecks of original submissions, and handoff records.
+- **Experiments and maintenance:** Supported separate experiment workbenches, local workflow imports, backup, recovery, and upgrade maintenance.
+
+[Release and downloads](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.34)
+
+Earlier internal candidates for 0.1.30, 0.1.32, 0.1.33, and 0.1.34 remain in the [release history](https://github.com/CereleanLonging/CeruleanLonging/releases) as development-stage records.
 
 ---
 
