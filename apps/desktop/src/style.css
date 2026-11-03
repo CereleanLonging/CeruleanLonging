@@ -825,3 +825,6 @@ form .primary {
 .blind-review-panel details { margin: 14px 0; }
 .blind-review-panel summary { cursor: pointer; color: #245c6d; }
 .blind-review-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; padding: 12px; background: #f4f6f8; }
+.markdown-import { margin: 16px 0; padding: 16px; border: 1px solid #dce5ec; border-radius: 10px; }
+.markdown-import input[type="file"] { display: block; width: 100%; margin-top: 8px; }
+.exit-workbench { color: #20384c; text-align: left; }

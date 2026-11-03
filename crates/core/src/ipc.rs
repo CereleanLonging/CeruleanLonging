@@ -851,6 +851,45 @@ pub struct Client {
 }
 
 impl Client {
+    /// Desktop close never starts a service. Absence must also agree with the
+    /// authoritative writer lock; busy/denied/invalid endpoints are not absence.
+    pub async fn stop_for_window(directory: &Path, id: String) -> Result<Option<u32>, String> {
+        let mut facts = ConnectionFailure::default();
+        let name = endpoint_details(directory, &mut facts).map_err(|e| facts.io(e))?;
+        facts.stage = "windowClosePipeOpen";
+        let pipe = match ClientOptions::new().open(&name) {
+            Ok(pipe) => pipe,
+            Err(e) if e.raw_os_error() == Some(2) => {
+                let path = directory.join("writer.lock");
+                match std::fs::symlink_metadata(&path) {
+                    Ok(_) => {
+                        let _lock = crate::backup::open(&path, false, true)
+                            .map_err(|e| format!("核心未连接，但数据仍被占用；未确认退出：{e}"))?;
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(e) => return Err(facts.io(e)),
+                }
+                return Ok(None);
+            }
+            Err(e) => return Err(facts.io(e)),
+        };
+        let client = Self::from_pipe(pipe, facts).await?;
+        let pid = client.server_pid;
+        let reply = client
+            .call_and_wait_stop(UserOperation::Shutdown {
+                id,
+                protocol_version: PROTOCOL_VERSION,
+            })
+            .await?;
+        if let Some(error) = reply.response.error {
+            return Err(error.message);
+        }
+        if !reply.stopping {
+            return Err("核心未确认停止；窗口保留，未重发退出请求".into());
+        }
+        Ok(Some(pid))
+    }
+
     /// Wait on the authenticated original process, without resending the operation.
     pub async fn call_and_wait_stop(
         self,

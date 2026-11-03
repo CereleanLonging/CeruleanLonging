@@ -1,4 +1,5 @@
 import { ErrorText } from "./ErrorText";
+import { MarkdownImport } from "./MarkdownImport";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceTasks } from "./WorkspaceTasks";
 import { WorkspaceExecution } from "./WorkspaceExecution";
@@ -145,6 +146,7 @@ export function WorkspaceBrowser(props: Props) {
     {props.showPlans ? <>
       <section className="panel"><h3>创建计划</h3><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
         <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>
+          <MarkdownImport mode="plan" contextKey={JSON.stringify([title,tasks])} disabled={!canWrite} onApply={(_text,plan)=>{if(plan){setTitle(plan.title);setTasks(plan.tasks.join("\n"));}}}/>
           <label htmlFor="workspace-title">计划名称</label><input id="workspace-title" required maxLength={200} value={title} disabled={blocked || !!pending} onChange={e => setTitle(e.target.value)}/>
           <label htmlFor="workspace-tasks">具体任务，每行一项</label><textarea id="workspace-tasks" required rows={5} value={tasks} disabled={blocked || !!pending} onChange={e => setTasks(e.target.value)}/>
           <button className="primary" disabled={!canWrite}>保存计划</button>

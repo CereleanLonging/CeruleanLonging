@@ -1,4 +1,5 @@
 import { ErrorText } from "./ErrorText";
+import { ExitWorkbench } from "./ExitWorkbench";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Command, Snapshot, HistoricalResult, CommandResult, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
@@ -209,6 +210,7 @@ export function App() {
             {data || workspace ? "本地核心已连接" : desktop ? "正在连接核心" : "浏览器预览"}
           </div>
           <small>工作台版本 · {packageInfo.version}</small>
+          <ExitWorkbench enabled={desktop}/>
         </div>
       </aside>
       <main>

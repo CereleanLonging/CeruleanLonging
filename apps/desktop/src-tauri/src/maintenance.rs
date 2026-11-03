@@ -230,15 +230,18 @@ mod tests {
     }
 }
 #[cfg(windows)]
-pub fn launch(session: Value) -> Result<Value, String> {
+pub fn launch(session: Value) -> Result<(Value, std::process::Child), String> {
     launch_mode(session, false)
 }
 #[cfg(windows)]
-pub fn launch_import_retention(session: Value) -> Result<Value, String> {
+pub fn launch_import_retention(session: Value) -> Result<(Value, std::process::Child), String> {
     launch_mode(session, true)
 }
 #[cfg(windows)]
-fn launch_mode(session: Value, import_retention: bool) -> Result<Value, String> {
+fn launch_mode(
+    session: Value,
+    import_retention: bool,
+) -> Result<(Value, std::process::Child), String> {
     use std::process::{Command, Stdio};
     let directory = std::path::PathBuf::from(
         session["directory"]
@@ -288,5 +291,5 @@ fn launch_mode(session: Value, import_retention: bool) -> Result<Value, String> 
     result["started"] = json!(true);
     result["pid"] = json!(child.id());
     result["importRetention"] = json!(import_retention);
-    Ok(result)
+    Ok((result, child))
 }

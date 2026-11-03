@@ -4,11 +4,12 @@ use std::{
     path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
 };
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 mod experiment_workbench;
 mod maintenance;
 mod portable_archive;
 mod webview_profile;
+mod workbench_exit;
 
 #[tauri::command]
 async fn scan_codex_installations(
@@ -16,6 +17,7 @@ async fn scan_codex_installations(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<cerulean_core::codex_discovery::ScanResult, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     state.workbenches.directory(window.label())?;
     tauri::async_runtime::spawn_blocking(move || {
         cerulean_core::codex_discovery::scan(hint.as_deref())
@@ -32,6 +34,7 @@ fn review_workflow_template(
 }
 
 struct State {
+    lifecycle: workbench_exit::Lifecycle,
     workbenches: experiment_workbench::Windows,
     experiment_root: PathBuf,
     workbench_launch: tokio::sync::Mutex<()>,
@@ -42,11 +45,41 @@ struct State {
     archive: portable_archive::Service,
 }
 #[tauri::command]
+async fn close_workbench(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, State>,
+) -> Result<(), String> {
+    let directory = state.workbenches.directory(window.label())?;
+    let gate = state.lifecycle.gate(window.label())?;
+    gate.stop(
+        &directory,
+        format!(
+            "window-exit-{}-{}",
+            std::process::id(),
+            state.sequence.fetch_add(1, Ordering::Relaxed)
+        ),
+    )
+    .await
+    .map_err(|e| format!("后台退出尚未完成，窗口已保留：{e}"))?;
+    window
+        .destroy()
+        .map_err(|e| format!("后台已停止，窗口关闭未完成，可再次确认退出：{e}"))
+}
+#[tauri::command]
+fn cancel_workbench_exit(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, State>,
+) -> Result<(), String> {
+    state.workbenches.directory(window.label())?;
+    state.lifecycle.gate(window.label())?.reopen()
+}
+#[tauri::command]
 async fn portable_evidence(
     request: portable_archive::Request,
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<serde_json::Value, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     state.workbenches.directory(window.label())?;
     state.archive.run(request).await
 }
@@ -56,6 +89,7 @@ async fn workspace_read(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<cerulean_domain::workspace::WorkspaceResult, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     #[cfg(windows)]
     {
@@ -89,6 +123,7 @@ async fn core_submit(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<cerulean_domain::command_result::CommandResult, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     #[cfg(windows)]
     {
@@ -152,6 +187,7 @@ async fn historical_request(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<cerulean_domain::historical_money::HistoricalResult, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     if !command.is_historical() {
         return Err("历史接口不接受其他工作台操作".into());
@@ -193,6 +229,7 @@ async fn count_resolution_request(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<cerulean_domain::count_resolution::CountResolutionResult, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     if !command.is_count_resolution() {
         return Err("计数核对接口不接受其他工作台操作".into());
@@ -229,10 +266,11 @@ async fn count_resolution_request(
     }
 }
 #[tauri::command]
-fn maintenance_info(
+async fn maintenance_info(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<serde_json::Value, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     Ok(maintenance::information(&directory, &state.executable))
 }
@@ -242,6 +280,7 @@ async fn open_maintenance_window(
     state: tauri::State<'_, State>,
     import_retention: Option<bool>,
 ) -> Result<serde_json::Value, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     let _guard = state
         .maintenance_launch
@@ -252,13 +291,16 @@ async fn open_maintenance_window(
         let data = directory.clone();
         let executable = state.executable.clone();
         let cache = state.maintenance_cache.clone();
+        let gate = state.lifecycle.gate(window.label())?;
         tokio::task::spawn_blocking(move || {
             maintenance::stage(&data, &executable, &cache).and_then(|session| {
-                if import_retention.unwrap_or(false) {
+                let (info, child) = if import_retention.unwrap_or(false) {
                     maintenance::launch_import_retention(session)
                 } else {
                     maintenance::launch(session)
-                }
+                }?;
+                gate.track_maintenance(child)?;
+                Ok(info)
             })
         })
         .await
@@ -274,6 +316,7 @@ async fn restart_data_diagnostics(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<Snapshot, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     #[cfg(windows)]
     {
@@ -290,6 +333,7 @@ async fn restart_reviewed_stops(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<Snapshot, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     #[cfg(windows)]
     {
@@ -307,6 +351,7 @@ async fn core_request(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<Snapshot, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let directory = state.workbenches.directory(window.label())?;
     #[cfg(windows)]
     {
@@ -353,6 +398,7 @@ async fn experiment_workbenches(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<serde_json::Value, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     let current = state.workbenches.directory(window.label())?;
     #[cfg(windows)]
     {
@@ -375,6 +421,7 @@ async fn create_experiment_workbench(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
 ) -> Result<serde_json::Value, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     state.workbenches.directory(window.label())?;
     let _guard = state
         .workbench_launch
@@ -403,6 +450,7 @@ async fn open_experiment_workbench(
     app: tauri::AppHandle,
     state: tauri::State<'_, State>,
 ) -> Result<serde_json::Value, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
     state.workbenches.directory(window.label())?;
     let _guard = state
         .workbench_launch
@@ -448,6 +496,7 @@ async fn open_experiment_workbench(
                 format!("CeruleanLonging · {id}")
             };
             let profile = app.state::<webview_profile::Profile>().directory.clone();
+            state.lifecycle.gate(&label)?.reopen()?;
             tauri::WebviewWindowBuilder::from_config(&app, &config)
                 .map_err(|e| e.to_string())?
                 .data_directory(profile)
@@ -513,6 +562,7 @@ fn main() {
                 },
             )?;
             app.manage(State {
+                lifecycle: workbench_exit::Lifecycle::default(),
                 workbenches,
                 experiment_root,
                 workbench_launch: tokio::sync::Mutex::new(()),
@@ -534,7 +584,17 @@ fn main() {
                 .build()?;
             Ok(())
         })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Intercept in native code, including close before React mounts.
+                // Only close_workbench destroys the window after verified stop.
+                api.prevent_close();
+                let _ = window.emit("workbench-close-requested", ());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
+            close_workbench,
+            cancel_workbench_exit,
             scan_codex_installations,
             review_workflow_template,
             portable_evidence,

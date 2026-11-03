@@ -1,4 +1,5 @@
 import { WorkerAccountControls } from "./WorkerAccountControls";
+import { MarkdownImport } from "./MarkdownImport";
 import { AssertionFields, cleanAssertions } from "./AssertionFields";
 import { ManagementSourceFields } from "./ManagementSourceFields";
 import { WorkflowTemplateImport } from "./WorkflowTemplateImport";
@@ -67,6 +68,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
             {saved?.setup.workerDirectories&&<ul>{Object.values(saved.setup.workerDirectories).map(d=>d&&<li key={d.identity}><code>{d.relativePath}</code></li>)}</ul>}
           </section>
           <label htmlFor="planning-requirement">项目需求</label><textarea id="planning-requirement" required rows={4} value={draft.requirement} onChange={e=>update("requirement",e.target.value)} placeholder="描述要解决的问题、预期行为和完成标准。" />
+          <MarkdownImport mode="requirement" contextKey={JSON.stringify([projectId,saved?.digest,draft.requirement])} disabled={busy||pending} onApply={text=>update("requirement",text)}/>
           <div className="planning-fields">
             <ManagementSourceFields draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}/>
           </div>

@@ -98,17 +98,25 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.36 为公开预览版**，新增本机 Codex 程序扫描与中文错误说明，保留 0.1.35 的角色目录隔离和项目级 API 盲评。0.1.34 的既有功能验收记录保留；隔离与盲评的检查采用本地合成模型回包和真实普通 Windows 账户，本次扫描不调用模型，没有新增真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.36.md)。本版本不作稳定版承诺。
+**0.1.37 为公开预览版**，新增确认退出时停止对应后台核心，以及仅支持 `.md` 的本地计划／需求导入。保留此前的角色接入分组、本机 Codex 扫描、中文错误说明、目录隔离和项目级 API 盲评。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.37.md)。本版本不作稳定版承诺。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.36 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.36)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.37 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.37)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.37 · 2026-11-03 · 公开预览
+
+- 关闭窗口先确认，再停止当前工作台后台核心并核实退出；停止失败或仍有未决任务时保留窗口，退出过程中的刷新不会重新拉起核心。
+- 创建计划和项目需求新增本地 `.md` 导入：预览后确认填入，保存、规划与批准仍单独操作；其他文档格式不支持。
+- 导入只读取 UTF-8 文本，不执行 Markdown／HTML 或加载外部链接；超限拒绝，不静默截断。
+
+[版本说明](docs/releases/0.1.37.md) · [发布页与下载](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.37)
 
 #### 0.1.36 · 2026-11-03 · 公开预览
 
@@ -229,17 +237,25 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.36 is a public preview** adding local Codex discovery and Chinese error explanations, while retaining 0.1.35 role-directory isolation and project-level API blind review. Existing 0.1.34 acceptance records are retained. Isolation and review checks use local synthetic model responses and real standard Windows accounts. Discovery makes no model calls; no new live-provider quality conclusion is claimed. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.36.md). This is not a stable-release commitment.
+**0.1.37 is a public preview** adding confirmed window exit with shutdown of its associated core, and local `.md` import for plans and requirements. Role-based integration groups, local Codex discovery, Chinese error explanations, directory isolation, and project-level API blind review remain available. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.37.md). This is not a stable-release commitment.
 
 Try blind review in a separate experiment workbench and configure checking accounts before plan approval. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.36 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.36). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.37 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.37). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.37 · 2026-11-03 · Public Preview
+
+- Window exit now requires confirmation, stops the associated core, and verifies its exit. Unresolved tasks or a failed stop keep the window open; refreshes cannot restart the core during shutdown.
+- Create Plan and project requirements accept local `.md` files with preview and explicit import confirmation. Saving, planning, and approval remain separate actions; other document formats are unsupported.
+- Import reads UTF-8 text without executing Markdown/HTML or loading external links. Oversized content is rejected rather than silently truncated.
+
+[Release notes](docs/releases/0.1.37.md) · [Release and downloads](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.37)
 
 #### 0.1.36 · 2026-11-03 · Public Preview
 

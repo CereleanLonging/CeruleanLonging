@@ -5,3 +5,8 @@ This is the only active source checkout for the post-0.1.34 workspace/verificati
 Read `../CeruleanLonging/AGENTS.md` for the existing collaboration and capacity rules, and `../CeruleanLonging/docs/HANDOFF-LATEST.md` for the latest task status. Those directories hold historical work and evidence. Do not edit `../CeruleanLonging-recheck-628` or `../CeruleanLonging-0134-713` as part of new development.
 
 The current request authorizes repairs and local tests. Do not use retired model credentials or create VMs. Role directories are runtime project directories, not separate copies of this Rust/TypeScript source. Chief requirements must be outside worker write scopes; deputy reads through the host's bounded, authenticated material path. Preserve historical approvals and unresolved attempts.
+
+
+# Local release retention (user instruction, 2026-11-03)
+
+Keep one original public 0.1.34 baseline at `D:\test\CeruleanLonging-0134-713\reports\p6-windows-package-0134-omp-713` and one current usable release. After a replacement is built, verified and published, remove superseded local packaged program copies and redundant bundled resources; preserve their original JSON manifests and cleanup receipts. Remove the new installer copies after GitHub upload/hash verification as already requested. Do not delete source checkouts, source ZIPs, test records, user data, or GitHub releases under this retention rule. Check process ownership and use normal service shutdown before deleting an in-use package; no force termination of user applications. This newer user instruction overrides older blanket retention of frozen program packages.
