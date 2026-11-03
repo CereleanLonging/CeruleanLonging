@@ -19,7 +19,7 @@ const files = [
 ];
 const hashes = async () => Object.fromEntries(await Promise.all(files.map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
 const before = await hashes(), entry = join(dir, 'entry.tsx');
-await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceBrowser} from '../../apps/desktop/src/WorkspaceBrowser';
+await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceRecordsHarness as WorkspaceBrowser} from '../../tests/fixtures/WorkspaceRecordsHarness';
 const root=createRoot(document.getElementById('root')!);window.epoch=0;
 window.render=()=>root.render(<React.StrictMode><div data-epoch={window.epoch}><WorkspaceBrowser key={window.epoch} enabled={true} busy={!!window.busy} showPlans={false} send={async c=>{window.sends.push(c);throw Error('unexpected mutation')}} onOverview={()=>{}} read={async q=>{
 window.reads.push(q);
@@ -75,7 +75,7 @@ try {
   const rendered = JSON.parse(await detailRegion().locator('pre').innerText()); assert.deepEqual(rendered, detail);
   assert.match(await region().innerText(), /请求结果待核对/); assert.match(await region().innerText(), /不会自动重发或释放原请求/);
   assert.equal(await region().getByRole('button', { name: /答复|批准|放弃|恢复/ }).count(), 0);
-  cases.push('production WorkspaceBrowser selects project decision collection; exact bounded read query, unknown state, full original text/evidence and all detail JSON fields read-only');
+  cases.push('test-only record navigation host selects project decision collection; exact bounded read query, unknown state, full original text/evidence and all detail JSON fields read-only');
 
   await nav().getByRole('button', { name: '下一页' }).click(); await region().getByRole('button', { name: '查看管理决策 operation-2 的原详情' }).waitFor();
   assert.deepEqual(await page.evaluate(() => window.reads.at(-1)), { type: 'managementDecisions', projectId: 'p', offset: 2, revision: 'management-v1' });
@@ -266,7 +266,7 @@ try {
   assert.equal(await page.evaluate(() => window.reads.some(q => !['overview', 'plans', 'projects', 'managementDecisions', 'managementDecision', 'managementGatewayEvidence'].includes(q.type))), false);
   assert.deepEqual(errors, []); assert.equal(networkRequests, 0); assert.deepEqual(await hashes(), before);
   const sourceFiles = await Promise.all(files.map(async path => ({ path, sha256: createHash('sha256').update(await readFile(path)).digest('hex') })));
-  const result = { status: 'passed', cases, sourceBefore: before, sourceAfter: await hashes(), sourceFiles, pageErrors: errors, networkRequests, modelCalls: 0, mutations: 0, schema: { pageQuery: { type: 'managementDecisions', projectId: 'p', offset: 0, revision: null }, detailQuery: { type: 'managementDecision', projectId: 'p', operationId: 'operation-0', revision: 'management-v1' }, pageReply: '{type,value:WorkspaceManagementDecisionPage}', detailReply: '{type,value:WorkspaceManagementDecisionDetail}', gatewayQuery: { type: 'managementGatewayEvidence', projectId: 'p', operationId: 'operation-0', revision: 'management-v1' }, gatewayReply: '{type,value:WorkspaceManagementGatewayEvidenceDetail}', fields: ['projectId','revision','offset','nextOffset','total','entries','record'] }, scope: 'Production WorkspaceBrowser and WorkspaceManagementDecisions with controlled offline reads; not installed Tauri' };
+  const result = { status: 'passed', cases, sourceBefore: before, sourceAfter: await hashes(), sourceFiles, pageErrors: errors, networkRequests, modelCalls: 0, mutations: 0, schema: { pageQuery: { type: 'managementDecisions', projectId: 'p', offset: 0, revision: null }, detailQuery: { type: 'managementDecision', projectId: 'p', operationId: 'operation-0', revision: 'management-v1' }, pageReply: '{type,value:WorkspaceManagementDecisionPage}', detailReply: '{type,value:WorkspaceManagementDecisionDetail}', gatewayQuery: { type: 'managementGatewayEvidence', projectId: 'p', operationId: 'operation-0', revision: 'management-v1' }, gatewayReply: '{type,value:WorkspaceManagementGatewayEvidenceDetail}', fields: ['projectId','revision','offset','nextOffset','total','entries','record'] }, scope: 'Test-only record navigation host and WorkspaceManagementDecisions with controlled offline reads; not installed Tauri' };
   await writeFile(join(dir, 'result.json'), JSON.stringify(result, null, 2));
   console.log(JSON.stringify({ status: 'passed', cases: cases.length, artifact: dir }));
 } catch (error) {

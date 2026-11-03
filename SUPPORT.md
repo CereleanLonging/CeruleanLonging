@@ -1,4 +1,8 @@
-# 0.1.42 接入与能力说明 / Integration and capability notes
+# 0.1.43 接入与能力说明 / Integration and capability notes
+
+简化工作总览，项目任务、作业、运行、配置及管理审阅等详细记录入口收回后台，保留项目清单和状态摘要；原记录与受限查询能力继续保留。正常的需求规划、方案审批、执行与验收流程不变，交接页及维护只读日志仍可使用。退出确认改用顶层模态窗口，修复“上一页／下一页”穿透遮罩的问题，并阻止底层鼠标与键盘操作；Esc 走原取消流程，停止后台期间不能绕过等待。
+
+Simplifies the overview by removing detailed task, job, run, configuration and management-review record links, retaining project summaries and status. Original records and bounded backend queries remain available. Planning, approval, execution and verification flows are unchanged, as are handoff history and maintenance logs. Exit confirmation now uses a top-layer modal dialog so pagination cannot appear above its backdrop or receive mouse or keyboard input. Escape follows the existing cancel flow and cannot bypass a pending backend stop.
 
 0.1.42 新增默认关闭的独立实验功能页，集中管理实验工作台和效率对照；并将全局 API 中断与管理复核记录移入“维护与升级”的独立只读日志窗口，使用所属工作台的现有核心连接，不增加模型调用或修改权限。
 

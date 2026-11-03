@@ -53,7 +53,7 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 | 功能区域 | 可以用来做什么 |
 | --- | --- |
-| 工作总览 | 查看项目清单，进入任务、作业、运行记录、管理决定和恢复记录。 |
+| 工作总览 | 查看项目清单、目录和状态摘要；详细项目记录保留在后台。 |
 | 需求与计划 | 整理目标，配置角色、产物和验收方式，审阅方案并启动已批准的工作。 |
 | 接入管理 | 管理模型服务和执行工具的配置，核对连接状态及可用能力。 |
 | 执行与监督 | 查看任务进展、检查结果和需要关注的状态，暂停后续调度并处理异常。 |
@@ -98,17 +98,23 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.42 为公开预览版**，新增默认关闭的独立实验功能页，并将 API 中断与管理复核记录集中到“维护与升级”的独立只读日志窗口。支持分类、分页和原记录详情，正常退出所属工作台时一并关闭。沿用方案授权、目录分工、独立验收与用户确认流程。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.42.md)。本版本不作稳定版承诺。
+**0.1.43 为公开预览版**，精简工作总览的详细记录入口，并修复退出确认弹窗下分页按钮穿透与键盘焦点问题。原记录与正常审批、执行、验收流程保留。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.43.md)。本版本不作稳定版承诺。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.42 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.42)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.43 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.43)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.43 · 2026-11-03 · 公开预览
+
+简化工作总览，项目任务、作业、运行、配置及管理审阅等详细记录入口收回后台，保留项目清单和状态摘要；原记录与受限查询能力继续保留。正常的需求规划、方案审批、执行与验收流程不变，交接页及维护只读日志仍可使用。退出确认改用顶层模态窗口，修复“上一页／下一页”穿透遮罩的问题，并阻止底层鼠标与键盘操作；Esc 走原取消流程，停止后台期间不能绕过等待。
+
+[版本说明](docs/releases/0.1.43.md)
 
 #### 0.1.42 · 2026-11-03 · 公开预览
 
@@ -236,7 +242,7 @@ The aim is to make AI collaboration reviewable and resumable. Whether you are im
 
 | Area | What it helps you do |
 | --- | --- |
-| Overview | Browse projects and inspect tasks, jobs, runs, management decisions, and recovery records. |
+| Overview | View project directories and status summaries; detailed project records remain in the backend. |
 | Requirements and plans | Define goals, roles, artifacts, and checks; review plans and start approved work. |
 | Integrations | Configure model services and execution tools, and inspect connection status and capabilities. |
 | Execution and supervision | Follow progress and check results, pause further scheduling, and resolve issues. |
@@ -281,17 +287,23 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.42 is a public preview** adding an opt-in experiment page and moving API interruption and management review records into a separate read-only log window under Maintenance & Upgrade. It provides category tabs, pagination and original-record details, and closes with its owning workbench. Plan authorization, directory ownership, independent verification and user confirmation remain in place. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.42.md). This is not a stable-release commitment.
+**0.1.43 is a public preview** simplifying overview record navigation and fixing pagination and focus escaping exit confirmation. Original records and normal approval, execution and verification flows remain available. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.43.md). This is not a stable-release commitment.
 
 Try blind review in a separate experiment workbench and prepare checking accounts before execution, either manually or through the optional authorization in plan review. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.42 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.42). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.43 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.43). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.43 · 2026-11-03 · Public Preview
+
+Simplifies the overview by removing detailed task, job, run, configuration and management-review record links, retaining project summaries and status. Original records and bounded backend queries remain available. Planning, approval, execution and verification flows are unchanged, as are handoff history and maintenance logs. Exit confirmation now uses a top-layer modal dialog so pagination cannot appear above its backdrop or receive mouse or keyboard input. Escape follows the existing cancel flow and cannot bypass a pending backend stop.
+
+[Release notes](docs/releases/0.1.43.md)
 
 #### 0.1.42 · 2026-11-03 · Public Preview
 

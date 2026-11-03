@@ -11,7 +11,7 @@ const entry = join(dir, 'entry.tsx');
 await writeFile(entry, `
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import {WorkspaceBrowser} from '../../apps/desktop/src/WorkspaceBrowser';
+import {WorkspaceRecordsHarness as WorkspaceBrowser} from '../../tests/fixtures/WorkspaceRecordsHarness';
 const root = createRoot(document.getElementById('root'));
 window.epoch = 0; window.tick = 0; window.allReads = []; window.actions = 0;
 window.render = () => {
@@ -117,7 +117,7 @@ try {
   cases.push('late initial page after close is isolated from reopened configuration instance');
   assert.equal(await page.evaluate(()=>window.actions),0);assert.equal(await page.evaluate(()=>window.allReads.some(q=>q.type==='snapshot')),false);
   assert.equal(networkRequests,0);assert.deepEqual(errors,[]);
-  await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,pageErrors:errors,networkRequests,modelCalls:0,userDesktopActions:0,scope:'Controlled production WorkspaceBrowser + WorkspaceConfigurations UI; not installed Tauri or installation integration',controlledReads:true},null,2));
+  await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,pageErrors:errors,networkRequests,modelCalls:0,userDesktopActions:0,scope:'Controlled test-only record navigation host + WorkspaceConfigurations UI; not installed Tauri or installation integration',controlledReads:true},null,2));
   console.log(JSON.stringify({status:'passed',cases:cases.length,artifact:dir}));
 } catch(e) {
   await page?.screenshot({path:join(dir,'failure.png'),fullPage:true}).catch(()=>{});

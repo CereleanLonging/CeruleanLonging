@@ -323,6 +323,9 @@ fn codex_host_requires_full_worker_approval_and_rejects_replacement_before_proce
     let executable = root.path().join("codex.exe");
     fs::write(&executable, b"not executable").unwrap();
     let (mut host, mut p) = codex_host_fixture(root.path(), &executable, "fixture-model");
+    // Live dispatch now requires a model-bound directory. Keep this fixture past
+    // that gate so it still exercises executable replacement before any launch.
+    p.execution[0].worker_directory = Some(WorkerDirectory::for_task(&p.execution[0]).unwrap());
     host.propose("project", "chief-v1", p.clone()).unwrap();
     assert!(host
         .start_codex(
@@ -337,6 +340,7 @@ fn codex_host_requires_full_worker_approval_and_rejects_replacement_before_proce
     let old = p.approval_digest().unwrap();
     p.workflow.version = 2;
     p.execution[0].worker.as_mut().unwrap().model = "other-model".into();
+    p.execution[0].worker_directory = Some(WorkerDirectory::for_task(&p.execution[0]).unwrap());
     assert_ne!(old, p.approval_digest().unwrap());
     host.propose("project", "chief-v2", p.clone()).unwrap();
     assert!(host

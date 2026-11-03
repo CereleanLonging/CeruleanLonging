@@ -856,6 +856,8 @@ form .primary {
 .independent-verifier > p { margin: 0; }
 .independent-verifier > button { justify-self: start; }
 .exit-workbench { color: #20384c; text-align: left; }
+.exit-workbench::backdrop { background: #11243370; backdrop-filter: blur(3px); }
+dialog.exit-workbench { margin: auto; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); }
 /* The log viewer has its own window and no project mutation controls. */
 .review-logs-window { max-width: 1200px; margin: 0 auto; padding: 28px; }
 .review-logs-window > header { padding: 0 0 18px; height: auto; }

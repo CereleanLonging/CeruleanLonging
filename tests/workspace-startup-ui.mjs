@@ -10,7 +10,7 @@ let browser, page, networkRequests = 0;
 const files = ['WorkspaceCodexStartups.tsx', 'WorkspaceBrowser.tsx', 'contracts.ts'].map(n => 'apps/desktop/src/' + n).concat('tests/workspace-startup-ui.mjs');
 const hashes = async () => Object.fromEntries(await Promise.all(files.map(async n => [n, createHash('sha256').update(await readFile(n)).digest('hex')])));
 const before = await hashes(), entry = join(dir, 'entry.tsx');
-await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceBrowser} from '../../apps/desktop/src/WorkspaceBrowser';
+await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceRecordsHarness as WorkspaceBrowser} from '../../tests/fixtures/WorkspaceRecordsHarness';
 const root=createRoot(document.getElementById('root')!);window.epoch=0;
 window.render=()=>root.render(<React.StrictMode><div data-epoch={window.epoch}><WorkspaceBrowser key={window.epoch} enabled={true} busy={!!window.busy} showPlans={false} send={async()=>{window.sends++;throw Error('unexpected mutation')}} onOverview={()=>{}} read={async q=>{
 window.reads.push(q);
@@ -95,7 +95,7 @@ try {
   await reset(); await page.getByRole('button', { name: '关闭项目启动记录' }).click(); const closed = await page.evaluate(() => window.reads.length); await page.clock.runFor(10000); assert.equal(await page.evaluate(() => window.reads.length), closed);
   assert.equal(await page.evaluate(() => window.sends), 0); assert.equal(await page.evaluate(() => window.reads.some(q => !['overview', 'plans', 'projects', 'codexStartups', 'codexStartup'].includes(q.type))), false);
   assert.deepEqual(errors, []); assert.equal(networkRequests, 0); assert.deepEqual(await hashes(), before);
-  await writeFile(join(dir, 'result.json'), JSON.stringify({ status: 'passed', cases, sourceBefore: before, sourceAfter: await hashes(), pageErrors: errors, networkRequests, modelCalls: 0, schema: { pageQuery: { type: 'codexStartups', projectId: 'p', offset: 0, revision: null }, detailQuery: { type: 'codexStartup', projectId: 'p', attemptId: 'attempt-0', revision: 'startup-v1' }, reply: '{type,value}' }, scope: 'Production WorkspaceBrowser and WorkspaceCodexStartups with offline controlled reads; not installed Tauri' }, null, 2));
+  await writeFile(join(dir, 'result.json'), JSON.stringify({ status: 'passed', cases, sourceBefore: before, sourceAfter: await hashes(), pageErrors: errors, networkRequests, modelCalls: 0, schema: { pageQuery: { type: 'codexStartups', projectId: 'p', offset: 0, revision: null }, detailQuery: { type: 'codexStartup', projectId: 'p', attemptId: 'attempt-0', revision: 'startup-v1' }, reply: '{type,value}' }, scope: 'Test-only record navigation host and WorkspaceCodexStartups with offline controlled reads; not installed Tauri' }, null, 2));
   console.log(JSON.stringify({ status: 'passed', cases: cases.length, artifact: dir }));
 } catch (e) {
   await writeFile(join(dir, 'result.json'), JSON.stringify({ status: 'failed', cases, error: String(e), pageErrors: errors, networkRequests }, null, 2));

@@ -19,7 +19,7 @@ const files = [
 const hashes = async () => Object.fromEntries(await Promise.all(files.map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
 const before = await hashes();
 const entry = join(dir, 'entry.tsx');
-await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceBrowser} from '../../apps/desktop/src/WorkspaceBrowser';import {WorkspaceProjectRuns} from '../../apps/desktop/src/WorkspaceProjectRuns';
+await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceRecordsHarness as WorkspaceBrowser} from '../../tests/fixtures/WorkspaceRecordsHarness';import {WorkspaceProjectRuns} from '../../apps/desktop/src/WorkspaceProjectRuns';
 const root=createRoot(document.getElementById('root'));window.epoch=0;
 window.read=async q=>{
 window.reads.push(q);if(q.type==='overview')return {type:q.type,value:{product:'local',protocolVersion:1,dataDirectory:'original',mode:'ready',legacyPlanCount:0,pendingLegacyPlanCount:0,projectCount:2,message:null}};
@@ -125,7 +125,7 @@ try {
 
   assert.equal(await page.evaluate(()=>window.sends.length),0); assert.equal(await page.evaluate(()=>window.reads.some(q=>!['overview','plans','projects','projectRuns','projectRun'].includes(q.type))),false); assert.deepEqual(errors,[]); assert.equal(networkRequests,0);
   const after=await hashes(); assert.deepEqual(after,before);
-  await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,sourceBefore:before,sourceAfter:after,pageErrors:errors,networkRequests,modelCalls:0,mutations:0,schema:{pageQuery:{type:'projectRuns',projectId:'p',offset:0,revision:null},detailQuery:{type:'projectRun',projectId:'p',runId:'run-0',revision:'runs-v1'},pageReply:'{type,value:WorkspaceProjectRunPage}',detailReply:'{type,value:WorkspaceProjectRunDetail}',pageLimit:20},scope:'Production WorkspaceBrowser and WorkspaceProjectRuns with controlled offline reads; not installed Tauri'} ,null,2));
+  await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,sourceBefore:before,sourceAfter:after,pageErrors:errors,networkRequests,modelCalls:0,mutations:0,schema:{pageQuery:{type:'projectRuns',projectId:'p',offset:0,revision:null},detailQuery:{type:'projectRun',projectId:'p',runId:'run-0',revision:'runs-v1'},pageReply:'{type,value:WorkspaceProjectRunPage}',detailReply:'{type,value:WorkspaceProjectRunDetail}',pageLimit:20},scope:'Test-only record navigation host and WorkspaceProjectRuns with controlled offline reads; not installed Tauri'} ,null,2));
   console.log(JSON.stringify({status:'passed',cases:cases.length,artifact:dir}));
 } catch(error) {
   await writeFile(join(dir,'result.json'),JSON.stringify({status:'failed',cases,error:String(error),pageErrors:errors,networkRequests},null,2)); throw error;

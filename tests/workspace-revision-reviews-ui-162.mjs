@@ -14,7 +14,7 @@ const files = ['apps/desktop/src/WorkspaceBrowser.tsx', 'apps/desktop/src/Worksp
 const hashes = async () => Object.fromEntries(await Promise.all(files.map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
 const before = await hashes();
 const entry = join(dir, 'entry.tsx');
-await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceBrowser} from '../../../apps/desktop/src/WorkspaceBrowser';import {WorkspaceRevisionReviews} from '../../../apps/desktop/src/WorkspaceRevisionReviews';
+await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceRecordsHarness as WorkspaceBrowser} from '../../../tests/fixtures/WorkspaceRecordsHarness';import {WorkspaceRevisionReviews} from '../../../apps/desktop/src/WorkspaceRevisionReviews';
 const root=createRoot(document.getElementById('root'));window.epoch=0;
 window.read=async q=>{
 window.reads.push(q);window.allReads.push(q);if(q.type==='overview')return {type:q.type,value:{product:'local',protocolVersion:1,dataDirectory:'original',mode:'ready',legacyPlanCount:0,pendingLegacyPlanCount:0,projectCount:2,message:null}};
@@ -119,7 +119,7 @@ try {
   assert.equal(await page.evaluate(()=>window.sends.length),0); assert.equal(mutations,0); assert.equal(networkRequests,0); assert.deepEqual(errors,[]);
   await writeFile(join(dir,'reads.json'),JSON.stringify(await page.evaluate(()=>window.allReads),null,2));
   const after=await hashes(); assert.deepEqual(after,before);
-  await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,sourceBefore:before,sourceAfter:after,pageErrors:errors,networkRequests,mutations,modelCalls:0,schema:{pageQuery:{type:'revisionReviews',projectId:'p',offset:0,revision:null},detailQuery:{type:'revisionReview',projectId:'p',revision:'review-v1'},pageReply:'{type,value:WorkspaceRevisionReviewPage}',detailReply:'{type,value:WorkspaceRevisionReviewDetail}',maxCandidates:1},scope:'Production WorkspaceBrowser and WorkspaceRevisionReviews with controlled offline reads; not installed Tauri'},null,2));
+  await writeFile(join(dir,'result.json'),JSON.stringify({status:'passed',cases,sourceBefore:before,sourceAfter:after,pageErrors:errors,networkRequests,mutations,modelCalls:0,schema:{pageQuery:{type:'revisionReviews',projectId:'p',offset:0,revision:null},detailQuery:{type:'revisionReview',projectId:'p',revision:'review-v1'},pageReply:'{type,value:WorkspaceRevisionReviewPage}',detailReply:'{type,value:WorkspaceRevisionReviewDetail}',maxCandidates:1},scope:'Test-only record navigation host and WorkspaceRevisionReviews with controlled offline reads; not installed Tauri'},null,2));
   console.log(JSON.stringify({status:'passed',cases:cases.length,artifact:dir}));
 } catch(error) {
   await writeFile(join(dir,'result.json'),JSON.stringify({status:'failed',cases,error:String(error),pageErrors:errors,networkRequests,mutations},null,2)); throw error;

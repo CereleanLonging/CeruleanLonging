@@ -10,7 +10,7 @@ let browser, page, networkRequests = 0;
 const files = ['WorkspaceVerificationResult.tsx', 'WorkspaceJobs.tsx', 'WorkspaceBrowser.tsx', 'contracts.ts'].map(n => 'apps/desktop/src/' + n).concat('tests/workspace-verification-ui.mjs');
 const hashes = async () => Object.fromEntries(await Promise.all(files.map(async n => [n, createHash('sha256').update(await readFile(n)).digest('hex')])));
 const before = await hashes(), entry = join(dir, 'entry.tsx');
-await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceBrowser} from '../../apps/desktop/src/WorkspaceBrowser';
+await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {WorkspaceRecordsHarness as WorkspaceBrowser} from '../../tests/fixtures/WorkspaceRecordsHarness';
 const root=createRoot(document.getElementById('root')!);window.epoch=0;window.tick=0;
 window.render=()=>{window.tick++;root.render(<React.StrictMode><div data-tick={window.tick}><WorkspaceBrowser key={window.epoch} enabled={true} busy={false} showPlans={false} send={async()=>{window.sends++;throw Error('unexpected mutation')}} onOverview={()=>{}} read={async q=>{
 window.reads.push(q);
@@ -105,7 +105,7 @@ try {
   cases.push('close, error, and leaving jobs stop active polling without retrying stale evidence');
   assert.equal(await page.evaluate(() => window.sends), 0); assert.equal(await page.evaluate(() => window.reads.some(q => q.type === 'snapshot')), false);
   assert.deepEqual(errors, []); assert.equal(networkRequests, 0); assert.deepEqual(await hashes(), before);
-  await writeFile(join(dir, 'result.json'), JSON.stringify({ status: 'passed', cases, sourceBefore: before, sourceAfter: await hashes(), pageErrors: errors, networkRequests, modelCalls: 0, scope: 'Production WorkspaceBrowser, WorkspaceJobs, WorkspaceVerificationResult with controlled workspace reads; not installed Tauri' }, null, 2));
+  await writeFile(join(dir, 'result.json'), JSON.stringify({ status: 'passed', cases, sourceBefore: before, sourceAfter: await hashes(), pageErrors: errors, networkRequests, modelCalls: 0, scope: 'Test-only record navigation host, WorkspaceJobs, WorkspaceVerificationResult with controlled workspace reads; not installed Tauri' }, null, 2));
   console.log(JSON.stringify({ status: 'passed', cases: cases.length, artifact: dir }));
 } catch (e) {
   await page?.screenshot({ path: join(dir, 'failure.png'), fullPage: true }).catch(() => {});

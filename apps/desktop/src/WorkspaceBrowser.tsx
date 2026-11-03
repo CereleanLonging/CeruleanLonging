@@ -2,20 +2,7 @@ import { ErrorText } from "./ErrorText";
 import { MarkdownImport } from "./MarkdownImport";
 import type { RefinementApi } from "./MarkdownRefinement";
 import { useEffect, useRef, useState } from "react";
-import { WorkspaceTasks } from "./WorkspaceTasks";
-import { WorkspaceExecution } from "./WorkspaceExecution";
-import { WorkspaceJobs } from "./WorkspaceJobs";
-import { WorkspaceVerificationRechecks } from "./WorkspaceVerificationRechecks";
-import { WorkspaceRecovery } from "./WorkspaceRecovery";
-import { WorkspaceConfigurations } from "./WorkspaceConfigurations";
-import { WorkspaceHistory } from "./WorkspaceHistory";
-import { WorkspaceCodexStartups } from "./WorkspaceCodexStartups";
-import { WorkspaceManagementDecisions } from "./WorkspaceManagementDecisions";
 import type { SavedProjectSetup, Command, Plan, PlanPage, ProjectPage, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
-import { WorkspaceProjectRuns } from "./WorkspaceProjectRuns";
-import { WorkspaceRevisionReviews } from "./WorkspaceRevisionReviews";
-import { WorkspaceUnsentAssignments } from "./WorkspaceUnsentAssignments";
-import { WorkspaceCodexCancellations } from "./WorkspaceCodexCancellations";
 export type WorkspaceReader = (query: WorkspaceQuery) => Promise<WorkspaceResult>;
 type Props = { refinementApi?: RefinementApi; refinementSetups?: SavedProjectSetup[]; configureChief?: (projectId?: string) => void; read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
 type Pending = { type: "create" } | { type: "approve"; id: string; digest: string };
@@ -33,19 +20,6 @@ export function WorkspaceBrowser(props: Props) {
   const chief=props.refinementSetups?.find(s=>s.setup.projectId===refinementProject)??(props.refinementSetups?.length===1?props.refinementSetups[0]:undefined);
   const [importedTasks, setImportedTasks] = useState<string[] | null>(null);
   const [message, setMessage] = useState(""), [projectError, setProjectError] = useState("");
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [projectRunsProject, setProjectRunsProject] = useState<string | null>(null);
-  const [revisionReviewsProject, setRevisionReviewsProject] = useState<string | null>(null);
-  const [unsentAssignmentsProject, setUnsentAssignmentsProject] = useState<string | null>(null);
-  const [codexCancellationsProject, setCodexCancellationsProject] = useState<string | null>(null);
-  const [jobProject, setJobProject] = useState<string | null>(null);
-  const [recheckProject, setRecheckProject] = useState<string | null>(null);
-  const [recoveryProject, setRecoveryProject] = useState<string | null>(null);
-  const [historyProject, setHistoryProject] = useState<string | null>(null);
-  const [startupProject, setStartupProject] = useState<string | null>(null);
-  const [managementProject, setManagementProject] = useState<string | null>(null);
-  const [showConfigurations, setShowConfigurations] = useState(false);
-  const [executionReview, setExecutionReview] = useState<{projectId:string;digest:string|null}|null>(null);
   const blocked = loading || props.busy || !props.enabled;
   const canWrite = !blocked && !stale && overview?.mode === "ready" && !pending;
 
@@ -137,8 +111,6 @@ export function WorkspaceBrowser(props: Props) {
     {!props.enabled && <p>请在桌面应用中读取本地记录。</p>}
     {overview?.message && <p role="alert"><ErrorText error={overview.message}/></p>}
     {message && <p role="status">{message}</p>}
-    <button className="secondary-button" disabled={!props.enabled || props.busy} onClick={() => setShowConfigurations(value => !value)}>{showConfigurations ? "关闭已保存项目配置" : "查看已保存项目配置"}</button>
-    {showConfigurations && <WorkspaceConfigurations read={props.read} enabled={props.enabled} busy={props.busy}/>}
     {props.showPlans ? <>
       <section className="panel"><h3>创建计划</h3><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
         <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: importedTasks ?? tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>
@@ -166,28 +138,8 @@ export function WorkspaceBrowser(props: Props) {
       {detail && <section className="panel" role="dialog" aria-label="完整计划审阅"><h3>{detail.title}</h3><ol>{detail.tasks.map((task, i) => <li key={i}>{task}</li>)}</ol><p>批准仅记录对当前内容的确认，不派发模型任务。</p><button className="secondary-button" disabled={blocked || !!pending} onClick={() => setDetail(null)}>关闭</button><button className="primary" disabled={!canWrite || detail.approved} onClick={() => void run(current => submit({ type: "approvePlan", id: detail.id, digest: detail.digest }, { type: "approve", id: detail.id, digest: detail.digest }, current))}>{detail.approved ? "已批准" : "确认批准"}</button></section>}
     </> : <>
       {projectError && <p role="alert"><ErrorText error={projectError}/></p>}
-      {!projects ? <p>项目清单尚未取得。</p> : projects.total === 0 ? <p>尚未登记项目。</p> : projects.entries.map(project => <article className="panel workspace-project-card" key={project.project.id}><h3>{project.project.id}</h3><p>{project.project.root}</p><p>{project.taskCount} 项任务；{project.resourceHoldingTasks} 项仍占用资源，其中 {project.unknownTasks} 项结果未知。</p><button className="secondary-button" disabled={blocked} onClick={() => setSelectedProject(project.project.id)}>查看项目 {project.project.id} 的任务</button><button className="secondary-button" disabled={blocked} onClick={() => setJobProject(project.project.id)}>查看项目 {project.project.id} 的作业</button><button className="secondary-button" disabled={blocked} onClick={() => setProjectRunsProject(project.project.id)}>查看项目 {project.project.id} 的运行记录</button><button className="secondary-button" disabled={blocked} onClick={() => setExecutionReview({projectId:project.project.id,digest:project.revisionDigest})}>审阅项目 {project.project.id} 的执行授权</button></article>)}
+      {!projects ? <p>项目清单尚未取得。</p> : projects.total === 0 ? <p>尚未登记项目。</p> : projects.entries.map(project => <article className="panel workspace-project-card" key={project.project.id}><h3>{project.project.id}</h3><p>{project.project.root}</p><p>{project.taskCount} 项任务；{project.resourceHoldingTasks} 项仍占用资源，其中 {project.unknownTasks} 项结果未知。</p></article>)}
       {projects && <nav className="workspace-pagination" aria-label="项目分页"><button className="secondary-button" disabled={blocked || !projectBack.length} onClick={() => projectPage(projectBack.at(-1)!, projectBack.slice(0, -1))}>上一页</button><span>当前显示 {projects.entries.length} / {projects.total}</span><button className="secondary-button" disabled={blocked || projects.nextOffset === null} onClick={() => projectPage(projects.nextOffset!, [...projectBack, projects.offset])}>下一页</button></nav>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setStartupProject(p.project.id)}>查看项目 {p.project.id} 的编程启动记录</button>)}
-      {startupProject && <><button className="secondary-button" onClick={() => setStartupProject(null)}>关闭项目启动记录</button><WorkspaceCodexStartups key={startupProject} projectId={startupProject} read={props.read} busy={blocked || !props.enabled}/></>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setManagementProject(p.project.id)}>查看项目 {p.project.id} 的管理决策</button>)}
-      {managementProject && <><button className="secondary-button" onClick={() => setManagementProject(null)}>关闭项目管理决策</button><WorkspaceManagementDecisions key={managementProject} projectId={managementProject} read={props.read} busy={blocked}/></>}
-      {selectedProject && <><button className="secondary-button" onClick={() => setSelectedProject(null)}>关闭项目任务</button><WorkspaceTasks projectId={selectedProject} read={props.read} busy={blocked}/></>}
-      {jobProject && <><button className="secondary-button" onClick={() => setJobProject(null)}>关闭项目作业</button><WorkspaceJobs projectId={jobProject} read={props.read} send={props.send} busy={blocked} onTaskEvidence={() => setSelectedProject(jobProject)}/></>}
-      {projectRunsProject && <><button className="secondary-button" onClick={() => setProjectRunsProject(null)}>关闭项目运行记录</button><WorkspaceProjectRuns key={projectRunsProject} projectId={projectRunsProject} read={props.read} busy={blocked}/></>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setRevisionReviewsProject(p.project.id)}>查看项目 {p.project.id} 的修订审阅</button>)}
-      {revisionReviewsProject && <><button className="secondary-button" onClick={() => setRevisionReviewsProject(null)}>关闭项目修订审阅</button><WorkspaceRevisionReviews key={revisionReviewsProject} projectId={revisionReviewsProject} read={props.read} busy={blocked}/></>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setUnsentAssignmentsProject(p.project.id)}>查看项目 {p.project.id} 的未发送分配审阅</button>)}
-      {unsentAssignmentsProject && <><button className="secondary-button" onClick={() => setUnsentAssignmentsProject(null)}>关闭项目未发送分配审阅</button><WorkspaceUnsentAssignments key={unsentAssignmentsProject} projectId={unsentAssignmentsProject} read={props.read} busy={blocked}/></>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setCodexCancellationsProject(p.project.id)}>查看项目 {p.project.id} 的 Codex 取消审阅</button>)}
-      {codexCancellationsProject && <><button className="secondary-button" onClick={() => setCodexCancellationsProject(null)}>关闭项目 Codex 取消审阅</button><WorkspaceCodexCancellations key={codexCancellationsProject} projectId={codexCancellationsProject} read={props.read} busy={blocked}/></>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setRecoveryProject(p.project.id)}>查看项目 {p.project.id} 的恢复记录</button>)}
-      {recoveryProject && <><button className="secondary-button" onClick={() => setRecoveryProject(null)}>关闭项目恢复记录</button><WorkspaceRecovery projectId={recoveryProject} read={props.read} busy={blocked}/></>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setHistoryProject(p.project.id)}>查看项目 {p.project.id} 的历史</button>)}
-      {historyProject && <><button className="secondary-button" onClick={() => setHistoryProject(null)}>关闭项目历史</button><WorkspaceHistory key={historyProject} projectId={historyProject} read={props.read} busy={blocked}/></>}
-      {executionReview && <WorkspaceExecution projectId={executionReview.projectId} expectedDigest={executionReview.digest} read={props.read} send={props.send} busy={blocked} close={() => setExecutionReview(null)}/>}
-      {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setRecheckProject(p.project.id)}>查看项目 {p.project.id} 的复验记录</button>)}
-      {recheckProject && <><button className="secondary-button" onClick={() => setRecheckProject(null)}>关闭项目复验记录</button><WorkspaceVerificationRechecks key={recheckProject} projectId={recheckProject} read={props.read} send={props.send} busy={blocked}/></>}
     </>}
   </section>;
 }

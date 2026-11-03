@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ErrorText } from "./ErrorText";
@@ -12,6 +13,19 @@ const nativeApi: ExitApi = {
 export function ExitWorkbench({ enabled, api = nativeApi }: { enabled: boolean; api?: ExitApi }) {
   const [open, setOpen] = useState(false), [waiting, setWaiting] = useState(false), [error, setError] = useState("");
   const locked = useRef(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!open || !enabled || !dialog.current) return;
+    const modal = dialog.current;
+    const previousFocus = document.activeElement;
+    // showModal promotes the dialog above every page stacking context and makes
+    // the rest of the document inert, including keyboard/programmatic focus.
+    modal.showModal();
+    return () => {
+      modal.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [open, enabled]);
   useEffect(() => {
     if (!enabled) return;
     let disposed = false, unlisten: (() => void) | undefined;
@@ -30,7 +44,7 @@ export function ExitWorkbench({ enabled, api = nativeApi }: { enabled: boolean; 
   return <>
     <button type="button" className="secondary-button workbench-exit-trigger" onClick={() => setOpen(true)}>退出工作台</button>
     {!open && error && <p role="alert"><ErrorText error={error}/></p>}
-    {open && <div className="modal-backdrop"><section className="modal panel exit-workbench" role="dialog" aria-modal="true" aria-labelledby="workbench-exit-title">
+    {open && createPortal(<dialog ref={dialog} className="modal panel exit-workbench" aria-modal="true" aria-labelledby="workbench-exit-title" onCancel={e => { e.preventDefault(); void act(false); }}>
       <h2 id="workbench-exit-title">确认退出工作台？</h2>
       <p>确认后将先停止当前工作台的后台核心，核实退出后再关闭本窗口。未保存的编辑会丢失；已保存的项目、记录和凭证保留。</p>
       <p className="secondary">若有运行中或结果未确认的任务，退出会被阻止，请先在原任务处处理。独立维护窗口请先正常关闭。其他实验工作台和外部模型应用保持各自的运行状态。</p>
@@ -38,6 +52,6 @@ export function ExitWorkbench({ enabled, api = nativeApi }: { enabled: boolean; 
       {error && <p role="alert"><ErrorText error={error}/></p>}
       <div className="integration-actions"><button type="button" autoFocus className="secondary-button" disabled={waiting} onClick={() => void act(false)}>返回工作台</button>
         <button type="button" className="primary" disabled={waiting} onClick={() => void act(true)}>确认退出并停止后台</button></div>
-    </section></div>}
+    </dialog>, document.body)}
   </>;
 }
