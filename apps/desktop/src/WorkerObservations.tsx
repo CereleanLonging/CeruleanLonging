@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceObservationDetail, WorkspaceObservationEventPage, WorkspaceObservationIncidentPage, WorkspaceQuery, WorkspaceResult } from "./contracts";
 
@@ -69,7 +70,7 @@ export function WorkerObservations(props: Props) {
       <p>仅覆盖命令执行和文件变更的完成事件，不代表全部执行活动。没有记录不能据此判定卡循环。</p>
       <p>遗漏 {detail.dropped} 项 · 拒绝 {detail.rejected} 项异常或错轮次事件 · 去重 {detail.duplicates} 项</p>
       {(detail.dropped > 0 || detail.rejected > 0) && <p role="status">观察证据不完整，不可据此自动纠偏。</p>}
-      {detail.storageError && <p role="alert">{detail.storageError}</p>}
+      {detail.storageError && <p role="alert"><ErrorText error={detail.storageError}/></p>}
       {detail.supervision ? <section aria-label="监督异常"><h4>监督异常</h4><p>连续失败阈值 {detail.supervision.repeatedFailureThreshold} 次 · 每次尝试建议上限 {detail.supervision.maxAdvicePerAttempt} 条</p>
         <p>以下仅记录观察到的连续命令失败，不代表已证明卡循环；建议请求及正文请在主副指挥请求记录中查看。</p>
         <button disabled={blocked || stale} onClick={() => readIncidents(0, [])}>读取监督异常首页</button>

@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import { managementKeyMissing } from "./ManagementProviders";
 import type { Command, ExecutionSnapshot, Snapshot } from "./contracts";
@@ -190,7 +191,7 @@ export function ProjectRuns({
               任何未知请求、验收失败或指挥要求补充信息都会停下，不会自动重发。
             </p>
             {reviewedWorkflow?.revision?.execution.some(e=>!!e.desktopWorker)&&<p>桌面任务分配后会等待你审阅并确认发送。上一任务独立验收并收口后，后续任务会重新核对聊天历史，每条都需要你确认发送。</p>}
-            {reviewBlock && <p role="alert">{reviewBlock}</p>}
+            {reviewBlock && <p role="alert"><ErrorText error={reviewBlock}/></p>}
             {!reviewCurrent && (
               <p role="alert">项目方案或配置已变化，请返回重新审阅。</p>
             )}

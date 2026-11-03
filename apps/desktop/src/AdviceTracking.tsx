@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, ManagementView, Snapshot } from "./contracts";
 
@@ -58,7 +59,7 @@ export function AdviceTracking({ decision, data, send, query, busy, refresh }: {
       <p>可以结束这条未知建议的跟踪。原执行结果仍须独立对账，项目需明确恢复后才继续。</p>
       <button type="button" className="secondary-button" disabled={busy || pending} onClick={() => void begin()}>结束建议跟踪…</button>
     </> : null}
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}
     {review && <dialog ref={dialog} className="panel modal management-dialog" aria-labelledby="advice-close-title" onCancel={e => { e.preventDefault(); if (!pending) setReview(null); }}>
       <h2 id="advice-close-title">确认结束建议跟踪</h2>
       <dl className="management-identifiers"><dt>项目</dt><dd>{data?.workflows.find(w => w.project.id === review.projectId)?.project.root ?? review.projectId}</dd><dt>请求</dt><dd><code>{review.operationId}</code></dd></dl>
@@ -70,7 +71,7 @@ export function AdviceTracking({ decision, data, send, query, busy, refresh }: {
         <textarea id="advice-close-reason" autoFocus required rows={4} value={reason} disabled={pending} onChange={e => setReason(e.target.value)} />
         <p className="secondary">{new TextEncoder().encode(reason).length} / 8000 字节</p>
         {!current && <p role="alert">项目状态已变化，请返回并重新审阅。</p>}
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert"><ErrorText error={error}/></p>}
         <div className="modal-actions"><button type="button" className="secondary-button" disabled={pending} onClick={() => setReview(null)}>返回</button><button type="submit" className="primary" disabled={pending || busy || !current || !reason.trim() || reason.includes("\0") || new TextEncoder().encode(reason).length > 8000}>确认结束建议跟踪</button></div>
       </form>
     </dialog>}

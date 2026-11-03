@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import {useEffect,useState} from "react";
 import {invoke} from "@tauri-apps/api/core";
 import {PortableEvidence} from "./PortableEvidence";
@@ -22,7 +23,7 @@ export function Maintenance({desktop}:{desktop:boolean}){
     <ol><li>打开维护窗口，审阅核心状态及原、新安装包。</li><li>确认锁定核心并准备备份；执行程序替换前关闭所有工作台窗口。</li><li>核对更新结果后明确提交；遇到中断先读取原事务，按证据恢复。</li></ol>
     <button className="primary" disabled={!desktop||busy||!info} onClick={()=>void open()}>{busy?"正在准备维护副本…":"打开独立维护窗口"}</button>
     {!desktop&&<p>浏览器预览不启动本地维护操作。</p>}
-    {error&&<p role="alert">{error}</p>}
+    {error&&<p role="alert"><ErrorText error={error}/></p>}
     {session&&<div role="status"><p>已启动维护窗口进程 {session.pid}。请在该窗口继续；本次打开不会停止核心或执行升级。</p><details><summary>本次维护副本与恢复信息</summary><p style={{overflowWrap:"anywhere"}}>{session.directory}</p><p style={{overflowWrap:"anywhere"}}>会话摘要：{session.sessionDigest}</p><p>操作记录保存在副本的 operations 目录。保留原事务目录和计划摘要，以便中断后核对。</p></details></div>}
     <PortableEvidence desktop={desktop}/>
   </section>;

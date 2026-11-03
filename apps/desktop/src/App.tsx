@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Command, Snapshot, HistoricalResult, CommandResult, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
@@ -241,7 +242,7 @@ export function App() {
           )}
           {error && (
             <div role="alert" className="banner error">
-              {error}
+              <ErrorText error={error}/>
               <button
                 disabled={busy}
                 onClick={() => void send({ type: "snapshot" })}

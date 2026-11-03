@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { supervisionDeliverySummary } from "./SupervisionFields";
 import { useEffect, useRef, useState } from "react";
 import type { Command, ManagementSummary, ManagementView, Snapshot } from "./contracts";
@@ -199,7 +200,7 @@ export function ManagementReview({ data, send, query, busy, focusOperation }: {
       <button type="button" className="secondary-button" disabled={pending || !data} onClick={() => void readPage(history?.projectId ?? null, 0, null)}>刷新记录（回首页）</button>
     </div>
     {history && !pageFresh && <p role="status" className="management-stale">历史记录或项目状态已更新。当前页保留原来的内容，请刷新后继续翻页或处理请求。</p>}
-    {error && <p role="alert" className="management-feedback">{error}</p>}
+    {error && <p role="alert" className="management-feedback"><ErrorText error={error}/></p>}
     {notice && <p role="status" className="management-feedback">{notice}</p>}
     {reading && <p role="status" className="secondary">正在读取记录…</p>}
     {detail && <article ref={detailPanel} className="panel management-detail" aria-label="请求完整记录" data-management-detail={detail.value.operationId}>
@@ -252,7 +253,7 @@ export function ManagementReview({ data, send, query, busy, focusOperation }: {
         <p className="secondary" id="management-input-limit">{inputBytes} / {maxInputBytes} 字节（UTF-8）</p>
         {inputBytes > maxInputBytes && <p role="alert">内容过长，请缩短后再提交。</p>}{hasNul && <p role="alert">内容包含不可保存的 NUL 字符，请删除后再提交。</p>}
         {!current && <p role="alert">这条请求或项目状态已变化，当前确认已失效。请返回并刷新列表后重新审阅。</p>}
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert"><ErrorText error={error}/></p>}
         <div className="modal-actions"><button type="button" className="secondary-button" disabled={pending} onClick={() => setReview(null)}>返回</button><button type="submit" className="primary" disabled={pending || !current || !text || hasNul || inputBytes > maxInputBytes}>{submitting ? "正在保存…" : review.action === "close" ? "确认关闭未提交应用" : review.action === "discard" ? "确认放弃本地请求" : "确认保存答复"}</button></div>
       </form>
     </dialog>}

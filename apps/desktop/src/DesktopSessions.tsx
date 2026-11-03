@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import {useState} from 'react';
 import type {Command,Snapshot} from './contracts';
 export function DesktopSessions({data,busy,send}:{data:Snapshot|null;busy:boolean;send:(command:Command)=>Promise<boolean>}) {
@@ -14,7 +15,7 @@ export function DesktopSessions({data,busy,send}:{data:Snapshot|null;busy:boolea
     <p className="secondary">选择已打开的聊天，读取后关联工作台项目。Qoder 0.4.3.0 可另行确认固定文本验证。批准方案并启动后，副指挥分配的编程任务会在“需求与计划”等待你审阅发送；后续任务会先核对上一条任务及回复，历史或聊天身份变化时停止。</p>
     <button className="secondary-button" disabled={!access||disabled} onClick={()=>void send({type:'discoverDesktop'})}>发现已打开窗口</button>
     {access?.checking&&<p role="status">正在核对桌面会话或验证消息，请保持目标聊天不变…</p>}
-    {access?.error&&<p role="alert">{access.error}</p>}
+    {access?.error&&<p role="alert"><ErrorText error={access.error}/></p>}
     {access?.windows.filter(window=>window.app==='qoder').map(window=><article className="panel" key={`${window.hwnd}:${window.startTicks}`}>
       <h3>Qoder · {window.title||'无标题窗口'}</h3>
       <p className="secondary">版本 {window.version} · 进程 {window.pid}</p>

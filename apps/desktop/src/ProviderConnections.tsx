@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useRef, useState } from "react";
 import type { Command, CredentialProvider, ProviderConnection, ProviderEndpoint, Snapshot } from "./contracts";
 
@@ -49,7 +50,7 @@ function ProviderCard({entry,status,send,busy,connected}:{entry:Entry;status:Pro
     </div>
     {status?.endpoint&&<p className="secondary" style={{overflowWrap:"anywhere"}}>本次检查端点：{status.endpoint}</p>}
     {status?.checkedAt&&<p className="secondary">检查时间：{new Date(status.checkedAt).toLocaleString("zh-CN",{hour12:false})}；重启后需重新检查。</p>}
-    {status?.error&&<p role="alert">{status.error}</p>}
+    {status?.error&&<p role="alert"><ErrorText error={status.error}/></p>}
     {status?.state==="listed"&&<details><summary>已读取 {status.models.length} 个模型{status.listLimited?"（部分列表）":""}</summary>
       <p className="secondary">{status.listLimited?"达到当前页或展示上限，未返回的模型不能据此判定不可用。":"模型名称来自本次返回，执行能力仍需逐项验证。"}</p>
       {status.models.length?<ul>{status.models.map(id=><li key={id}>{id}</li>)}</ul>:<p>目录返回空列表，请核对账户及地域。</p>}

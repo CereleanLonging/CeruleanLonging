@@ -1347,17 +1347,7 @@ impl RuntimeHost {
     }
     fn check_codex(&mut self, executable: String) -> Result<(), String> {
         require(self.codex_probe.is_none(), "Codex 连接检查正在进行")?;
-        require(
-            executable.len() <= 4096 && Path::new(&executable).is_absolute(),
-            "请输入 Codex 程序绝对路径",
-        )?;
-        ordinary(Path::new(&executable), false)?;
-        require(
-            Path::new(&executable)
-                .file_name()
-                .is_some_and(|name| name.eq_ignore_ascii_case("codex.exe")),
-            "请选择 codex.exe 程序",
-        )?;
+        crate::codex_discovery::validate_executable(Path::new(&executable))?;
         let workspace = self.root.join("codex-connection-check");
         if !workspace.exists() {
             fs::create_dir(&workspace).map_err(|e| e.to_string())?;

@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -45,7 +46,7 @@ export function ExperimentWorkbenches({ desktop, client = api }: { desktop: bool
       <p style={{ overflowWrap: "anywhere" }}>当前：{catalog?.currentDirectory ?? "未读取"}</p>
       <p>新建时会保存空目录冷备份并启用实验数据保护。凭证需在新窗口的接入管理中单独配置；创建和打开均不派发模型任务。</p>
       <p style={{ overflowWrap: "anywhere" }}>保存位置：{catalog?.catalogRoot ?? "未读取"}。固定实验材料的 dataRoot 应与所选工作台数据目录一致。</p>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert"><ErrorText error={error}/></p>}
       {notice && <p role="status">{notice}</p>}
       <label>实验工作台编号<input aria-label="实验工作台编号" value={id} disabled={busy} maxLength={48} onChange={e => setId(e.target.value)} placeholder="exp-example" /></label>
       <p>以 exp- 开头，仅用小写字母、数字和连字符，5 至 48 位。已有或未完成的编号不能重复创建。</p>

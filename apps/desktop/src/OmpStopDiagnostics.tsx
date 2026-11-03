@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, OmpStopIssue, Snapshot } from "./contracts";
 import "./CodexJobs.css";
@@ -39,7 +40,7 @@ export function OmpStopDiagnostics({data,send,busy,restart}:{data:Snapshot|null;
       <p>原停止记录未写完整，无法还原当时的停止原因或送达情况。将保留原文并另存本次复核说明，保持项目暂停。这不代表执行器已取消或任务已完成。</p>
       <label htmlFor="stop-review-reason">本次复核说明</label><textarea id="stop-review-reason" value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked} rows={3}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)} disabled={blocked}/>我已核对目标，并理解任务结果仍未确认</label>
-      {!valid&&<p role="alert">记录已变化，请返回重新读取。</p>}{message&&<p role="alert">{message}</p>}
+      {!valid&&<p role="alert">记录已变化，请返回重新读取。</p>}{message&&<p role="alert"><ErrorText error={message}/></p>}
       <div className="modal-actions"><button className="secondary-button" disabled={blocked} onClick={()=>setReview(null)}>返回检查</button><button className="primary" disabled={blocked||!valid||!validReason||!ack} onClick={()=>void confirm()}>保存复核记录</button></div>
     </>}</dialog>
   </section>;

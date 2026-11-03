@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import type { ApiTarget, BlindReviewAction, Command, ReviewPhase, Snapshot } from "./contracts";
 
@@ -48,7 +49,7 @@ export function BlindReviewPanel({ data, busy, send }: {
     <label>允许的模型版本别名（可选）<textarea value={aliases} onChange={e=>setAliases(e.target.value)} placeholder="仅填写供应商文档确认的版本名，例如：chief => 准确版本名；留空时要求返回模型名与配置完全一致" /></label>
     <button disabled={busy || !projectId.trim()} onClick={() => void prepare()}>准备材料与完整名册</button>
     <p>准备仅在本机进行。首次使用会保护新验收数据，旧版核心将拒绝打开此数据目录，并禁止旧宿主权限执行及外部主指挥聊天。建议使用独立实验工作台，先保留已有备份。</p>
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}
     {[...latest.values()].map(r => <article key={r.roundId}>
       <h3>{r.projectId} · {r.phase === "accepted" && !r.finalAccepted ? "历史轮次已确认，当前交付未核实" : labels[r.phase]}</h3>
       <p>{r.fileCount} 个文件，{r.fragmentCount} 个片段，材料 {r.materialBytes} 字节。每席一票，需要 {r.seats.length}/{r.seats.length} 通过。</p>

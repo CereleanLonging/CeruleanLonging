@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, DiagnosticFile } from "./contracts";
 import "./CodexJobs.css";
@@ -18,7 +19,7 @@ export function ApiPublicationReview({file,busy,send}:{file:DiagnosticFile;busy:
       <p>{stopped?"将保留原文和原启动身份，另存复核说明。不会重新发送停止或模型请求，也不代表供应商已取消、执行成功或免计费。":workspace?"将保留原准备记录、启动身份和已有文件，另存复核说明。不会重建工作目录、补写就绪证明或启动模型。":"将保留原文并永久保留该启动编号，另存复核说明。无法确认的项目或尝试身份不会被猜测补全；不会启动模型或重发请求。"}重新启动后仍须通过全部关联校验，执行结果需另行核对。</p>
       <label htmlFor="api-publication-reason">复核说明</label><textarea id="api-publication-reason" rows={3} value={reason} disabled={blocked} onChange={e=>setReason(e.target.value)}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} disabled={blocked} onChange={e=>setAck(e.target.checked)}/>我已核对原记录，理解复核不会完成任务或确认供应商取消</label>
-      {!valid&&<p role="alert">记录已变化，请返回刷新诊断。</p>}{message&&<p role="alert">{message}</p>}
+      {!valid&&<p role="alert">记录已变化，请返回刷新诊断。</p>}{message&&<p role="alert"><ErrorText error={message}/></p>}
       <div className="modal-actions"><button className="secondary-button" disabled={blocked} onClick={()=>setReview(null)}>返回检查</button><button className="primary" disabled={blocked||!valid||!validReason||!ack} onClick={()=>void confirm()}>保存 API 复核</button></div>
     </>}</dialog>
   </>;

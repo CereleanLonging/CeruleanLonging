@@ -750,6 +750,12 @@ form .primary {
 .validator-catalog { margin-top: 24px; }
 .codex-connection { margin-bottom: 24px; }
 .codex-connection p { overflow-wrap: anywhere; }
+.codex-scan-results { margin-top: 16px; }
+.codex-scan-candidate { border-top: 1px solid var(--border); padding: 12px 0; }
+.codex-scan-candidate code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; margin-bottom: 10px; }
+.error-message { overflow-wrap: anywhere; }
+.error-detail-toggle { font-size: 0.85em; padding: 3px 8px; }
+.error-detail { display: block; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 8px; font-size: 0.85em; }
 .validator-entry { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
 .validator-entry dd, .validator-entry code, .validator-entry p { overflow-wrap: anywhere; }
 .validator-entry dd { margin: 4px 0 12px; }

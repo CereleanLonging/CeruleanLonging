@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, OmpJob, OmpJobState, Snapshot, UnsentAssignmentReview } from "./contracts";
 import "./CodexJobs.css";
@@ -54,7 +55,7 @@ export function OmpJobs({data,send,busy,openManagement}:{data:Snapshot|null;send
       <p>{review.kind==="cancel"?"将暂停后续调度并请求停止当前执行；已有修改保留，停止结果需由执行器确认。":review.kind==="startup"?"关闭已证明尚未分配的启动，保留原始记录，不代表任务完成。":"本次分配尚无派发记录。放弃后任务回到待分配，不自动恢复调度。"}</p>
       <label htmlFor="omp-control-reason">原因</label><textarea id="omp-control-reason" value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked} rows={3}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)} disabled={blocked}/>我已核对目标和处置影响</label>
-      {!current&&<p role="alert">记录已变化，请返回刷新后重新审阅。</p>}{message&&<p role="alert">{message}</p>}
+      {!current&&<p role="alert">记录已变化，请返回刷新后重新审阅。</p>}{message&&<p role="alert"><ErrorText error={message}/></p>}
       <div className="modal-actions"><button className="secondary-button" disabled={blocked} onClick={()=>setReview(null)}>返回检查</button><button className="primary" disabled={blocked||!current||!valid||!ack} onClick={confirm}>确认处置</button></div>
     </>}</dialog>
   </section>;

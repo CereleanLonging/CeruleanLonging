@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, CurrencyHistoryGap, CurrencyHistoryReason, HistoricalAccounting, HistoricalAccountingPage, HistoricalAccountingSummary, HistoricalSourcePage, ProjectCurrencyBudget, HistoricalResult } from "./contracts";
 import { HistoricalChargeForm, sameHistoricalScope, type HistoricalQuery } from "./HistoricalChargeForm";
@@ -82,7 +83,7 @@ export function HistoricalPages({ sources, accounting, accounts, query, busy }: 
       <p>原记录保留 {source.page?.total ?? "待核对"} 条，待核算 {source.page?.pendingTotal ?? "待核对"} 条。这些条目不是收费请求数量，也不代表免费。</p>
       {!source.page && <p role="status">历史来源清单暂不可用，请保留原数据并核对核心状态。</p>}
       {source.changed && <p role="status">历史来源已变化，已显示当前首页。</p>}
-      {source.error && <p role="alert">{source.error}</p>}
+      {source.error && <p role="alert"><ErrorText error={source.error}/></p>}
       <ol start={(source.page?.offset ?? 0) + 1}>{source.page?.entries.map(({ gap, accounted }) => <li key={`${gap.projectId}:${gap.sourceId}:${gap.reference}`}>
         <p>{gap.projectId === null ? "未归属项目" : `项目 ${gap.projectId}`} · {gap.sourceId}：{reasons[gap.reason]}</p>
         <p>{accounted === true ? "已核算，原来源保留" : accounted === false ? "费用待核对" : "核算状态暂不可用"}</p>
@@ -94,7 +95,7 @@ export function HistoricalPages({ sources, accounting, accounts, query, busy }: 
     <section className="panel currency-history" aria-label="历史核算清单"><h2>已确认历史金额</h2>
       {!amounts.page && <p role="status">历史核算清单暂不可用，请保留原数据并核对核心状态。</p>}
       {amounts.changed && <p role="status">历史核算记录已变化，已显示当前首页。</p>}
-      {amounts.error && <p role="alert">{amounts.error}</p>}{error && <p role="alert">{error}</p>}
+      {amounts.error && <p role="alert"><ErrorText error={amounts.error}/></p>}{error && <p role="alert"><ErrorText error={error}/></p>}
       {amounts.page?.entries.map(r => <article key={r.userEventDigest}>
         <h3>项目 {r.projectId} · ${decimalAmount(r.amountUsdNanos, 9)}</h3>
         <p>{r.state === "accounted" ? "已核算" : "用户已确认，金额发布待核对"}；原结果不确定项：{r.uncertainOutcomes}</p>

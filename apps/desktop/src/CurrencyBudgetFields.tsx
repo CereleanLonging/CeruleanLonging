@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useState } from "react";
 import type { ApiTarget, BudgetSettings, PriceQuote, ProjectSetupDraft } from "./contracts";
 import { ScopedCurrencyBudgetFields, ScopedCurrencyBudgetReview } from "./ScopedCurrencyBudgetFields";
@@ -126,7 +127,7 @@ function LegacyCurrencyBudgetFields({ value, resetValue, draft, resetKey, onChan
         <button type="button" className="secondary-button" onClick={() => publish(amount, rows.filter((_, index) => index !== i))}>移除此模型报价</button>
       </fieldset>)}
       <p className="secondary">留空表示价格未知，不能当作免费；可能发生的费用必须先有报价才能预留。切换端点或模型后，请补充对应报价。</p>
-      {currentError && <p role="alert">{currentError}</p>}
+      {currentError && <p role="alert"><ErrorText error={currentError}/></p>}
     </>}
   </section>;
 }

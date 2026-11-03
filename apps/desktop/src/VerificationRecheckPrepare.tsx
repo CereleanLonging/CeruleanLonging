@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { AcceptanceCheck, Command, RecheckReview, WorkspaceRecheckInputs, WorkspaceRecheckSummary } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -115,7 +116,7 @@ export function VerificationRecheckPrepare(props: Props) {
     <div className="section-heading"><h3>为原提交准备复验</h3><button className="secondary-button" onClick={props.close}>关闭复验准备</button></div>
     <p>任务 {props.taskId} · 原尝试 {props.attemptId} · 原失败验收 {props.originalOperationId}</p>
     <p>修改检查器不会改写原失败记录或重新派发模型任务。阶段顺序和名称保留，原封存产物由核心核对。</p>
-    {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}{message && <p role="status">{message}</p>}
     {loading && <p role="status">正在读取和核对原证据…</p>}
     {!sent && <button className="secondary-button" disabled={blocked} onClick={() => void run(load)}>重新读取原检查配置</button>}
     {inputs && !confirmed && <>

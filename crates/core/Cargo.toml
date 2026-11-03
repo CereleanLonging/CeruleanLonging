@@ -13,7 +13,7 @@ fs2 = "0.4"
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "limits", "hooks"] }
 tokio = { version = "1", features = ["net", "rt-multi-thread", "macros", "io-util", "sync", "time", "fs"] }
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_Security_Cryptography", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Pipes", "Win32_System_JobObjects"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_Security_Cryptography", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Pipes", "Win32_System_JobObjects", "Win32_System_Diagnostics_ToolHelp"] }
 zeroize = "1"
 [dev-dependencies]
 cerulean-adapters = { path = "../adapters", features = ["test-fixtures"] }

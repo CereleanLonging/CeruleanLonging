@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceTasks } from "./WorkspaceTasks";
 import { WorkspaceExecution } from "./WorkspaceExecution";
@@ -133,7 +134,7 @@ export function WorkspaceBrowser(props: Props) {
   return <section className="workspace-browser" aria-label="独立工作区记录">
     <div className="section-heading"><h2>{props.showPlans ? "本地计划记录" : "项目清单"}</h2><button className="secondary-button" disabled={blocked} onClick={() => void run(refresh)}>刷新工作区记录</button></div>
     {!props.enabled && <p>请在桌面应用中读取本地记录。</p>}
-    {overview?.message && <p role="alert">{overview.message}</p>}
+    {overview?.message && <p role="alert"><ErrorText error={overview.message}/></p>}
     {message && <p role="status">{message}</p>}
     <button className="secondary-button" disabled={!props.enabled || props.busy} onClick={() => setShowConfigurations(value => !value)}>{showConfigurations ? "关闭已保存项目配置" : "查看已保存项目配置"}</button>
     {showConfigurations && <WorkspaceConfigurations read={props.read} enabled={props.enabled} busy={props.busy}/>}
@@ -163,7 +164,7 @@ export function WorkspaceBrowser(props: Props) {
       {plans && <nav className="workspace-pagination" aria-label="计划分页"><button className="secondary-button" disabled={blocked || stale || !planBack.length} onClick={() => planPage(planBack.at(-1)!, planBack.slice(0, -1))}>上一页</button><span>当前显示 {plans.entries.length} / {plans.total}</span><button className="secondary-button" disabled={blocked || stale || plans.nextOffset === null} onClick={() => planPage(plans.nextOffset!, [...planBack, plans.offset])}>下一页</button></nav>}
       {detail && <section className="panel" role="dialog" aria-label="完整计划审阅"><h3>{detail.title}</h3><ol>{detail.tasks.map((task, i) => <li key={i}>{task}</li>)}</ol><p>批准仅记录对当前内容的确认，不派发模型任务。</p><button className="secondary-button" disabled={blocked || !!pending} onClick={() => setDetail(null)}>关闭</button><button className="primary" disabled={!canWrite || detail.approved} onClick={() => void run(current => submit({ type: "approvePlan", id: detail.id, digest: detail.digest }, { type: "approve", id: detail.id, digest: detail.digest }, current))}>{detail.approved ? "已批准" : "确认批准"}</button></section>}
     </> : <>
-      {projectError && <p role="alert">{projectError}</p>}
+      {projectError && <p role="alert"><ErrorText error={projectError}/></p>}
       {!projects ? <p>项目清单尚未取得。</p> : projects.total === 0 ? <p>尚未登记项目。</p> : projects.entries.map(project => <article className="panel workspace-project-card" key={project.project.id}><h3>{project.project.id}</h3><p>{project.project.root}</p><p>{project.taskCount} 项任务；{project.resourceHoldingTasks} 项仍占用资源，其中 {project.unknownTasks} 项结果未知。</p><button className="secondary-button" disabled={blocked} onClick={() => setSelectedProject(project.project.id)}>查看项目 {project.project.id} 的任务</button><button className="secondary-button" disabled={blocked} onClick={() => setJobProject(project.project.id)}>查看项目 {project.project.id} 的作业</button><button className="secondary-button" disabled={blocked} onClick={() => setProjectRunsProject(project.project.id)}>查看项目 {project.project.id} 的运行记录</button><button className="secondary-button" disabled={blocked} onClick={() => setExecutionReview({projectId:project.project.id,digest:project.revisionDigest})}>审阅项目 {project.project.id} 的执行授权</button></article>)}
       {projects && <nav className="workspace-pagination" aria-label="项目分页"><button className="secondary-button" disabled={blocked || !projectBack.length} onClick={() => projectPage(projectBack.at(-1)!, projectBack.slice(0, -1))}>上一页</button><span>当前显示 {projects.entries.length} / {projects.total}</span><button className="secondary-button" disabled={blocked || projects.nextOffset === null} onClick={() => projectPage(projects.nextOffset!, [...projectBack, projects.offset])}>下一页</button></nav>}
       {projects?.entries.map(p => <button className="secondary-button" key={p.project.id} disabled={blocked} onClick={() => setStartupProject(p.project.id)}>查看项目 {p.project.id} 的编程启动记录</button>)}

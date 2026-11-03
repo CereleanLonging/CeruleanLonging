@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import {useRef,useState} from 'react';
 import type {Command,DesktopTaskReview,DesktopTaskStatus,Snapshot} from './contracts';
 
@@ -36,7 +37,7 @@ export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;s
   return <section className="workflow-plans desktop-tasks" aria-label="桌面编程任务">
     <h2>桌面编程任务</h2>
     <p className="secondary">仅处理已批准且由副指挥分配的尝试。发送后由后台核对回复、封存文件并提交；完成仍需独立验收和主指挥收口。</p>
-    {access?.error&&<p role="alert">{access.error}</p>}
+    {access?.error&&<p role="alert"><ErrorText error={access.error}/></p>}
     {assigned.map(t=><article className="panel" key={`${t.project}:${t.attempt}`}><h3>{t.goal}</h3><p>{t.project} · {t.task} · 已分配，尚未发送</p>
       {runPaused(t.project)&&<p>项目调度已暂停或需要处理，请先核对并恢复运行授权。</p>}
       <button className="secondary-button" disabled={blocked||unresolved||runPaused(t.project)} onClick={()=>void act({type:'prepareDesktopTask',projectId:t.project,taskId:t.task,attemptId:t.attempt})}>准备任务消息</button>
@@ -50,7 +51,7 @@ export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;s
         <h3>{job.retired?'本地跟踪已结束，结果未确认':job.cancellation?.confirmed?'已确认取消，修改保留':accepted?'已独立验收并收口':job.active?(job.stopping?'正在核对停止结果':job.reading?'正在回读原任务':'正在执行桌面任务'):job.submitted?'交付已提交，等待验收':'任务结果待核对'}</h3>
         <p>{r.projectId} · {r.attempt.taskId} · {r.observation.modelLabel}</p><p>聊天：{chat(r)}</p>
         {retiredAdapter&&<p>WorkBuddy 支持已移除；原记录保留，不再连接外部应用。未决结果可在核对后结束本地跟踪。</p>}
-        {!job.retired&&job.error&&<p role="alert">{job.error}</p>}
+        {!job.retired&&job.error&&<p role="alert"><ErrorText error={job.error}/></p>}
         {job.active&&<p>可继续查看工作台。外部应用可能使用自己的工具或等待批准，请保持目标聊天不变。</p>}
         {job.progress?.latest&&<p data-desktop-progress={r.attempt.id}>最近界面观察：{job.progress.latest.statusText||(job.progress.latest.observation.busy?'忙碌或等待批准':'空闲')} · {new Date(job.progress.latest.observation.capturedAt).toLocaleTimeString('zh-CN')}。{job.progress.error?'后续观察暂不可用；这是上次结果。':'仅反映原聊天界面，完成仍以独立验收为准。'}</p>}
         {job.progress?.error&&<p className="secondary">进度观察：{job.progress.error}。原任务不会因此重发或被判定失败。</p>}

@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Command, Snapshot, TeamTimingAction, TeamTimingView } from "./contracts";
@@ -29,7 +30,7 @@ export function TeamTimingPanel({data,busy,send,desktop=false}:{data:Snapshot;bu
     <dl><dt>总耗时</dt><dd>{duration(v.elapsedMs)}</dd><dt>规划</dt><dd>{duration(v.planningMs)}</dd>
       <dt>等待批准</dt><dd>{duration(v.approvalWaitMs)}</dd><dt>批准后执行与收口</dt><dd>{duration(v.executionAndClosureMs)}</dd>
       <dt>人工参与</dt><dd>{duration(v.humanActiveMs)}{v.humanActive?"（正在记录）":""}</dd></dl>
-    {v.error&&<p role="alert">{v.error}</p>}
+    {v.error&&<p role="alert"><ErrorText error={v.error}/></p>}
     {v.accepted!==null&&<p>{v.accepted?"原任务已通过验收。":"此记录不代表任务通过验收。"}</p>}
     {v.phase==="clockLost"&&<p>重开后不能恢复原单调时钟。核对原任务结束后，可将这段记录收口为中断；耗时保留未知。</p>}
     <div className="card-footer">
@@ -52,7 +53,7 @@ export function TeamTimingPanel({data,busy,send,desktop=false}:{data:Snapshot;bu
         <p>在独立处置窗口中，可正常停止此目录的核心、创建冷备份、审阅并保存保留决定。结果不确定时，读取原决定核查。</p>
         <button type="button" disabled={!desktop||busy||recoveryOpening} onClick={()=>void openRecovery()}>打开独立导入处置窗口</button>
         {recoveryNotice&&<p role="status" style={{overflowWrap:"anywhere"}}>{recoveryNotice}</p>}
-        {recoveryError&&<p role="alert">{recoveryError}</p>}
+        {recoveryError&&<p role="alert"><ErrorText error={recoveryError}/></p>}
         <p>保留决定不会修复或清空原目录，也不会解除只读限制。备份包含本机加密凭证，不包含外部项目；它用于同用户原位置核查，不是可分享的便携项目包。</p>
       </details>}
       <details><summary>原导入引用</summary><p>{imported.sourcePath}</p><code>{imported.sourceSha256}</code><p>{imported.requestId}</p></details>

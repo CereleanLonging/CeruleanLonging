@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, DiagnosticFile } from "./contracts";
 import "./CodexJobs.css";
@@ -18,7 +19,7 @@ export function DesktopStopRecordReview({file,busy,send}:{file:DiagnosticFile;bu
       <p>保留原文件，依据原批准、派发和有效停止前置记录另存复核凭据。复核只恢复本地管理，不会补发任务或停止动作，不代表取消成功或通过验收。重新启动校验后，原尝试仍待核对，只能在自行处理外部应用后结束本地跟踪；不能继续原尝试。</p>
       <label htmlFor="desktop-stop-reason">复核说明</label><textarea id="desktop-stop-reason" rows={3} value={reason} disabled={blocked} onChange={e=>setReason(e.target.value)}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} disabled={blocked} onChange={e=>setAck(e.target.checked)}/>我已核对原记录，理解复核只恢复本地管理，原尝试不能继续，结果仍未知</label>
-      {!valid&&<p role="alert">记录已变化，请返回刷新诊断。</p>}{message&&<p role="alert">{message}</p>}
+      {!valid&&<p role="alert">记录已变化，请返回刷新诊断。</p>}{message&&<p role="alert"><ErrorText error={message}/></p>}
       <div className="modal-actions"><button className="secondary-button" disabled={blocked} onClick={()=>setReview(null)}>返回检查</button><button className="primary" disabled={blocked||!valid||!validReason||!ack} onClick={()=>void confirm()}>保存桌面停止复核</button></div>
     </>}</dialog>
   </>;

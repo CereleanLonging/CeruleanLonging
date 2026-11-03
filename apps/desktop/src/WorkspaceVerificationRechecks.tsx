@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, RecheckDispositionReview, RecheckStatus, VerificationState, WorkspaceRecheckPage, WorkspaceRecheckSummary } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -226,7 +227,7 @@ export function VerificationRecheckRecord(props: Props & { selected: WorkspaceRe
     {message && <p role="status">{message}</p>}
     {status && review && <>
       <p>{status.disposition ? (status.disposition.evidenceUnchanged ? "原复验已处置，原提交仍未验收" : "原复验已处置，但当前证据需核对；操作已锁定") : job ? states[job.state] : "已批准，尚未读到作业记录"}</p>
-      {status.disposition && <><p style={{ whiteSpace: "pre-wrap" }}>处置原因：{status.disposition.review.reason}</p><p>原处置回执：{status.disposition.eventOperationId}</p>{status.disposition.message && <p role="alert">{status.disposition.message}</p>}</>}
+      {status.disposition && <><p style={{ whiteSpace: "pre-wrap" }}>处置原因：{status.disposition.review.reason}</p><p>原处置回执：{status.disposition.eventOperationId}</p>{status.disposition.message && <p role="alert"><ErrorText error={status.disposition.message}/></p>}</>}
       <p>任务 {review.taskId} · 原尝试 {review.attemptId} · 原失败验收 {review.originalOperationId}</p>
       <p style={{ whiteSpace: "pre-wrap" }}>修订原因：{review.reason}</p>
       <p>复验只检查原提交的封存产物。原失败记录保留；检查通过后仍须主指挥验收，项目不会自动继续调度。</p>

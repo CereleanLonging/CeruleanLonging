@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import type { Command, OpenAiConnection as Status } from "./contracts";
 export function OpenAiConnection({status,send,busy,connected}:{status:Status|undefined;send:(command:Command)=>Promise<boolean>;busy:boolean;connected:boolean}) {
@@ -16,7 +17,7 @@ export function OpenAiConnection({status,send,busy,connected}:{status:Status|und
     <div className="card-footer"><button className="secondary-button" disabled={busy||checking||!status?.keyConfigured} onClick={()=>void send({type:"checkOpenAi"})}>检查官方 API 连接</button>
       <button className="secondary-button" disabled={busy||checking||!status?.keyConfigured} onClick={()=>void send({type:"removeOpenAiKey"})}>删除本机 Key</button></div>
     <p className="secondary">连接检查只读取可见模型，不生成任务。可见模型还需验证是否支持指挥流程。</p>
-    {status?.error && <p role="alert">{status.error}</p>}
+    {status?.error && <p role="alert"><ErrorText error={status.error}/></p>}
     {!!status?.models.length && <details><summary>可见模型（{status.models.length}）</summary><p>{status.models.join("、")}</p></details>}
   </section>;
 }

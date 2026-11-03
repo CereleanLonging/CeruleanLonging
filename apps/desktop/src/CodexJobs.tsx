@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type {
   CodexJob,
@@ -429,7 +430,7 @@ export function CodexJobs({
                   : "尝试记录已变化或不再可放弃。请返回查看最新状态并重新审阅。"}
               </p>
             )}
-            {error && <p role="alert">{error}</p>}
+            {error && <p role="alert"><ErrorText error={error}/></p>}
             <div className="modal-actions">
               <button
                 type="button"

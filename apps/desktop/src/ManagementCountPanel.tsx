@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useRef, useState } from "react";
 import type { Command, CountResolutionInput, CountResolutionRecord, CountResolutionResult, CountResolutionReview, ManagementCountEntry, ManagementCountPage } from "./contracts";
 import { decimalAmount, parseDecimal } from "./CurrencyBudgetFields";
@@ -36,7 +37,7 @@ export function ManagementCountPanel({ query, busy = false }: { query: Query; bu
   return <section className="workflow-plans" aria-label="计数费用与续发核对"><h2>计数费用与续发核对</h2>
     <p>费用核销与终止续发分别确认。核销只调整原计数费用；终止保留费用、原结果和请求次数，不会重新发送。</p>
     <button disabled={busy || pending} onClick={() => void read()}>读取计数清单</button>
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}
     {page && <><p>共 {page.total} 条；当前从第 {page.offset + (page.total ? 1 : 0)} 条显示。</p>
       {page.entries.map(e => <article className="panel" key={e.projectId + ":" + e.operationId}><h3>{e.operationId}</h3>
         <p>项目：{e.projectId}；原计数结果：{outcome(e.originalOutcome)}；原费用预留：${decimalAmount(e.maximumUsdNanos,9)}</p>
@@ -113,7 +114,7 @@ export function CountResolutionForm({ entry, query, busy, close }: { entry: Mana
       <button disabled={busy || pending} onClick={() => void act(true)}>确认本次计数处理</button>
     </section>}
     {submitted && <><p>已提交审阅：<code>{submitted.reviewDigest}</code>。不自动重发。</p><button disabled={busy || pending} onClick={() => void lookup()}>只读查询原计数确认</button></>}
-    {error && <p role="alert">{error}</p>}{status && <p role="status">{status}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}{status && <p role="status">{status}</p>}
     <button disabled={pending} onClick={close}>关闭计数核对</button>
   </section>;
 }

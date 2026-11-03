@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, DiagnosticFile } from "./contracts";
 import "./CodexJobs.css";
@@ -32,7 +33,7 @@ export function ManagementRecordReview({file,busy,send}:{file:DiagnosticFile;bus
       <p>{impacts[stage]}</p><p>原始残片保留，本次说明另存。保存复核不代表任务完成；存在坏关联或其他未决文件时，重启后仍会停在诊断页面。</p>
       <label htmlFor="management-record-review-reason">本次复核说明</label><textarea id="management-record-review-reason" rows={3} value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)} disabled={blocked}/>我已核对目标和本阶段的处置影响</label>
-      {!valid&&<p role="alert">记录已变化，请返回刷新后重新复核。</p>}{message&&<p role="alert">{message}</p>}
+      {!valid&&<p role="alert">记录已变化，请返回刷新后重新复核。</p>}{message&&<p role="alert"><ErrorText error={message}/></p>}
       <div className="modal-actions"><button className="secondary-button" disabled={blocked} onClick={()=>setReview(null)}>返回检查</button><button className="primary" disabled={blocked||!valid||!validReason||!ack} onClick={()=>void confirm()}>保存管理复核</button></div>
     </>}</dialog>
   </>;

@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import type { Command, RegisteredValidator } from "./contracts";
 
@@ -28,7 +29,7 @@ export function ValidatorCatalog({items,send,busy,connected}:{items:RegisteredVa
       <label htmlFor="validator-inputs">固定验收文件（可选，每行一个完整路径）</label><textarea id="validator-inputs" value={inputs} onChange={event=>setInputs(event.target.value)} />
       <label htmlFor="validator-environment">环境设置（可选）</label><textarea id="validator-environment" value={environment} onChange={event=>setEnvironment(event.target.value)} placeholder={"CI=true\nNO_COLOR=1"} />
       <p className="secondary">允许 CI、NO_COLOR、PYTHONNOUSERSITE、PYTHONDONTWRITEBYTECODE、RUST_BACKTRACE、CARGO_NET_OFFLINE、NPM_CONFIG_OFFLINE。固定文件最多 16 个，须在项目目录之外。</p>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert"><ErrorText error={error}/></p>}
       <button className="primary" disabled={busy || !connected}>读取文件并登记</button>
     </form>
     <h3>已登记版本 · {items.length}</h3>

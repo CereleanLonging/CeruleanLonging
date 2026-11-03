@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import {useRef,useState} from "react";
 import type {BaselineAction,BaselineReview,Command,Snapshot} from "./contracts";
 import {ExecutionAuthorization} from "./ExecutionAuthorization";
@@ -26,7 +27,7 @@ export function BaselinePanel({data,busy,send}:{data:Snapshot;busy:boolean;send:
     </form>
     {views.map(v=>{const t=v.timing;const ref={id:v.id,startDigest:t?.startDigest??""};const frozen=data.baselineReview?.id===v.id?data.baselineReview:null;
       return <article className="panel" key={v.id}><h3>{v.id} · {phases[v.phase]??v.phase}</h3>
-        {v.error&&<p role="alert">{v.error}</p>}
+        {v.error&&<p role="alert"><ErrorText error={v.error}/></p>}
         {v.cancelRequested&&<p>已保存停止请求。正在运行的操作会核对原结果；这不代表供应商已确认取消。</p>}
         <dl><dt>总耗时</dt><dd>{duration(t?.elapsedMs)}</dd><dt>准备方案</dt><dd>{duration(t?.planningMs)}</dd><dt>等待批准</dt><dd>{duration(t?.approvalWaitMs)}</dd><dt>批准后执行与收口</dt><dd>{duration(t?.executionAndClosureMs)}</dd><dt>人工参与</dt><dd>{duration(t?.humanActiveMs)}{t?.humanActive?"（正在记录）":""}</dd></dl>
         {t?.accepted!=null&&<p>{t.accepted?"原任务独立验收通过。":"此记录不代表任务验收通过。"}</p>}

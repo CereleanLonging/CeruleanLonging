@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Command, CurrencyHistoryGap, HistoricalAccounting, HistoricalChargeInput, HistoricalChargeReview, HistoricalScope, ProjectCurrencyBudget, HistoricalResult } from "./contracts";
 import { decimalAmount, parseDecimal } from "./CurrencyBudgetFields";
@@ -90,7 +91,7 @@ export function HistoricalChargeForm({ gap, accounts, busy, query, close }: {
       <button disabled={!book?.healthy || !book.approvalLinked} onClick={() => void submit(false)}>审阅历史金额</button>
     </fieldset>
     {(!book || !book.approvalLinked) && <p role="status">请先为归属项目批准金额预算。</p>}
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}
     {review && !submitted && <section aria-label="确认历史金额"><h4>请核对后确认</h4>
       <p>项目：{review.input.projectId}；金额：${decimalAmount(review.input.amountUsdNanos, 9)}</p>
       <p>账单引用：{review.input.billingReference}</p><p>核对说明：{review.input.explanation}</p>

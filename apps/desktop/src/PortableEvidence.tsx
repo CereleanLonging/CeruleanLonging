@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -81,7 +82,7 @@ export function PortableEvidence({ desktop, client = api }: { desktop: boolean; 
       <button disabled={!absolute(verify.archive) || !digest(verify.manifestSha256)} onClick={() => void run({ ...verify })}>核验所选归档</button>
     </fieldset>
     {busy && <p role="status">正在处理所选归档，请等待原结果。离开本页不取消已开始的操作；重新进入后先核对原目录。</p>}
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}
     {result && <div role="status" style={{ overflowWrap: "anywhere" }}>
       <p>{result.request.action === "create" ? "归档已创建并核验" : "所选归档核验通过"}：{result.request.action === "create" ? result.request.destination : result.request.archive}</p>
       <p>文件：{result.value.filesVerified}；字节：{result.value.bytesVerified}</p>

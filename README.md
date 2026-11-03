@@ -98,17 +98,25 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.35 为公开预览版**，新增角色目录隔离与项目级 API 盲评，并移除 WorkBuddy 新接入。0.1.34 的既有功能验收记录保留；本次新增机制通过本机协议、界面和普通 Windows 账户边界检查，模型回包采用合成数据，没有新增真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.35.md)。本版本不作稳定版承诺。
+**0.1.36 为公开预览版**，新增本机 Codex 程序扫描与中文错误说明，保留 0.1.35 的角色目录隔离和项目级 API 盲评。0.1.34 的既有功能验收记录保留；隔离与盲评的检查采用本地合成模型回包和真实普通 Windows 账户，本次扫描不调用模型，没有新增真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.36.md)。本版本不作稳定版承诺。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.35 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.36 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.36)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.36 · 2026-11-03 · 公开预览
+
+- 接入管理新增“扫描本地 Codex”，查找运行中的程序、PATH 和常见安装目录；确认候选路径后，单独进行登录检查。
+- 区分安装文件夹、桌面启动程序与命令行程序，提供明确的中文路径提示。
+- 工作台通用报错增加中文说明和可展开的原始技术详情，保留原错误记录及结果未知提示。
+
+[版本说明](docs/releases/0.1.36.md) · [发布页与下载](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.36)
 
 #### 0.1.35 · 2026-11-03 · 公开预览
 
@@ -219,17 +227,25 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.35 is a public preview** adding role-directory isolation and project-level API blind review, and removing new WorkBuddy integrations. Existing 0.1.34 acceptance records are retained. The new mechanism has local protocol, UI, and standard Windows account boundary checks using synthetic model responses; no new live-provider quality conclusion is claimed. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.35.md). This is not a stable-release commitment.
+**0.1.36 is a public preview** adding local Codex discovery and Chinese error explanations, while retaining 0.1.35 role-directory isolation and project-level API blind review. Existing 0.1.34 acceptance records are retained. Isolation and review checks use local synthetic model responses and real standard Windows accounts. Discovery makes no model calls; no new live-provider quality conclusion is claimed. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.36.md). This is not a stable-release commitment.
 
 Try blind review in a separate experiment workbench and configure checking accounts before plan approval. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.35 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.36 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.36). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.36 · 2026-11-03 · Public Preview
+
+- Added local Codex discovery in Integrations, covering running programs, PATH, and common installation directories. Select a candidate before explicitly checking login.
+- Distinguishes installation folders, desktop launchers, and CLI executables, with actionable Chinese path messages.
+- Added Chinese explanations and expandable original diagnostics to common workbench errors, retaining original records and unknown-result semantics.
+
+[Release notes](docs/releases/0.1.36.md) · [Release and downloads](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.36)
 
 #### 0.1.35 · 2026-11-03 · Public Preview
 

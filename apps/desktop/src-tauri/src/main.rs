@@ -11,6 +11,20 @@ mod portable_archive;
 mod webview_profile;
 
 #[tauri::command]
+async fn scan_codex_installations(
+    hint: Option<String>,
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, State>,
+) -> Result<cerulean_core::codex_discovery::ScanResult, String> {
+    state.workbenches.directory(window.label())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        cerulean_core::codex_discovery::scan(hint.as_deref())
+    })
+    .await
+    .map_err(|_| "本机 Codex 扫描未完成，请稍后重试".to_string())?
+}
+
+#[tauri::command]
 fn review_workflow_template(
     input: String,
 ) -> Result<cerulean_domain::workflow_template::WorkflowTemplateReview, String> {
@@ -521,6 +535,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            scan_codex_installations,
             review_workflow_template,
             portable_evidence,
             historical_request,

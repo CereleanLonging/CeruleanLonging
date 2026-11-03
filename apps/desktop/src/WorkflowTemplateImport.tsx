@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
 import type { SupervisionPolicy, WorkflowTemplateReview } from "./contracts";
@@ -51,7 +52,7 @@ export function WorkflowTemplateImport({ contextKey, disabled, onApply, reviewTe
     <input id="workflow-template-file" type="file" accept=".json,application/json" disabled={disabled || reading}
       onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; void read(file); }} />
     {reading && <p role="status">正在读取并检查工作流…</p>}
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert"><ErrorText error={error}/></p>}
     {review && <div aria-label="工作流导入预览">
       <h4>{review.template.name}</h4>
       <p>类型：{review.template.workflowType} · {review.template.steps.length} 个步骤</p>

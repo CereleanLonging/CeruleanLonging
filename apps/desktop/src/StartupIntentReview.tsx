@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, DiagnosticFile } from "./contracts";
 import "./CodexJobs.css";
@@ -26,7 +27,7 @@ export function StartupIntentReview({file,busy,send}:{file:DiagnosticFile;busy:b
       <p>{closure?"将保留关闭残片与有效启动身份，另存本次复核说明。重新启动后仍须使用原关闭入口再次审阅，复核本身不会关闭启动或改变任务结果。已有分配或执行证据冲突时仍会停在诊断模式。":"将保留原文件、另存本次说明，并永久禁止复用此尝试编号。无法还原的启动内容不会被补造，任务不会被标为完成或取消。若发现已有分配或执行证据，重启后仍会停在诊断模式。"}</p>
       <label htmlFor="startup-intent-review-reason">本次复核说明</label><textarea id="startup-intent-review-reason" value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked} rows={3}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)} disabled={blocked}/>{closure?"我已核对目标，并理解仍须重新审阅关闭操作":"我已核对目标，并理解旧尝试编号不能再次使用"}</label>
-      {!valid&&<p role="alert">记录已变化，请返回刷新诊断。</p>}{message&&<p role="alert">{message}</p>}
+      {!valid&&<p role="alert">记录已变化，请返回刷新诊断。</p>}{message&&<p role="alert"><ErrorText error={message}/></p>}
       <div className="modal-actions"><button className="secondary-button" disabled={blocked} onClick={()=>setReview(null)}>返回检查</button><button className="primary" disabled={blocked||!valid||!validReason||!ack} onClick={()=>void confirm()}>{closure?"保存关闭复核":"保存启动复核"}</button></div>
     </>}</dialog>
   </>;

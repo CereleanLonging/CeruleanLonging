@@ -1,10 +1,10 @@
-# 0.1.35 接入与能力说明 / Integration and capability notes
+# 0.1.36 接入与能力说明 / Integration and capability notes
 
 [简体中文](#zh-support) · [English](#en-support)
 
-0.1.35 为公开预览。下表继承 0.1.34 已完成的约定范围实测记录，不表示全部供应商已在 0.1.35 上重测。新增隔离与盲评使用本地合成回包及真实 Windows 账户验证；延期项保持原状态。
+0.1.36 为公开预览，新增本机 Codex 位置扫描与中文错误说明。下表继承 0.1.34 已完成的约定范围实测记录，不表示全部供应商已在本版重测。0.1.35 引入的隔离与盲评使用本地合成回包及真实 Windows 账户验证；本版扫描只发现候选位置，登录和执行需分别确认，延期项保持原状态。
 
-0.1.35 is a public preview. The table retains live-test records from the agreed 0.1.34 scope; it does not claim every provider was retested on 0.1.35. New isolation and review checks use local synthetic responses and real Windows accounts. Deferred items remain deferred.
+0.1.36 is a public preview adding local Codex discovery and Chinese error explanations. The table retains live-test records from the agreed 0.1.34 scope; it does not claim every provider was retested in this version. Isolation and review introduced in 0.1.35 use local synthetic responses and real Windows accounts. Discovery only lists candidate paths; login and execution require separate checks. Deferred items remain deferred.
 
 <a id="zh-support"></a>
 

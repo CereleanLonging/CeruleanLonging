@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useRef, useState } from "react";
 import type { ApiCountEntry, ApiCountLookup, ApiCountPage, ApiCountRecord, ApiCountResolutionInput, ApiCountReview, Command, CountResolutionResult } from "./contracts";
 import { decimalAmount, parseDecimal } from "./CurrencyBudgetFields";
@@ -33,7 +34,7 @@ export function ApiCountPanel({query,busy=false}:{query:Query;busy?:boolean}) {
   return <section className="workflow-plans" aria-label="API 计数费用核对"><h2>API 计数费用核对</h2>
     <p>仅核对计数费用。生成费用、执行结果和请求次数分别保留；本次核对不会重新发送任务或标记任务完成。</p>
     <button disabled={busy||pending||!!selected} onClick={()=>void read()}>读取 API 计数清单</button>
-    {error&&<p role="alert">{error}</p>}
+    {error&&<p role="alert"><ErrorText error={error}/></p>}
     {page&&<><p>共 {page.total} 条；当前从第 {page.offset+(page.total?1:0)} 条显示。</p>
       {page.entries.map(e=><article className="panel" key={e.projectId+":"+e.requestId}>
         <h3>任务 {e.taskId} · 第 {e.round} 轮</h3><p>项目：{e.projectId}；尝试：{e.attemptId}</p><p>原请求：{e.requestId}</p>
@@ -94,7 +95,7 @@ export function ApiCountForm({entry,query,busy,close}:{entry:ApiCountEntry;query
       <button disabled={busy||pending} onClick={()=>void act(true)}>确认本次 API 计数核销</button>
     </section>}
     {submitted&&<><p>已提交原审阅，结果不明时仅查询原确认。</p><button disabled={busy||pending} onClick={()=>void lookup()}>只读查询原 API 计数确认</button></>}
-    {error&&<p role="alert">{error}</p>}{status&&<p role="status">{status}</p>}
+    {error&&<p role="alert"><ErrorText error={error}/></p>}{status&&<p role="status">{status}</p>}
     <button disabled={pending} onClick={close}>关闭 API 计数核对</button>
   </section>;
 }

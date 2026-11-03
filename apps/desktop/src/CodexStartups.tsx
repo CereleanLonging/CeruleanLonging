@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { CodexStartupSummary, CodexStartupView, Command, Snapshot } from "./contracts";
 import "./CodexStartups.css";
@@ -115,7 +116,7 @@ export function CodexStartups({ data, send, query, busy }: {
   return <section className="workflow-plans codex-startups" aria-label="编程启动记录">
     <h2>编程启动记录</h2>
     <p className="secondary">查看启动准备及后续处置。没有编程执行记录的启动意图也会保留在这里；关闭须先读取完整证据。</p>
-    {error && <p role="alert" className="startup-feedback">{error}</p>}
+    {error && <p role="alert" className="startup-feedback"><ErrorText error={error}/></p>}
     {notice && <p role="status" className="startup-feedback">{notice}</p>}
     {loading && <p role="status" className="secondary">正在读取启动详情…</p>}
     {detail && <article ref={panel} className="panel startup-detail" aria-label="编程启动详情" data-startup-detail={detail.summary.attemptId} data-startup-project={detail.summary.projectId}>
@@ -145,7 +146,7 @@ export function CodexStartups({ data, send, query, busy }: {
         {hasNul && <p role="alert">原因包含不可保存的 NUL 字符，请删除后再提交。</p>}
         {bytes > maxReasonBytes && <p role="alert">原因过长，请缩短后再提交。</p>}
         {!current && <p role="alert">启动记录或项目证据已变化，当前确认已失效。请返回重新读取详情。</p>}
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert"><ErrorText error={error}/></p>}
         <div className="modal-actions"><button type="button" className="secondary-button" disabled={pending} onClick={() => setReview(null)}>返回</button><button type="submit" className="primary" disabled={pending || !current || !text || hasNul || bytes > maxReasonBytes}>{saving ? "正在保存…" : "确认关闭启动记录"}</button></div>
       </form>
     </dialog>}
