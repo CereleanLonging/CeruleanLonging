@@ -106,7 +106,7 @@ test(
           Object.fromEntries(r.result.adapters.map(({ id, status }) => [id, status])),
           {
             codex: "partial", omp: "partial", qoder: "prototype",
-            workbuddy: "partial", openai: "partial", anthropic: "partial",
+            openai: "partial", anthropic: "partial",
             deepseek: "partial", qwen: "partial", kimi: "partial",
             a6api: "partial", grok: "partial",
           },
