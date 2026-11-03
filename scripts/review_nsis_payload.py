@@ -160,10 +160,15 @@ def review(package, manifest_digest, *, allow_certificate_envelope=False):
     requires_notice = parsed_version >= (0, 1, 21)
     if requires_notice or resources:
         expected = set(RESOURCE_LIMITS) if parsed_version >= (0, 1, 22) else {"SQLITE-NOTICES.txt"}
+        limits = dict(RESOURCE_LIMITS)
+        if parsed_version >= (0, 1, 39):
+            expected.add('cerulean-verifier.exe'); limits['cerulean-verifier.exe'] = 32 * 1024 * 1024
+            tool = [r for r in resources if r['path'] == 'cerulean-verifier.exe']
+            require(len(tool) == 1 and tool[0]['sha256'] == manifest.get('coreBuildInfo', {}).get('independentVerifierSha256'), 'Verifier build binding differs')
         require(len(resources) == len(expected) and {r['path'] for r in resources} == expected,
                 "Required notice resource missing or unexpected")
         for entry in resources:
-            content = read_bounded(package/entry["path"], RESOURCE_LIMITS[entry['path']])
+            content = read_bounded(package/entry["path"], limits[entry['path']])
             require(len(content) == entry["bytes"] and sha(content) == entry["sha256"], "SQLite notice integrity mismatch")
             data[entry["path"]] = content
     verified = []

@@ -302,6 +302,21 @@ class IsolationChecks(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "size or digest"):
                         driver.inspect_package(package, sha)
 
+    def test_independent_verifier_resource_must_match_the_core_binding(self):
+        with tempfile.TemporaryDirectory() as folder:
+            _, manifest, _ = self.fixture(folder, "0.1.22")
+            tool = dict(path='cerulean-verifier.exe', bytes=100, sha256='a' * 64)
+            manifest.update(version='0.1.39', resources=[*manifest['resources'], tool],
+                            coreBuildInfo=dict(independentVerifierSchema=1, independentVerifierSha256='a' * 64))
+            self.assertEqual(len(driver.package_resources(manifest)), 6)
+            manifest['coreBuildInfo']['independentVerifierSha256'] = 'b' * 64
+            with self.assertRaisesRegex(ValueError, 'verifier build binding'):
+                driver.package_resources(manifest)
+            manifest['coreBuildInfo']['independentVerifierSha256'] = 'a' * 64
+            manifest['resources'].pop()
+            with self.assertRaisesRegex(ValueError, 'verifier build binding'):
+                driver.package_resources(manifest)
+
     def test_sqlite_notice_cannot_be_omitted_at_021(self):
         with tempfile.TemporaryDirectory() as folder:
             package, manifest, _ = self.fixture(folder, "0.1.21")

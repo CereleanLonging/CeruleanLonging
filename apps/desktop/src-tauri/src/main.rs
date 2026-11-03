@@ -12,6 +12,18 @@ mod webview_profile;
 mod workbench_exit;
 
 #[tauri::command]
+async fn independent_verifier_status(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, State>,
+) -> Result<cerulean_core::independent_verifier::Status, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
+    state.workbenches.directory(window.label())?;
+    tauri::async_runtime::spawn_blocking(cerulean_core::independent_verifier::status)
+        .await
+        .map_err(|_| "独立验收工具核对未完成".into())
+}
+
+#[tauri::command]
 async fn scan_codex_installations(
     hint: Option<String>,
     window: tauri::WebviewWindow,
@@ -596,6 +608,7 @@ fn main() {
             close_workbench,
             cancel_workbench_exit,
             scan_codex_installations,
+            independent_verifier_status,
             review_workflow_template,
             portable_evidence,
             historical_request,

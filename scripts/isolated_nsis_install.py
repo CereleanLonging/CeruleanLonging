@@ -161,13 +161,22 @@ def package_resources(manifest):
         expected = set(RESOURCE_LIMITS)
     elif parsed >= (0, 1, 21) or resources:
         expected = {"SQLITE-NOTICES.txt"}
+    limits = dict(RESOURCE_LIMITS)
+    if parsed >= (0, 1, 39):
+        expected.add('cerulean-verifier.exe')
+        limits['cerulean-verifier.exe'] = 32 * 1024 * 1024
+        tools = [r for r in resources if r.get('path') == 'cerulean-verifier.exe']
+        info = manifest.get('coreBuildInfo', {})
+        if (info.get('independentVerifierSchema') != 1 or len(tools) != 1
+                or tools[0].get('sha256') != info.get('independentVerifierSha256')):
+            raise ValueError('Independent verifier build binding missing or different')
     names = [item.get("path") for item in resources]
     if (any(not isinstance(name, str) for name in names)
             or len(resources) != len(expected) or set(names) != expected):
         raise ValueError("Required notice resource missing, duplicate or unexpected")
     for item in resources:
         size, checksum = item.get("bytes"), item.get("sha256")
-        if (type(size) is not int or not 0 < size <= RESOURCE_LIMITS[item["path"]]
+        if (type(size) is not int or not 0 < size <= limits[item["path"]]
                 or not isinstance(checksum, str) or not re.fullmatch(r"[a-f0-9]{64}", checksum)):
             raise ValueError("Notice size or digest declaration invalid")
     return resources

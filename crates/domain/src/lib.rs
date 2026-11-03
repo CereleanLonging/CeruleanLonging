@@ -1,5 +1,6 @@
 pub mod baseline_product;
 pub mod blind_review;
+pub mod independent_verifier;
 pub mod omp_jobs;
 pub mod omp_restore;
 pub mod team_timing;

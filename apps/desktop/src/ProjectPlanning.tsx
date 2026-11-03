@@ -3,6 +3,7 @@ import { MarkdownImport } from "./MarkdownImport";
 import { AssertionFields, cleanAssertions } from "./AssertionFields";
 import { ManagementSourceFields } from "./ManagementSourceFields";
 import { WorkflowTemplateImport } from "./WorkflowTemplateImport";
+import type { ConfigurationRequest } from "./IntegrationHub";
 import { useEffect, useState } from "react";
 import { managementKeyMissing, managementModelList } from "./ManagementProviders";
 import type { AcceptanceStageDraft, Command, ProjectSetupDraft, ProjectWorkerAdapter, Snapshot, SavedProjectSetup } from "./contracts";
@@ -18,7 +19,7 @@ import { CurrencyBudgetFields, CurrencyBudgetReview } from "./CurrencyBudgetFiel
 
 const empty:ProjectSetupDraft={workerAdapter:"codex",projectId:"",requirement:"",codexExecutable:"",workerModel:"",chiefModel:"",deputyModel:"",validatorId:"",checkArgs:[],artifactPaths:[],workerMaxRequests:3,managementMaxRequests:10,maxSeconds:180};
 const states:Record<string,string>={awaitingExternal:"等待绑定的 Codex 聊天回填方案",running:"主指挥正在规划",ready:"回复待处理",applying:"方案正在入账",applied:"回复已处理",unknown:"请求结果待核对",discarded:"请求已放弃",abandoned:"应用事务已关闭",startupClosed:"启动记录已关闭"};
-export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolean;send:(command:Command)=>Promise<boolean>}) {
+export function ProjectPlanning({data,busy,send,configuration,onConfigurationReady,onSetup}:{data:Snapshot|null;busy:boolean;send:(command:Command)=>Promise<boolean>;configuration?:ConfigurationRequest|null;onConfigurationReady?:(token:number)=>void;onSetup?:()=>void}) {
   const [projectId,setProjectId]=useState("");
   const [draft,setDraft]=useState<ProjectSetupDraft>(empty);
   const [budgetError,setBudgetError]=useState<string>();
@@ -29,7 +30,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
   const [planningBudgetReview,setPlanningBudgetReview]=useState<SavedProjectSetup>();
   const [artifacts,setArtifacts]=useState("");const [stages,setStages]=useState<AcceptanceStageDraft[]>([]);const [dirty,setDirty]=useState(false);
   const saved=data?.projectSetups?.find(s=>s.setup.projectId===projectId);
-  useEffect(()=>{if(!projectId && data?.workflows.length)setProjectId(data.workflows[0].project.id);},[projectId,data?.workflows]);
+  useEffect(()=>{const selected=data?.workflows.find(w=>w.project.id===configuration?.projectId)?.project.id;if(selected&&selected!==projectId)setProjectId(selected);else if(!projectId && data?.workflows.length)setProjectId(data.workflows[0].project.id);},[projectId,data?.workflows,configuration?.projectId]);
   useEffect(()=>{
     const s=saved?.setup;
     setDraft(s ? {chiefDirectory:s.chiefDirectory,managementSources:s.managementSources,currencyBudget:s.policy.currencyBudget,resourceKeys:s.resourceKeys,profiles:s.profiles?.map(restoreProfile),worktree:s.worktree?{integration:s.worktree.integration?{taskId:s.worktree.integration.taskId,artifactPaths:s.worktree.integration.artifactPaths,validatorId:s.worktree.integration.validatorId,args:s.worktree.integration.check.args,timeoutSeconds:s.worktree.integration.check.timeoutSeconds}:undefined,inheritDependencies:s.worktree.input==="committed-raw-blobs-with-accepted-dependencies"?true:undefined,baseCommit:s.worktree.baseCommit,poolRoot:s.worktree.poolRoot,gitExecutable:s.worktree.git.path}:undefined,workerAdapter:s.workerAdapter??"codex",apiWorker:s.apiWorker,desktopWorker:s.desktopWorker,ompRuntimeParent:s.worker?.ompRuntimeParent,supervision:s.policy.supervision,projectId,requirement:s.requirement,codexExecutable:s.worker?.executable.path??"",workerModel:s.desktopWorker?.modelLabel??s.apiWorker?.model??s.worker?.model??"",chiefModel:s.chiefModel,deputyModel:s.deputyModel,validatorId:s.validatorId,checkArgs:s.check.args,artifactPaths:s.artifactPaths,workerMaxRequests:s.policy.maxRequests,managementMaxRequests:s.managementMaxRequests,maxSeconds:s.policy.maxSeconds} : {...empty,projectId,chiefDirectory:(data?.workflows.find(w=>w.project.id===projectId)?.project.root??"")+"-chief",codexExecutable:data?.codexConnection?.executable??"",validatorId:data?.validators[0]?.id??""});
@@ -52,9 +53,28 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
   const defaultSupervisionConflict = supervisionConflictFor(defaultAdapter, draft.supervision);
   const supervisionConflict=defaultSupervisionConflict || (draft.profiles??[]).some(p=>supervisionConflictFor(p.workerAdapter,effectiveSupervision(p.supervisionOverride,draft.supervision)));
   const locked=!!workflow?.approval && !workflow.state.revisionRequested;
+  useEffect(()=>{
+    if(!configuration||!projectId||draft.projectId!==projectId||busy||pending)return;
+    if(configuration.role==="chief"&&configuration.chiefMethod){
+      const sources=draft.managementSources??{chief:{kind:"openAi" as const},deputy:{kind:"openAi" as const}};
+      const desktop=configuration.chiefMethod==="desktop";
+      if(desktop!==(sources.chief.kind==="codexSession")){
+        setDraft(d=>({...d,chiefModel:desktop?"external-codex-session":"",managementSources:{...sources,chief:desktop?{kind:"codexSession",sessionId:""}:{kind:"openAi"}}}));
+        setDirty(true);
+      }
+    }
+    const frame=requestAnimationFrame(()=>{
+      const field=document.getElementById(`planning-${configuration.role==="worker"?"adapter":configuration.role+"-source"}`);
+      if(!field)return;
+      field.closest(".role-model-fields")?.scrollIntoView({block:"start",behavior:"smooth"});
+      field.focus();
+      onConfigurationReady?.(configuration.token);
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[configuration,projectId,draft.projectId,busy,pending]);
   return <section className="panel project-planning" aria-label="主指挥项目规划">
     <div className="section-heading"><h2>向主指挥提交需求</h2><span className="badge">{saved?`配置版本 ${saved.setup.version}`:"尚未配置"}</span></div>
-    {!data?.workflows.length ? <p className="secondary">请先在“项目设置”关联项目目录，并登记独立验收工具。</p> : <>
+    {!data?.workflows.length ? <><p className="secondary">请先关联项目目录，再填写主指挥来源和会话标识；独立验收工具已固定关联，保存执行配置前还需登记项目功能检查程序。</p>{onSetup&&<button className="secondary-button" disabled={busy} onClick={onSetup}>关联项目并配置主指挥</button>}</> : <>
       <label htmlFor="planning-project">规划项目</label><select id="planning-project" value={projectId} onChange={e=>setProjectId(e.target.value)}>{data.workflows.map(w=><option value={w.project.id} key={w.project.id}>{w.project.root}</option>)}</select>
       <p className="secondary">先保存需求与执行范围，再请求主指挥提出方案。方案生成后会出现在下方，审阅批准前不会派发编程任务。</p>
       <form onSubmit={async e=>{e.preventDefault();if(locked){keepNextDraft();return;}if(budgetError||retiredAdapter)return;if(resourceError(draft.resourceKeys)||(draft.profiles??[]).some(p=>resourceError(p.resourceKeys,draft.resourceKeys)))return;if(await send({type:"configureProject",draft:{...draft,resourceKeys:resourceNames(draft.resourceKeys).length?resourceNames(draft.resourceKeys):undefined,profiles:draft.profiles?.map(p=>({...p,acceptance:{...p.acceptance,stages:p.acceptance.stages.map(s=>({...s,expectedAssertions:cleanAssertions(s.expectedAssertions)}))},resourceKeys:resourceNames(p.resourceKeys).length?resourceNames(p.resourceKeys):undefined})),projectId,artifactPaths:artifacts.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),validatorId:stages[0]?.validatorId??"",checkArgs:stages[0]?.args??[],acceptance:{schemaVersion:1,stages:stages.map(s=>({...s,expectedAssertions:cleanAssertions(s.expectedAssertions)}))}}})){setDirty(false);localStorage.removeItem(draftKey);setDraftMessage("");}}}>
@@ -94,7 +114,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
           {stages.map((stage,index)=><div className="panel" key={stage.id}>
             <div className="section-heading"><strong>第 {index+1} 项</strong></div>
             <label htmlFor={"stage-name-"+index}>检查名称</label><input id={"stage-name-"+index} required value={stage.name} onChange={e=>changeStage(index,{name:e.target.value})}/>
-            <label htmlFor={index===0?"planning-validator":"stage-validator-"+index}>独立验收工具</label><select id={index===0?"planning-validator":"stage-validator-"+index} required value={stage.validatorId} onChange={e=>changeStage(index,{validatorId:e.target.value})}><option value="">选择已登记工具</option>{data.validators.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
+            <label htmlFor={index===0?"planning-validator":"stage-validator-"+index}>项目功能检查程序</label><select id={index===0?"planning-validator":"stage-validator-"+index} required value={stage.validatorId} onChange={e=>changeStage(index,{validatorId:e.target.value})}><option value="">选择已登记检查程序</option>{data.validators.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
             <label htmlFor={index===0?"planning-args":"stage-args-"+index}>验收参数（每行一个参数）</label><textarea id={index===0?"planning-args":"stage-args-"+index} rows={3} value={stage.args.join("\n")} onChange={e=>changeStage(index,{args:e.target.value?e.target.value.split(/\r?\n/):[]})}/>
             <AssertionFields id={"stage-assertions-"+index} value={stage.expectedAssertions} onChange={expectedAssertions=>changeStage(index,{expectedAssertions})}/>
             <label htmlFor={"stage-timeout-"+index}>检查时限（秒）</label><input id={"stage-timeout-"+index} type="number" required min={1} max={3600} value={stage.timeoutSeconds} onChange={e=>changeStage(index,{timeoutSeconds:Number(e.target.value)})}/>

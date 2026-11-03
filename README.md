@@ -98,17 +98,28 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.38 为公开预览版**，本地 `.md` 先由已配置主指挥自动提炼目标、任务与验收标准，再经用户审阅确认读入草稿。支持长文档分段处理；确认退出时仍会停止对应后台核心。保留此前的角色接入分组、本机 Codex 扫描、中文错误说明、目录隔离和项目级 API 盲评。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.38.md)。本版本不作稳定版承诺。
+**0.1.39 为公开预览版**，加入与工作台固定绑定的独立验收程序，并完善主指挥桌面接入与首次项目配置引导，保留所选接入方式、绑定会话和其他角色设置，并优化退出按钮与文档导入配置入口。沿用 API 主指挥的 Markdown 提炼、审阅确认、目录隔离和项目级盲评。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.39.md)。本版本不作稳定版承诺。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.38 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.38)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.39 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.39)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.39 · 2026-11-03 · 公开预览
+
+- 新增随工作台分发的独立验收程序，固定绑定并核对摘要，实际承担脱敏分片、核票和全票判定；项目客观测试与最终用户确认保持。项目专用检查配置收进高级设置。
+- 编程项目初始目录为 `D:\test\coding`，可自行修改；验收工具留在工作台程序目录，不迁移已关联项目。
+- 主指挥桌面接入不再因尚无项目而直接禁用；先引导关联目录，再保留“当前 Codex 聊天”的选择并定位到绑定字段。配置仍需手动保存。
+- 修复配置跳转在读取完成前丢失定位的问题；重访已有绑定时保留会话标识和其他角色，离开页面会取消未完成的跳转意图。
+- 退出按钮更紧凑，并与版本号保持间距；文档提炼项目列表补充配置入口及空状态说明。自动提炼仍需 API 主指挥。
+- Windows 程序需与配套核心及资源放在一起；桌面请使用指向完整目录的快捷方式。
+
+[版本说明](docs/releases/0.1.39.md) · [发布页与下载](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.39)
 
 #### 0.1.38 · 2026-11-03 · 公开预览
 
@@ -245,17 +256,28 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.38 is a public preview** with automatic refinement of local `.md` documents by the configured chief into objectives, tasks and acceptance criteria, followed by user review and confirmation into the draft. Long documents are processed in segments; confirmed exit still stops the associated core. Role-based integration groups, local Codex discovery, Chinese error explanations, directory isolation, and project-level API blind review remain available. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.38.md). This is not a stable-release commitment.
+**0.1.39 is a public preview** adding a fixed, separately executed verifier and improving desktop-chief setup and first-project guidance while preserving the selected connection method, bound session, and other roles. It also refines the exit control and document-import configuration entry. API-chief Markdown refinement, review and confirmation, workspace isolation, and project-level blind review remain available. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.39.md). This is not a stable-release commitment.
 
 Try blind review in a separate experiment workbench and configure checking accounts before plan approval. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.38 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.38). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.39 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.39). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.39 · 2026-11-03 · Public Preview
+
+- A separately executed verifier ships with the workbench, with a fixed, hash-checked binding. It prepares redacted fragments, validates ballots and checks unanimity; objective project tests and final user confirmation remain. Project-specific checking tools are advanced settings.
+- Project registration starts at `D:\test\coding` and remains editable. The verifier stays in the program directory; existing projects are not relocated.
+- Desktop-chief setup remains actionable before a project exists: register a directory, then continue with Current Codex Chat selected and its binding fields focused. Saving remains explicit.
+- Configuration navigation waits for loaded data, preserves an existing session and other roles, and discards unfinished navigation intent when leaving the page.
+- The exit control is smaller with space below the version. Document refinement has a styled project selector, empty-state guidance and a configuration entry; automatic refinement still requires an API chief.
+- Keep the Windows GUI, runtime and bundled resources together; use a desktop shortcut to the complete directory.
+
+[Release notes](docs/releases/0.1.39.md) · [Release and downloads](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.39)
 
 #### 0.1.38 · 2026-11-03 · Public Preview
 

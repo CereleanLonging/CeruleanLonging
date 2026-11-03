@@ -3,7 +3,7 @@
 use std::{
     ffi::OsStr,
     fs::File,
-    io::Read,
+    io::{Read, Write},
     mem::size_of,
     os::windows::{
         ffi::OsStrExt,
@@ -218,6 +218,7 @@ pub fn run(
         false,
         None,
         None,
+        None,
     )
 }
 #[allow(clippy::too_many_arguments)]
@@ -241,6 +242,7 @@ pub(crate) fn run_scoped(
         allowed_environment,
         false,
         job_name,
+        None,
         None,
     )
 }
@@ -272,6 +274,7 @@ pub(crate) fn run_desktop(
         true,
         None,
         None,
+        None,
     )
 }
 #[allow(clippy::too_many_arguments)]
@@ -297,6 +300,27 @@ pub(crate) fn run_isolated(
         false,
         job_name,
         Some(account),
+        None,
+    )
+}
+// Only the host-bound offline verifier uses stdin. Ordinary project checks
+// keep closed stdin; no model-facing endpoint exposes this runner.
+pub(crate) fn run_bound_input(exe: &Path, input: Vec<u8>, cwd: &Path) -> Result<Outcome, String> {
+    if input.len() > cerulean_domain::independent_verifier::MAX_MESSAGE_BYTES {
+        return Err("独立验收输入超限".into());
+    }
+    run_inner(
+        exe,
+        &["--stdio-once".into()],
+        cwd,
+        cwd,
+        Duration::from_secs(10),
+        &AtomicBool::new(false),
+        &Default::default(),
+        false,
+        None,
+        None,
+        Some(input),
     )
 }
 fn require_short_logon_command(command: &[u16]) -> Result<(), String> {
@@ -318,6 +342,7 @@ fn run_inner(
     desktop_foreground: bool,
     job_name: Option<&str>,
     account: Option<&crate::windows_worker_account::Account>,
+    input: Option<Vec<u8>>,
 ) -> Result<Outcome, String> {
     let job = match job_name {
         Some(name) => named_job::create(name)?,
@@ -338,9 +363,19 @@ fn run_inner(
     }
     let (stdout, stdout_write) = pipe()?;
     let (stderr, stderr_write) = pipe()?;
-    // stdin is a closed pipe (EOF), never the user's terminal.
+    // Closed stdin for normal checks, or one bounded private request for the
+    // workbench-bound verifier. The parent write end must never be inherited.
     let (stdin, stdin_write) = pipe()?;
-    drop(stdin_write);
+    let stdin_write = if input.is_some() {
+        if unsafe { SetHandleInformation(stdin_write.as_raw_handle(), HANDLE_FLAG_INHERIT, 0) } == 0
+        {
+            return Err(os_error());
+        }
+        Some(stdin_write)
+    } else {
+        drop(stdin_write);
+        None
+    };
     use std::os::windows::io::AsRawHandle;
     if unsafe {
         SetHandleInformation(
@@ -489,6 +524,13 @@ fn run_inner(
     let overflow = Arc::new(AtomicBool::new(false));
     let out = read_output(stdout, overflow.clone());
     let err = read_output(stderr, overflow.clone());
+    let writer = input.zip(stdin_write).map(|(bytes, handle)| {
+        thread::spawn(move || {
+            File::from(handle)
+                .write_all(&bytes)
+                .map_err(|_| "独立验收输入写入未完成".to_string())
+        })
+    });
     let started = Instant::now();
     let mut timed_out = false;
     let mut failure = None;
@@ -543,6 +585,11 @@ fn run_inner(
     if timed_out {
         unsafe {
             GetExitCodeProcess(process.as_raw_handle(), &mut exit_code);
+        }
+    }
+    if let Some(writer) = writer {
+        if let Err(error) = writer.join().map_err(|_| "独立验收输入线程未完成")? {
+            failure = Some(error);
         }
     }
     let stdout = out.join().map_err(|_| "stdout reader panicked")??;

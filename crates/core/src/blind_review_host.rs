@@ -433,20 +433,13 @@ impl RuntimeHost {
                             }
                         }
                     }
-                    let material = ReviewMaterial {
-                        protocol: PROTOCOL.into(),
-                        requirement: crate::blind_review::material::sanitize(
-                            &g.requirement,
-                            &redactions,
-                        )?,
-                        criteria: g
-                            .criteria
-                            .iter()
-                            .map(|c| crate::blind_review::material::sanitize(c, &redactions))
-                            .collect::<Result<_, _>>()?,
-                        fragments: crate::blind_review::material::fragments(&g.files, &redactions)?,
-                        objective_checks: g.checks,
-                    };
+                    let material = crate::independent_verifier::prepare(
+                        &g.requirement,
+                        &g.criteria,
+                        &g.files,
+                        &redactions,
+                        g.checks,
+                    )?;
                     material.validate()?;
                     g.binding.material = digest(&material)?;
                     g.binding.policy = digest(&(

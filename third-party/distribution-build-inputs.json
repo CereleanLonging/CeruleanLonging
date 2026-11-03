@@ -7,7 +7,7 @@
     "commit": "b940084d7eb6a299eb4bfeb8e34901bc051e7ac4",
     "host": "x86_64-pc-windows-msvc"
   },
-  "configurationSha256": "658c49524bf153e241d3c4d4437769da239e11eba2a8280ed0ff5e7ff48cf0d1",
+  "configurationSha256": "8f28f0e409ada1f84e68dacbec7a125102c89139777dc7212651a3c99e4f0239",
   "files": {
     "repository": [
       {
@@ -32,8 +32,8 @@
       },
       {
         "path": "apps/desktop/src-tauri/installer/hooks.nsh",
-        "bytes": 5190,
-        "sha256": "177fe93028a0e1407e2c186fbae9d52357f526eb0862d3dbc5d2153601daeb70"
+        "bytes": 5258,
+        "sha256": "04047f5830fa7ead58f09163df35f444f1daa72fb14880e1f2e25894b645db98"
       },
       {
         "path": "node_modules/@tauri-apps/cli-win32-x64-msvc/cli.win32-x64-msvc.node",

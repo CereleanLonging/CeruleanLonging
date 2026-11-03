@@ -56,6 +56,12 @@ foreach($name in @('SQLITE-NOTICES.txt','THIRD-PARTY-NOTICES.txt','RUST-LIBRARY-
     if($noticeHash -cne (Get-FileHash -LiteralPath $notice -Algorithm SHA256).Hash.ToLowerInvariant()){throw 'Notice copy differs'}
     $resources+=@{path=$name;bytes=(Get-Item -LiteralPath $noticeDestination).Length;sha256=$noticeHash}
 }
+$verifier=Join-Path $root 'target/release/cerulean-verifier.exe'
+$verifierHash=(Get-FileHash -LiteralPath $verifier -Algorithm SHA256).Hash.ToLowerInvariant()
+if($buildInfo.independentVerifierSchema -ne 1 -or $buildInfo.independentVerifierSha256 -cne $verifierHash){throw 'Core does not bind the packaged verifier'}
+if((Get-FileHash -LiteralPath (Join-Path $root 'apps/desktop/src-tauri/binaries/cerulean-verifier-x86_64-pc-windows-msvc.exe') -Algorithm SHA256).Hash.ToLowerInvariant() -cne $verifierHash){throw 'Verifier staging mismatch'}
+Copy-Item -LiteralPath $verifier -Destination (Join-Path $target 'cerulean-verifier.exe')
+$resources+=@{path='cerulean-verifier.exe';bytes=(Get-Item -LiteralPath $verifier).Length;sha256=$verifierHash}
 $manifest=[ordered]@{
     schema=1
     product=$config.productName

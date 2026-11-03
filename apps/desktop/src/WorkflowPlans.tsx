@@ -61,17 +61,18 @@ export function VerificationJobs({jobs,detail,send,busy}:{jobs:VerificationJob[]
 }
 
 export function ProjectRegistration({ send, busy, connected }: { send: Send; busy: boolean; connected: boolean }) {
-  const [root, setRoot] = useState("");
+  const [root, setRoot] = useState("D:\\test\\coding");
   const [timezone, setTimezone] = useState("Asia/Shanghai");
   return <section className="panel">
     <h2>关联编程项目</h2>
     <p className="secondary">选择已有项目目录，后续执行方案将在这里审阅。关联目录不会运行命令或修改项目文件。</p>
     <form onSubmit={async (event) => {
       event.preventDefault();
-      if (await send({ type: "registerProject", project: { id: `project-${crypto.randomUUID()}`, root: root.trim(), timezone: timezone.trim() } })) setRoot("");
+      if (await send({ type: "registerProject", project: { id: `project-${crypto.randomUUID()}`, root: root.trim(), timezone: timezone.trim() } })) setRoot(root.trim());
     }}>
       <label htmlFor="project-root">项目目录</label>
-      <input id="project-root" required value={root} onChange={e => setRoot(e.target.value)} placeholder="D:\\projects\\my-project" />
+      <input id="project-root" required value={root} onChange={e => setRoot(e.target.value)} aria-describedby="project-root-help" />
+      <p id="project-root-help" className="secondary">初始目录为 D:\test\coding，可按项目需要修改。点击关联后才登记；修改这里的目录不会迁移或改写已关联项目。</p>
       <label htmlFor="project-timezone">交接文档时区</label>
       <input id="project-timezone" required value={timezone} onChange={e => setTimezone(e.target.value)} list="project-timezones" aria-describedby="project-timezone-help" />
       <datalist id="project-timezones">{["Asia/Shanghai", "Asia/Tokyo", "Asia/Kolkata", "Europe/London", "America/New_York", "UTC"].map(zone => <option key={zone} value={zone} />)}</datalist>

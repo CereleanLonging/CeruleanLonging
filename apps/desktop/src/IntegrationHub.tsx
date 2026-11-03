@@ -6,7 +6,9 @@ import { OpenAiConnection } from "./OpenAiConnection";
 import { ProviderCard, providers } from "./ProviderConnections";
 
 export type IntegrationRole = "chief" | "deputy" | "worker";
-type Props = { data: Snapshot; busy: boolean; send: (command: Command) => Promise<boolean>; configure: (role: IntegrationRole) => void };
+export type ChiefMethod = "api" | "desktop";
+export type ConfigurationRequest = { token: number; role: IntegrationRole; chiefMethod?: ChiefMethod; projectId?: string };
+type Props = { data: Snapshot; busy: boolean; send: (command: Command) => Promise<boolean>; configure: (role: IntegrationRole, chiefMethod?: ChiefMethod) => void };
 type Method = "api" | "key" | "cli" | "desktop";
 const roleNames = { chief: "主指挥", deputy: "副指挥", worker: "执行端" };
 
@@ -35,12 +37,12 @@ function WorkerCli({ data, busy, send, configure }: Props) {
     </select>
     {program === "codex" ? <CodexConnection status={data.codexConnection} busy={busy} send={send} connected/>
       : <div className="integration-note"><h3>OMP</h3><p>在项目执行端配置中填写 OMP 程序路径、模型和运行目录。当前未提供独立的 OMP 目录扫描或登录检查。</p>
-        <button type="button" className="secondary-button" disabled={busy || !data.workflows.length} onClick={() => configure("worker")}>配置 OMP 执行模型</button></div>}
+        <button type="button" className="secondary-button" disabled={busy} onClick={() => configure("worker")}>配置 OMP 执行模型</button></div>}
   </div>;
 }
 
-function ConfigureButton({ role, data, busy, configure }: Pick<Props,"data"|"busy"|"configure"> & { role: IntegrationRole }) {
-  return <button type="button" className="secondary-button" disabled={busy || !data.workflows.length} onClick={() => configure(role)}>配置{roleNames[role]}模型</button>;
+function ConfigureButton({ role, chiefMethod, busy, configure }: Pick<Props,"busy"|"configure"> & { role: IntegrationRole; chiefMethod?: ChiefMethod }) {
+  return <button type="button" className="secondary-button" disabled={busy} onClick={() => configure(role, chiefMethod)}>配置{roleNames[role]}模型</button>;
 }
 
 export function IntegrationHub(props: Props) {
@@ -48,16 +50,16 @@ export function IntegrationHub(props: Props) {
   const [chiefMethod, setChiefMethod] = useState<Method>("api");
   return <div className="integration-hub">
     <p className="secondary">按角色管理接入。连接检查和凭证保存不会切换已批准任务的模型；选择任务模型时进入对应项目配置，保存后重新审阅方案。</p>
-    {!data.workflows.length && <p className="secondary">请先在“项目设置”关联项目目录，再配置各角色的任务模型。接入检查与 Key 保存可先完成。</p>}
+    {!data.workflows.length && <p className="secondary">尚未关联项目目录。点击对应角色的“配置”入口，先关联目录，再继续配置该角色；接入检查与 Key 保存也可先完成。</p>}
     <section className="panel integration-role" aria-labelledby="integration-chief-title">
-      <div className="integration-role-heading"><div><span className="integration-role-eyebrow">规划与收口</span><h2 id="integration-chief-title">主指挥</h2></div><ConfigureButton role="chief" {...props}/></div>
+      <div className="integration-role-heading"><div><span className="integration-role-eyebrow">规划与收口</span><h2 id="integration-chief-title">主指挥</h2></div><ConfigureButton role="chief" chiefMethod={chiefMethod === "desktop" ? "desktop" : "api"} {...props}/></div>
       <label htmlFor="integration-chief-method">主指挥接入方式</label>
       <select id="integration-chief-method" value={chiefMethod} disabled={busy} onChange={e => setChiefMethod(e.target.value as Method)}>
         <option value="api">API 连接</option><option value="key">Key 管理</option><option value="desktop">桌面端 · 当前 Codex 聊天</option><option value="cli" disabled>CLI · 当前未开放主指挥接入</option>
       </select>
       <div className="integration-single-entry" key={chiefMethod}>
         {(chiefMethod === "api" || chiefMethod === "key") && <ApiEntry role="chief" view={chiefMethod} data={data} busy={busy} send={send}/>}
-        {chiefMethod === "desktop" && <div className="integration-note"><h3>绑定当前 Codex 聊天</h3><p>此入口使用已打开的 Codex 聊天。由该聊天提供会话标识，再到主指挥项目配置中绑定；无需扫描本地程序目录。</p><ConfigureButton role="chief" {...props}/></div>}
+        {chiefMethod === "desktop" && <div className="integration-note"><h3>绑定当前 Codex 聊天</h3><p>使用已打开的 Codex 聊天。点击下方按钮进入项目配置，保留桌面接入选择，再填写该聊天提供的会话标识。无需扫描本地程序目录；保存后仍须单独请求方案、审阅和批准。</p><button type="button" className="secondary-button" disabled={busy} onClick={() => configure("chief", "desktop")}>绑定 Codex 聊天</button></div>}
       </div>
     </section>
 

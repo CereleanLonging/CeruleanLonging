@@ -44,6 +44,8 @@ def validate_inputs(directory,digest):
             and manifest.get('product')=='CeruleanLonging'
             and manifest.get('identifier')=='local.ceruleanlonging.workbench','Wrong payload identity')
     require(re.fullmatch(r'0\.1\.\d+',manifest.get('version','')) is not None,'Unsupported version')
+    require(tuple(map(int,manifest['version'].split('.'))) < (0,1,39),
+            'This historical signing helper handles the seven-file layout only; build the bound independent verifier with scripts/desktop.mjs package')
     files=manifest.get('files',[])
     require(len(files)==len(NAMES) and {r.get('path') for r in files}==set(NAMES),'Exact seven payloads required')
     for row in files:

@@ -28,7 +28,7 @@ export function ExitWorkbench({ enabled, api = nativeApi }: { enabled: boolean; 
   }
   if (!enabled) return null;
   return <>
-    <button type="button" className="secondary-button" onClick={() => setOpen(true)}>退出工作台</button>
+    <button type="button" className="secondary-button workbench-exit-trigger" onClick={() => setOpen(true)}>退出工作台</button>
     {!open && error && <p role="alert"><ErrorText error={error}/></p>}
     {open && <div className="modal-backdrop"><section className="modal panel exit-workbench" role="dialog" aria-modal="true" aria-labelledby="workbench-exit-title">
       <h2 id="workbench-exit-title">确认退出工作台？</h2>

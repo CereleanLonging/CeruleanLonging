@@ -137,6 +137,9 @@ a {
 .sidebar > nav {
   display: grid;
   gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  grid-auto-rows: min-content;
 }
 .sidebar > nav button {
   text-align: left;
@@ -170,6 +173,7 @@ a {
   margin-left: auto;
 }
 .sidebar-footer {
+  flex-shrink: 0;
   margin-top: auto;
   padding: 24px 14px 0;
   border-top: 1px solid #283642;
@@ -185,6 +189,21 @@ a {
   font-size: 10px;
   margin-top: 11px;
 }
+.sidebar-footer .workbench-exit-trigger {
+  display: block;
+  width: auto;
+  min-height: 28px;
+  margin-top: 16px;
+  padding: 4px 10px;
+  border: 1px solid #425564;
+  border-radius: 6px;
+  background: transparent;
+  color: #b9cbd6;
+  font-size: 11px;
+  line-height: 18px;
+}
+.sidebar-footer .workbench-exit-trigger:hover { background: #243542; color: #fff; }
+.sidebar-footer .workbench-exit-trigger:focus-visible { outline: 2px solid #8dc9d8; outline-offset: 3px; }
 main {
   margin-left: 238px;
   flex: 1;
@@ -827,4 +846,13 @@ form .primary {
 .blind-review-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; padding: 12px; background: #f4f6f8; }
 .markdown-import { margin: 16px 0; padding: 16px; border: 1px solid #dce5ec; border-radius: 10px; }
 .markdown-import input[type="file"] { display: block; width: 100%; margin-top: 8px; }
+.document-chief-configuration { display: grid; gap: 10px; margin: 18px 0; }
+.document-chief-configuration select, .independent-verifier select { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #f9fcfe; color: #243548; font: inherit; }
+.document-chief-configuration button { justify-self: start; }
+.document-chief-configuration p { margin: 0; }
+.custom-validator-settings { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.custom-validator-settings > summary { cursor: pointer; font-weight: 600; }
+.independent-verifier { display: grid; gap: 10px; }
+.independent-verifier > p { margin: 0; }
+.independent-verifier > button { justify-self: start; }
 .exit-workbench { color: #20384c; text-align: left; }

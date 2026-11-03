@@ -516,6 +516,8 @@ impl Ledger {
             "实际评审模型不符合批准规则",
         )?;
         ballot.validate(&r.material)?;
+        #[cfg(windows)]
+        crate::independent_verifier::check_ballot(&r.material, seat, model, &ballot)?;
         r.pending = None;
         if pending.readiness {
             require(
@@ -542,7 +544,15 @@ impl Ledger {
                 },
             );
             if r.ballots.len() == r.seats.len() {
-                r.phase = if r.ballots.values().all(|b| b.ballot.vote == Vote::Pass) {
+                #[cfg(windows)]
+                let passed = crate::independent_verifier::tally(
+                    &r.material,
+                    &r.seats,
+                    &r.ballots.values().cloned().collect::<Vec<_>>(),
+                )?;
+                #[cfg(not(windows))]
+                let passed = r.ballots.values().all(|b| b.ballot.vote == Vote::Pass);
+                r.phase = if passed {
                     ReviewPhase::AwaitingUser
                 } else {
                     ReviewPhase::Rejected
@@ -658,6 +668,15 @@ impl Ledger {
         require(
             r.phase == ReviewPhase::AwaitingUser && r.digest == key && r.binding == *current,
             "盲评材料或状态已变化，不能确认旧结果",
+        )?;
+        #[cfg(windows)]
+        require(
+            crate::independent_verifier::tally(
+                &r.material,
+                &r.seats,
+                &r.ballots.values().cloned().collect::<Vec<_>>(),
+            )?,
+            "独立验收未确认全票通过",
         )?;
         r.phase = ReviewPhase::Accepted;
         self.commit(r)

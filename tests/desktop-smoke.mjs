@@ -138,12 +138,17 @@ try {
     await page.getByLabel("项目目录",{exact:true}).fill(additional);
     await page.getByRole("button",{name:"关联项目目录",exact:true}).click();
     await page.getByLabel("项目目录",{exact:true}).waitFor();
-    await page.waitForFunction(()=>document.querySelector("#project-root").value==="");
+    await page.waitForFunction(async expected=>{
+      const snapshot=await window.__TAURI_INTERNALS__.invoke("core_request",{command:{type:"snapshot"}});
+      return snapshot.workflows.some(w=>w.project.root.replace(/^\\\\\?\\/,"").toLowerCase()===expected.toLowerCase());
+    },additional);
+    assert.equal(await page.getByLabel("项目目录",{exact:true}).inputValue(),additional);
     const catalogScript=join(dir,"catalog-script.txt");
     await writeFile(catalogScript,"read-only registration fixture\n");
-    await page.getByLabel("验收工具名称",{exact:true}).fill("原生工具登记验证");
+    await page.getByText("配置项目专用检查程序（高级）",{exact:true}).click();
+    await page.getByLabel("检查程序名称",{exact:true}).fill("原生工具登记验证");
     await page.getByLabel("程序完整路径",{exact:true}).fill(resolve("target/debug/cerulean-core.exe"));
-    await page.getByLabel("固定验收文件（可选，每行一个完整路径）",{exact:true}).fill(catalogScript);
+    await page.getByLabel("固定检查文件（可选，每行一个完整路径）",{exact:true}).fill(catalogScript);
     await page.getByLabel("环境设置（可选）",{exact:true}).fill("CI=true\nNO_COLOR=1");
     await page.getByRole("button",{name:"读取文件并登记",exact:true}).click();
     await page.getByRole("heading",{name:"原生工具登记验证",exact:true}).waitFor();
@@ -165,7 +170,7 @@ try {
       await page.getByLabel("副指挥模型 ID",{exact:true}).fill("fixture-deputy");
       await page.getByLabel("编程 Codex 程序",{exact:true}).fill(join(dir,"codex.exe"));
       await page.getByLabel("编程模型 ID",{exact:true}).fill("fixture-worker");
-      await page.getByLabel("独立验收工具",{exact:true}).selectOption(registered.registration.id);
+      await page.getByLabel("项目功能检查程序",{exact:true}).selectOption(registered.registration.id);
       await page.getByLabel("验收参数（每行一个参数）",{exact:true}).fill("--fixture\nargument with spaces");
       await page.getByLabel("必须交付的文件（项目相对路径，每行一个）",{exact:true}).fill("sum.mjs");
       await page.getByRole("button",{name:"保存需求与执行配置",exact:true}).click();

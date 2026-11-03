@@ -313,7 +313,9 @@ function ObserveTree([string]$path){
     }catch{return 'unavailable'}
 }
 function ProgramGuards([string]$directory){
-    foreach($name in @('CeruleanLonging.exe','cerulean-runtime.exe','uninstall.exe')){
+    $names=@('CeruleanLonging.exe','cerulean-runtime.exe','uninstall.exe')
+    if(Test-Path -LiteralPath (Join-Path $directory 'cerulean-verifier.exe')){$names+=@('cerulean-verifier.exe')}
+    foreach($name in $names){
         $path=Join-Path $directory $name;$guard=[CeruleanPackagePin]::WriteGuard($path)
         $owned.Add($guard);$script:guards.Add($path,$guard)
     }

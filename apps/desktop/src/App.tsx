@@ -12,7 +12,7 @@ import { ApiGenerationPanel } from "./ApiGenerationPanel";
 import { HistoricalCurrencyPanel } from "./HistoricalCurrencyPanel";
 import { ProjectRegistration, WorkflowPlans, VerificationJobs } from "./WorkflowPlans";
 import { ValidatorCatalog } from "./ValidatorCatalog";
-import { IntegrationHub, type IntegrationRole } from "./IntegrationHub";
+import { IntegrationHub, type IntegrationRole, type ChiefMethod, type ConfigurationRequest } from "./IntegrationHub";
 import { CodexJobs } from "./CodexJobs";
 import { OmpJobs } from "./OmpJobs";
 import { ApiJobs } from "./ApiJobs";
@@ -47,17 +47,8 @@ const time = (s: string) =>
 
 export function App() {
   const [page, setPage] = useState<Page>("工作总览");
-  const [roleFocus, setRoleFocus] = useState<IntegrationRole | null>(null);
-  useEffect(() => {
-    if(page!=="需求与计划"||!roleFocus)return;
-    const frame=requestAnimationFrame(()=>{
-      const field=document.getElementById(`planning-${roleFocus==="worker"?"adapter":roleFocus}`);
-      field?.closest(".role-model-fields")?.scrollIntoView({block:"start",behavior:"smooth"});
-      field?.focus({preventScroll:true});
-      setRoleFocus(null);
-    });
-    return ()=>cancelAnimationFrame(frame);
-  },[page,roleFocus]);
+  const [configuration,setConfiguration]=useState<ConfigurationRequest|null>(null);
+  const configurationSequence=useRef(0);
   const [data, setData] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -65,6 +56,11 @@ export function App() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [workspace, setWorkspace] = useState<WorkspaceOverview | null>(null);
+  function navigate(next:Page){setConfiguration(null);setPage(next);}
+  function configure(role:IntegrationRole,chiefMethod?:ChiefMethod,projectId?:string){
+    setConfiguration({token:++configurationSequence.current,role,chiefMethod,projectId});
+    setPage(data?.workflows.length?"需求与计划":"项目设置");
+  }
   const [ompManagement, setOmpManagement] = useState<{operationId:string;token:number}|null>(null);
   const readWorkspace = (query: WorkspaceQuery) => invoke<WorkspaceResult>("workspace_read", { query });
   async function query(command: Command): Promise<Snapshot | null> {
@@ -167,7 +163,7 @@ export function App() {
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            setPage("工作总览");
+            navigate("工作总览");
           }}
         >
           <span className="brand-symbol">
@@ -194,7 +190,7 @@ export function App() {
               key={p}
               aria-current={page === p ? "page" : undefined}
               className={page === p ? "selected" : ""}
-              onClick={() => setPage(p)}
+              onClick={() => navigate(p)}
             >
               <span>{icons[i]}</span>
               {p}
@@ -240,7 +236,7 @@ export function App() {
             <button
               className="primary"
               disabled={busy || !workspace}
-              onClick={() => setPage("需求与计划")}
+              onClick={() => navigate("需求与计划")}
             >
               ＋ 新建计划
             </button>
@@ -266,7 +262,7 @@ export function App() {
               {notice}
             </div>
           )}
-          {(page === "工作总览" || page === "需求与计划") && <WorkspaceBrowser refinementSetups={data?.projectSetups} read={readWorkspace} send={send} enabled={desktop} busy={busy} showPlans={page === "需求与计划"} onOverview={setWorkspace}/>}
+          {(page === "工作总览" || page === "需求与计划") && <WorkspaceBrowser refinementSetups={data?.projectSetups} configureChief={projectId=>configure("chief",undefined,projectId)} read={readWorkspace} send={send} enabled={desktop} busy={busy} showPlans={page === "需求与计划"} onOverview={setWorkspace}/>}
           {needsFullView && !data && <div role="status" className="banner">{snapshotLoading ? "正在读取此页的完整记录；独立项目与计划入口仍可使用。" : "此页完整记录尚不可用，不能据此判断没有任务或事件。请重新读取；独立项目与计划入口仍可使用。"}<button disabled={busy || snapshotLoading || !desktop} onClick={() => void query({type:"snapshot"})}>读取完整记录</button></div>}
           {page === "工作总览" && (
             <>
@@ -287,7 +283,7 @@ export function App() {
                 <div>
                   <span>模型与执行器</span>
                   <strong>
-                    <button className="text-button" onClick={() => setPage("接入管理")}>查看接入</button>
+                    <button className="text-button" onClick={() => navigate("接入管理")}>查看接入</button>
                   </strong>
                   <small>连接状态与可用能力请在接入管理中核对</small>
                 </div>
@@ -308,7 +304,7 @@ export function App() {
                   <button
                     className="primary"
                     disabled={!workspace || busy}
-                    onClick={() => setPage("需求与计划")}
+                    onClick={() => navigate("需求与计划")}
                   >
                     创建第一份计划 <span>↗</span>
                   </button>
@@ -337,7 +333,7 @@ export function App() {
                   <h2>最近记录</h2>
                   <button
                     className="text-button"
-                    onClick={() => setPage("交接记录")}
+                    onClick={() => navigate("交接记录")}
                   >
                     查看全部 →
                   </button>
@@ -370,7 +366,7 @@ export function App() {
             <div className="plan-layout">
               <TeamTimingPanel data={data} busy={busy} send={send} desktop={desktop}/>
               <BaselinePanel data={data} busy={busy} send={send}/>
-              <ProjectPlanning data={data} busy={busy} send={send}/>
+              <ProjectPlanning data={data} busy={busy} send={send} configuration={configuration} onConfigurationReady={token=>setConfiguration(c=>c?.token===token?null:c)} onSetup={()=>configure("chief")}/>
               <WorkflowPlans workflows={data?.workflows ?? []} revisions={data?.projectRevisions ?? []} send={send} busy={busy} />
               <HistoricalCurrencyPanel snapshot={data} query={queryHistorical} busy={busy}/>
               <ManagementCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
@@ -389,11 +385,12 @@ export function App() {
             </div>
           )}
           {page === "接入管理" && data && (
-            <IntegrationHub data={data} busy={busy} send={send} configure={role=>{setRoleFocus(role);setPage("需求与计划");}}/>
+            <IntegrationHub data={data} busy={busy} send={send} configure={configure}/>
           )}
           {page === "交接记录" && <WorkspaceHistory read={readWorkspace} enabled={desktop} busy={busy}/>}
           {page === "项目设置" && (
             <>
+            {configuration&&<section className="panel" aria-label="模型配置引导"><h2>继续配置{configuration.role==="chief"?"主指挥":configuration.role==="deputy"?"副指挥":"执行端"}</h2><p>先在下方关联已有项目目录，再进入角色配置。{configuration.chiefMethod==="desktop"?"已保留“当前 Codex 聊天”的选择；进入后填写会话标识。":"关联目录不会调用模型。"}</p><button className="primary" disabled={busy||snapshotLoading||!data?.workflows.length} onClick={()=>setPage("需求与计划")}>继续配置模型</button><p className="secondary">独立验收工具已固定关联；保存执行配置前，请在高级设置登记项目功能检查程序。配置、请求方案、批准与启动保持分别确认。</p></section>}
             {data && <ProjectRegistration send={send} busy={busy || snapshotLoading} connected={true} />}
             {data && <ValidatorCatalog items={data.validators} send={send} busy={busy || snapshotLoading} connected={true} />}
             <section className="panel settings">

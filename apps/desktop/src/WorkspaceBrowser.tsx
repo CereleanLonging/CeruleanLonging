@@ -19,7 +19,7 @@ import { WorkspaceCodexCancellations } from "./WorkspaceCodexCancellations";
 import { WorkspaceManagementRecordReviews } from "./WorkspaceManagementRecordReviews";
 import { WorkspaceApiPublicationReviews } from "./WorkspaceApiPublicationReviews";
 export type WorkspaceReader = (query: WorkspaceQuery) => Promise<WorkspaceResult>;
-type Props = { refinementApi?: RefinementApi; refinementSetups?: SavedProjectSetup[]; read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
+type Props = { refinementApi?: RefinementApi; refinementSetups?: SavedProjectSetup[]; configureChief?: (projectId?: string) => void; read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
 type Pending = { type: "create" } | { type: "approve"; id: string; digest: string };
 
 export function WorkspaceBrowser(props: Props) {
@@ -150,7 +150,9 @@ export function WorkspaceBrowser(props: Props) {
     {props.showPlans ? <>
       <section className="panel"><h3>创建计划</h3><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
         <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: importedTasks ?? tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>
-          <label>文档提炼使用的项目主指挥<select value={chief?.setup.projectId??""} onChange={e=>setRefinementProject(e.target.value)} disabled={!canWrite}><option value="">请选择已配置项目</option>{props.refinementSetups?.map(s=><option key={s.setup.projectId} value={s.setup.projectId}>{s.setup.projectId} · {s.setup.chiefModel}</option>)}</select></label>
+          <div className="document-chief-configuration"><label htmlFor="document-refinement-project">文档提炼使用的项目主指挥</label><select id="document-refinement-project" value={chief?.setup.projectId??""} onChange={e=>setRefinementProject(e.target.value)} disabled={!canWrite||!props.refinementSetups?.length}><option value="">{props.refinementSetups?.length?"请选择已配置项目":"尚无已保存的项目配置"}</option>{props.refinementSetups?.map(s=><option key={s.setup.projectId} value={s.setup.projectId}>{s.setup.projectId} · {s.setup.chiefModel}</option>)}</select>
+          {!props.refinementSetups?.length&&<p className="secondary">先关联项目目录并保存主指挥配置，才会在此显示。文档自动提炼需使用 API 主指挥；手工填写计划仍可继续。</p>}
+          {props.configureChief&&<button type="button" className="secondary-button" disabled={blocked} onClick={()=>props.configureChief?.(chief?.setup.projectId)}>配置项目主指挥</button>}</div>
           <MarkdownImport chief={chief} api={props.refinementApi} mode="plan" contextKey={JSON.stringify([title,tasks])} disabled={!canWrite} onApply={(_text,plan)=>{if(plan){setTitle(plan.title);setTasks(plan.tasks.join("\n\n"));setImportedTasks(plan.tasks);}}}/>
           <label htmlFor="workspace-title">计划名称</label><input id="workspace-title" required maxLength={200} value={title} disabled={blocked || !!pending} onChange={e => setTitle(e.target.value)}/>
           <label htmlFor="workspace-tasks">{importedTasks ? "导入的任务内容，空行分隔" : "具体任务，每行一项"}</label><textarea id="workspace-tasks" required rows={5} value={tasks} disabled={blocked || !!pending} onChange={e => {setTasks(e.target.value);if(importedTasks)setImportedTasks(e.target.value.split(/\n\s*\n/).filter(t=>t.trim()));}}/>

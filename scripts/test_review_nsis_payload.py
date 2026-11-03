@@ -87,6 +87,24 @@ def package_review(installer, mutate_manifest=None, requested_digest=None, notic
 
 
 class PayloadTests(unittest.TestCase):
+    def test_bound_independent_verifier_is_required_in_new_package(self):
+        resources = {name: name.encode() for name in RESOURCE_LIMITS}
+        resources['cerulean-verifier.exe'] = b'MZ-independent-fixture'
+        def bound(m):
+            m['version'] = '0.1.39'
+            m['coreBuildInfo'] = dict(independentVerifierSchema=1,
+                                     independentVerifierSha256=sha(resources['cerulean-verifier.exe']))
+        result = package_review(envelope(fixture_records(resources=resources)), bound, resources=resources)
+        self.assertEqual(len(result['verified']), 8)
+        def wrong(m):
+            bound(m)
+            m['coreBuildInfo']['independentVerifierSha256'] = '0' * 64
+        with self.assertRaisesRegex(ValueError, 'Verifier build binding differs'):
+            package_review(envelope(fixture_records(resources=resources)), wrong, resources=resources)
+        missing = {n:b for n,b in resources.items() if n != 'cerulean-verifier.exe'}
+        with self.assertRaisesRegex(ValueError, 'Verifier build binding differs'):
+            package_review(envelope(fixture_records(resources=missing)), bound, resources=missing)
+
     def test_full_notice_resources_must_match_actual_installer_records(self):
         resources = {name: ('fixture for ' + name).encode() for name in RESOURCE_LIMITS}
         result = package_review(envelope(fixture_records(resources=resources)), resources=resources)

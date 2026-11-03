@@ -6,6 +6,16 @@ use std::{
     io::{self, BufRead, Read, Write},
     path::PathBuf,
 };
+fn verifier_sha256() -> Option<&'static str> {
+    #[cfg(windows)]
+    {
+        cerulean_core::independent_verifier::expected_sha256()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     #[cfg(all(windows, debug_assertions))]
@@ -43,7 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "maintenanceInterlockSchema": 1,
                 "dataRecoverySchema": 2,
                 "readableDataSchemas": cerulean_core::data_format::READABLE_SCHEMAS,
-                "backupWriterVersions": cerulean_core::BACKUP_WRITER_VERSIONS
+                "backupWriterVersions": cerulean_core::BACKUP_WRITER_VERSIONS,
+                "independentVerifierSchema": 1,
+                "independentVerifierSha256": verifier_sha256()
             }),
         )?;
         println!();

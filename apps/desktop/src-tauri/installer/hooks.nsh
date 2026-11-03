@@ -62,6 +62,7 @@ Var CeruleanGuardError
 !macro CeruleanAcquireGuard
   !insertmacro CeruleanCheckBinary "$INSTDIR\CeruleanLonging.exe"
   !insertmacro CeruleanCheckBinary "$INSTDIR\cerulean-runtime.exe"
+  !insertmacro CeruleanCheckBinary "$INSTDIR\cerulean-verifier.exe"
   ; No recursive acquisition: never lose an already-owned handle or allocation.
   ${If} $CeruleanDataGuard != ""
   ${OrIf} $CeruleanGuardOverlap != ""

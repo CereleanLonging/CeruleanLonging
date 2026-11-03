@@ -76,6 +76,7 @@ function CapabilityKey($info) {
         dataFormatGuardSchema=$info.dataFormatGuardSchema;readableDataSchemas=@($info.readableDataSchemas)
         maintenanceInterlockSchema=$info.maintenanceInterlockSchema;dataRecoverySchema=$info.dataRecoverySchema
         dataReaderGeneration=$info.dataReaderGeneration
+        independentVerifierSchema=$info.independentVerifierSchema;independentVerifierSha256=$info.independentVerifierSha256
     } | ConvertTo-Json -Depth 8 -Compress)
 }
 function PackageResources($manifest) {
@@ -85,6 +86,12 @@ function PackageResources($manifest) {
     $expected=@()
     if([version]$manifest.version -ge [version]'0.1.22'){$expected=@($limits.Keys)}
     elseif([version]$manifest.version -ge [version]'0.1.21' -or $entries.Count -gt 0){$expected=@('SQLITE-NOTICES.txt')}
+    if([version]$manifest.version -ge [version]'0.1.39'){
+        $expected+=@('cerulean-verifier.exe');$limits['cerulean-verifier.exe']=33554432
+        if($manifest.coreBuildInfo.independentVerifierSchema -ne 1 -or $manifest.coreBuildInfo.independentVerifierSha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'Independent verifier build binding missing'}
+        $tool=@($entries | Where-Object path -ceq 'cerulean-verifier.exe')
+        if($tool.Count -ne 1 -or $tool[0].sha256 -cne $manifest.coreBuildInfo.independentVerifierSha256){throw 'Verifier and core binding differ'}
+    }
     if($entries.Count -ne $expected.Count){throw 'Required notice resource missing or unexpected'}
     foreach($name in $expected){
         $matches=@($entries | Where-Object {$_.path -ceq $name})

@@ -41,6 +41,14 @@ $sqlite=[pscustomobject]@{version='0.1.21';resources=@($resources[0])}
 $full=[pscustomobject]@{version='0.1.22';resources=$resources}
 if(@(PackageResources $legacy).Count -ne 0 -or @(PackageResources $sqlite).Count -ne 1 -or @(PackageResources $full).Count -ne 5){throw 'Versioned resource counts differ'}
 Pass 'legacy, SQLite-only and complete resource versions supported'
+$verifier=Resource 'cerulean-verifier.exe'
+$bound=[pscustomobject]@{version='0.1.39';resources=@($resources)+$verifier;coreBuildInfo=[pscustomobject]@{independentVerifierSchema=1;independentVerifierSha256=$verifier.sha256}}
+if(@(PackageResources $bound).Count -ne 6){throw 'Bound verifier resource missing'}
+Pass 'new package includes the verifier bound by the core digest'
+$bound.coreBuildInfo.independentVerifierSha256='0'*64
+Reject 'changed verifier rejected' {PackageResources $bound} 'Verifier and core binding differ'
+$bound.coreBuildInfo.independentVerifierSha256=$verifier.sha256
+Reject 'verifier layout change needs full installer' {CheckResourceLayout $full $bound} 'full-installer'
 Reject 'new version requires complete set' {PackageResources ([pscustomobject]@{version='0.1.22';resources=@($resources[0])})} 'missing or unexpected'
 $bad=@($resources[0],$resources[1],$resources[2],$resources[3],$resources[0])
 Reject 'duplicate resource rejected' {PackageResources ([pscustomobject]@{version='0.1.22';resources=$bad})} 'missing, duplicate'
