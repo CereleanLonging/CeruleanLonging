@@ -779,3 +779,17 @@ form .primary {
 .experiment-workbench-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
 .experiment-workbench-dialog button { white-space: normal; text-align: left; }
 .experiment-workbench-dialog > article { margin: 16px 0; }
+
+.blind-review-panel { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
+.blind-review-panel h2 { margin-top: 0; }
+.blind-review-panel p, .blind-review-panel li { line-height: 1.7; }
+.blind-review-panel > article { border-top: 1px solid var(--border); margin-top: 24px; padding-top: 12px; }
+.blind-review-panel textarea { width: 100%; min-height: 72px; resize: vertical; }
+.blind-review-panel input:not([type="checkbox"]) { width: 100%; }
+.blind-review-panel label { margin: 14px 0; }
+.blind-review-panel label:has(input[type="checkbox"]) { display: flex; align-items: flex-start; gap: 8px; }
+.blind-review-panel input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 2px 0 0; padding: 0; }
+.blind-review-panel button { padding: 10px 14px; margin: 5px 10px 5px 0; border: 1px solid var(--border); border-radius: 7px; background: #edf6f8; color: #245c6d; }
+.blind-review-panel details { margin: 14px 0; }
+.blind-review-panel summary { cursor: pointer; color: #245c6d; }
+.blind-review-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; padding: 12px; background: #f4f6f8; }

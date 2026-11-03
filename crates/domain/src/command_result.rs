@@ -51,7 +51,8 @@ impl Command {
             Self::ReviewVerificationRecheck { .. }
             | Self::ReadVerificationRecheck { .. }
             | Self::ReviewVerificationRecheckDisposition { .. } => false,
-            Self::Baseline { .. }
+            Self::BlindReview { .. }
+            | Self::Baseline { .. }
             | Self::TeamTiming { .. }
             | Self::PrepareDesktopTask { .. }
             | Self::SendDesktopTask { .. }

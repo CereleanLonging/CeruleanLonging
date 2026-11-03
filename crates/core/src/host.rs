@@ -53,6 +53,8 @@ mod application_recovery;
 #[cfg(windows)]
 #[path = "baseline_product.rs"]
 mod baseline_product;
+#[path = "blind_review_host.rs"]
+mod blind_review_host;
 #[cfg(all(test, windows))]
 #[path = "codex_cancel_live.rs"]
 mod codex_cancel_live;
@@ -267,6 +269,11 @@ use std::{
 };
 
 pub struct RuntimeHost {
+    blind_reviews: crate::blind_review::Ledger,
+    #[cfg(windows)]
+    blind_active: Option<blind_review_host::ActiveReview>,
+    #[cfg(all(test, windows))]
+    blind_fixture: Option<blind_review_host::Fixture>,
     #[cfg(windows)]
     baselines: baseline_product::Controller,
     #[cfg(all(test, windows))]
@@ -795,6 +802,7 @@ impl RuntimeHost {
         recover: impl FnOnce(&mut Self) -> Result<(), String>,
     ) -> Result<Self, String> {
         let base = Store::open(root)?;
+        let blind_reviews = crate::blind_review::Ledger::open(root)?;
         let root = fs::canonicalize(root).map_err(|e| e.to_string())?;
         let mut openai_connection = OpenAiConnection {
             state: "notConfigured".into(),
@@ -930,6 +938,11 @@ impl RuntimeHost {
             #[cfg(all(test, windows))]
             codex_prepare_gate: None,
             base,
+            blind_reviews,
+            #[cfg(windows)]
+            blind_active: None,
+            #[cfg(all(test, windows))]
+            blind_fixture: None,
             root,
             projects,
             jobs,
@@ -1030,6 +1043,7 @@ impl RuntimeHost {
     }
     pub fn snapshot(&self) -> Snapshot {
         let mut snapshot = self.base.snapshot();
+        snapshot.blind_reviews = self.blind_review_views();
         #[cfg(windows)]
         {
             snapshot.worker_account_setups = crate::windows_worker_account::views(&self.root);
@@ -2275,6 +2289,8 @@ impl RuntimeHost {
     }
     pub fn poll_verifications(&mut self) {
         #[cfg(windows)]
+        self.poll_blind_review();
+        #[cfg(windows)]
         self.baselines.poll();
         if !self.omp_stop_issues.is_empty() {
             return;
@@ -2509,6 +2525,13 @@ impl RuntimeHost {
         }
     }
     pub fn can_shutdown(&mut self) -> bool {
+        if !self.blind_reviews.healthy() {
+            return false;
+        }
+        #[cfg(windows)]
+        if self.blind_active.is_some() {
+            return false;
+        }
         #[cfg(windows)]
         {
             self.baselines.poll();
@@ -2869,6 +2892,7 @@ impl RuntimeHost {
             self.poll_verifications();
         }
         let result = match request.command {
+            Command::BlindReview { action } => self.blind_review_action(action),
             Command::Baseline { action } => {
                 #[cfg(windows)]
                 {

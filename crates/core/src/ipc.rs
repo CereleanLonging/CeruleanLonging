@@ -200,6 +200,10 @@ fn listener(name: &str, sid: &str, first: bool) -> io::Result<NamedPipeServer> {
             )
     }
 }
+#[cfg(test)]
+pub(crate) fn private_listener_for_test(name: &str) -> io::Result<NamedPipeServer> {
+    listener(name, &current_sid()?, true)
+}
 pub async fn read_frame<R: AsyncRead + Unpin, T: serde::de::DeserializeOwned>(
     stream: &mut R,
     limit: usize,

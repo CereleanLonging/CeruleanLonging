@@ -1,5 +1,7 @@
 use cerulean_domain::*;
-pub const DATA_READER_GENERATION: u32 = verification_recheck_guard::GENERATION;
+mod blind_review;
+mod blind_review_guard;
+pub const DATA_READER_GENERATION: u32 = blind_review_guard::GENERATION;
 #[cfg(windows)]
 pub mod windows_worker_account;
 #[cfg(all(test, windows))]
@@ -264,6 +266,7 @@ impl Store {
                 || f.file_name() == relay_guard::FILE_NAME
                 || f.file_name() == rejected_usage_guard::FILE_NAME
                 || f.file_name() == verification_recheck_guard::FILE_NAME
+                || f.file_name() == blind_review_guard::FILE_NAME
                 || f.file_name() == experiment_guard::FILE_NAME
                 || f.file_name() == experiment_guard::LEGACY_FILE_NAME
             {
@@ -460,6 +463,7 @@ impl Store {
     pub fn snapshot(&self) -> Snapshot {
         let cached = self.index.read(&self.root, &self.index_head()).ok();
         Snapshot {
+            blind_reviews: vec![],
             worker_account_setups: vec![],
             team_import: None,
             baselines: vec![],
@@ -527,7 +531,8 @@ impl Store {
     }
     pub(crate) fn execute_command(&mut self, command: Command) -> Result<(), String> {
         match command {
-            Command::Baseline { .. }
+            Command::BlindReview { .. }
+            | Command::Baseline { .. }
             | Command::TeamTiming { .. }
             | Command::DiscoverDesktop
             | Command::InspectDesktop { .. }

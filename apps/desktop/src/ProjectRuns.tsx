@@ -5,7 +5,7 @@ const labels = {
   active: "持续调度中",
   paused: "已暂停后续调度",
   attention: "需要处理",
-  completed: "项目已收口",
+  completed: "任务执行已完成",
   superseded: "已转入修订",
 };
 type Review = {

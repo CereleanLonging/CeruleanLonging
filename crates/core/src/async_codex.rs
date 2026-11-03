@@ -535,6 +535,10 @@ async fn run(
             "Codex preparation cancelled before launch",
         )?;
     }
+    crate::blind_review_guard::require_isolated_execution(
+        root,
+        plan.task(&job.task_id)?.worker_directory.is_some(),
+    )?;
     let launch = if recovery {
         CodexClient::launch_readonly
     } else {

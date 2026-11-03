@@ -22,6 +22,7 @@ import { OpenAiConnection } from "./OpenAiConnection";
 import { ProviderConnections } from "./ProviderConnections";
 import { ProjectPlanning } from "./ProjectPlanning";
 import { ProjectRuns } from "./ProjectRuns";
+import { BlindReviewPanel } from "./BlindReviewPanel";
 import { ManagementReview } from "./ManagementReview";
 import { DesktopSessions } from "./DesktopSessions";
 import { DesktopTasks } from "./DesktopTasks";
@@ -365,6 +366,7 @@ export function App() {
               <ApiCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
               <ApiGenerationPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
               <ProjectRuns data={data} send={send} busy={busy}/>
+              <BlindReviewPanel data={data} send={send} busy={busy}/>
               <ManagementReview focusOperation={ompManagement} data={data} send={send} query={query} busy={busy}/>
               <CodexStartups data={data} send={send} query={query} busy={busy}/>
               <OmpJobs data={data} send={send} busy={busy} openManagement={operationId=>setOmpManagement({operationId,token:Date.now()})}/>

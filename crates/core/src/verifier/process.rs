@@ -27,6 +27,8 @@ use windows_sys::Win32::{
 pub const OUTPUT_LIMIT: usize = 1024 * 1024;
 pub(crate) mod interactive;
 pub(crate) mod named_job;
+#[cfg(test)]
+mod tests;
 pub struct Outcome {
     pub exit_code: i32,
     pub timed_out: bool,
@@ -215,6 +217,7 @@ pub fn run(
         allowed_environment,
         false,
         None,
+        None,
     )
 }
 #[allow(clippy::too_many_arguments)]
@@ -238,6 +241,7 @@ pub(crate) fn run_scoped(
         allowed_environment,
         false,
         job_name,
+        None,
     )
 }
 #[link(name = "user32")]
@@ -267,7 +271,40 @@ pub(crate) fn run_desktop(
         allowed_environment,
         true,
         None,
+        None,
     )
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_isolated(
+    exe: &Path,
+    args: &[String],
+    cwd: &Path,
+    temp: &Path,
+    timeout: Duration,
+    cancel: &AtomicBool,
+    environment: &std::collections::BTreeMap<String, String>,
+    job_name: Option<&str>,
+    account: &crate::windows_worker_account::Account,
+) -> Result<Outcome, String> {
+    run_inner(
+        exe,
+        args,
+        cwd,
+        temp,
+        timeout,
+        cancel,
+        environment,
+        false,
+        job_name,
+        Some(account),
+    )
+}
+fn require_short_logon_command(command: &[u16]) -> Result<(), String> {
+    if command.len() > 1024 {
+        Err("隔离检查命令超过Windows登录进程长度限制".into())
+    } else {
+        Ok(())
+    }
 }
 #[allow(clippy::too_many_arguments)]
 fn run_inner(
@@ -280,6 +317,7 @@ fn run_inner(
     allowed_environment: &std::collections::BTreeMap<String, String>,
     desktop_foreground: bool,
     job_name: Option<&str>,
+    account: Option<&crate::windows_worker_account::Account>,
 ) -> Result<Outcome, String> {
     let job = match job_name {
         Some(name) => named_job::create(name)?,
@@ -368,32 +406,72 @@ fn run_inner(
         return Err("verification cancelled before launch".into());
     }
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
-    if unsafe {
-        CreateProcessW(
-            application.as_ptr(),
-            command.as_mut_ptr(),
-            null(),
-            null(),
-            1,
-            CREATE_NO_WINDOW
-                | CREATE_UNICODE_ENVIRONMENT
-                | EXTENDED_STARTUPINFO_PRESENT
-                | if desktop_foreground {
-                    CREATE_SUSPENDED
-                } else {
-                    0
-                },
-            environment.as_ptr().cast(),
-            directory.as_ptr(),
-            &startup.StartupInfo,
-            &mut info,
-        )
-    } == 0
-    {
+    let launched = if let Some(account) = account {
+        let user = wide(OsStr::new(&account.record.username));
+        let domain = wide(OsStr::new("."));
+        require_short_logon_command(&command)?;
+        startup.StartupInfo.cb = size_of::<STARTUPINFOW>() as u32;
+        unsafe {
+            CreateProcessWithLogonW(
+                user.as_ptr(),
+                domain.as_ptr(),
+                account.password.as_ptr(),
+                LOGON_WITH_PROFILE,
+                application.as_ptr(),
+                command.as_mut_ptr(),
+                CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED,
+                environment.as_ptr().cast(),
+                directory.as_ptr(),
+                &startup.StartupInfo,
+                &mut info,
+            )
+        }
+    } else {
+        unsafe {
+            CreateProcessW(
+                application.as_ptr(),
+                command.as_mut_ptr(),
+                null(),
+                null(),
+                1,
+                CREATE_NO_WINDOW
+                    | CREATE_UNICODE_ENVIRONMENT
+                    | EXTENDED_STARTUPINFO_PRESENT
+                    | if desktop_foreground {
+                        CREATE_SUSPENDED
+                    } else {
+                        0
+                    },
+                environment.as_ptr().cast(),
+                directory.as_ptr(),
+                &startup.StartupInfo,
+                &mut info,
+            )
+        }
+    };
+    if launched == 0 {
         return Err(os_error());
     }
     let process = handle(info.hProcess)?;
     let initial_thread = handle(info.hThread)?;
+    if let Some(account) = account {
+        let verified = crate::windows_worker_account::verify_process(
+            process.as_raw_handle(),
+            &account.record.sid,
+        );
+        if verified.is_err()
+            || unsafe { AssignProcessToJobObject(job.as_raw_handle(), process.as_raw_handle()) }
+                == 0
+        {
+            unsafe {
+                TerminateProcess(process.as_raw_handle(), 1);
+            }
+            return Err(verified.err().unwrap_or_else(os_error));
+        }
+        if unsafe { ResumeThread(initial_thread.as_raw_handle()) } == u32::MAX {
+            return Err(os_error());
+        }
+    }
     if desktop_foreground {
         // The foreground product UI grants the authenticated service permission;
         // pass it only to this owned bridge before it can execute. Windows can

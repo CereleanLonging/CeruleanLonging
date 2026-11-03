@@ -35,6 +35,10 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 **检查方式可修订，原交付有据可查。** 当验收脚本或检查参数需要更正时，可以为原提交审阅并批准一次新的复验。原失败记录与交付文件保留，批准和启动分别操作；复验通过后仍需主指挥核对交付结果。
 
+**角色与工作目录隔离。** 主指挥需求单独保存，副指挥通过核心提供的只读入口核对。副指挥与执行端共用的总目录内，最多保留五个执行身份的固定子目录；模型可替换，已登记身份复用自己的目录。API 文件工具限定访问范围，CLI、桌面执行及新隔离任务的客观检查使用绑定的普通 Windows 账户。
+
+**项目盲评，各席独立作出判断。** 任务客观检查和主指挥接受之后，用户审阅脱敏、分片后的完整交付材料与参评名单。副指挥确认就绪，主副指挥及各执行身份每席投一票；收齐后统一揭晓，全票通过仍须用户确认。首版仅支持无工具 API 评审，会话不提供文件工具、总分或他人投票。脱敏和分片不能保证消除任意暗号；盲评也不替代客观检查。
+
 **实验有独立的工作空间。** 实验工作台使用单独的窗口和数据目录，方便试用配置或验证流程。凭证按工作台分别配置，创建实验本身不会派发模型任务。
 
 **用本地工作流复用协作方法。** 可以导入带版本号的工作流模板，预览步骤依赖、完成标准与副指挥监督要点，再填入需求草稿。可按不同任务类型复用流程，模型、工具与执行权限仍由项目配置和批准方案决定。
@@ -54,6 +58,7 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 | 接入管理 | 管理模型服务和执行工具的配置，核对连接状态及可用能力。 |
 | 执行与监督 | 查看任务进展、检查结果和需要关注的状态，暂停后续调度并处理异常。 |
 | 复验审阅 | 针对原提交修订检查器，审阅并单独批准复验，核对原结果或保留证据结束复验。 |
+| 项目盲评 | 审阅材料与参评名单，批准独立投票，查看完整结果并确认交付或提出修订。 |
 | 实验工作台 | 在独立窗口与数据目录中组织实验，保留日常工作台的项目记录。 |
 | 交接与历史 | 回看协作过程和决策依据，接续需要跨多轮处理的任务。 |
 | 项目设置 | 管理项目目录、执行者、资源和整体交付检查等配置。 |
@@ -70,6 +75,8 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 4. **跟进执行。** 查看分配、执行与验证记录；需要时暂停后续调度或补充信息。
 
 5. **核对交付。** 结合独立检查和实际产物审阅结果，保留交接记录供后续继续。
+
+6. **按需启用项目盲评。** 在满足账户隔离和 API 席位要求的工作台中，批准评审材料；全票后确认交付，需要修改时回到主指挥问答、方案修订和用户批准流程。
 
 例如，为现有项目增加一项数据处理功能时，可以先约定需要修改的文件与验证脚本，再由执行者完成实现，使用独立检查确认输出，最后回看整体交付记录。
 
@@ -91,11 +98,11 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.34 已完成本次约定范围的功能验收**，以**公开预览版**提供体验和反馈。验证结论限于已选配置和场景，延期接入及现场测试继续保留，详见 [支持范围](SUPPORT.md)。安装包尚无可信代码签名，本版本仍欢迎试用与反馈，不作稳定版承诺。
+**0.1.35 为公开预览版**，新增角色目录隔离与项目级 API 盲评，并移除 WorkBuddy 新接入。0.1.34 的既有功能验收记录保留；本次新增机制通过本机协议、界面和普通 Windows 账户边界检查，模型回包采用合成数据，没有新增真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.35.md)。本版本不作稳定版承诺。
 
-以上功能对应本次 0.1.34 发布包。旧内部预览附件保留为历史版本。
+建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.34 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.34)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.35 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 ---
 
@@ -121,6 +128,10 @@ The aim is to make AI collaboration reviewable and resumable. Whether you are im
 
 **Revised checks with traceable original delivery.** If a validation script or its arguments need correction, you can review and approve a new check of the original submission. The original failure and delivered files are retained, approval and execution are separate actions, and a successful check still requires the lead planner's delivery review.
 
+**Separate role and worker directories.** Lead-planner requirements are stored separately and exposed to the coordinator through a core-controlled read-only interface. The shared coordinator/worker root holds up to five fixed worker-identity directories. Models can be replaced, while registered identities reuse their directories. API file tools enforce scope; CLI and desktop execution and objective checks for new isolated tasks use bound standard Windows accounts.
+
+**Independent votes for project review.** After objective checks and lead acceptance, you review the redacted, fragmented delivery material and full reviewer roster. The coordinator confirms readiness, then the lead, coordinator, and each worker identity cast one vote. Results are revealed together; unanimous approval still requires your confirmation. This first version supports tool-free API review only, without file tools, totals, or other reviewers' votes. Redaction and fragmentation cannot guarantee removal of arbitrary covert signals, and voting does not replace objective checks.
+
 **Separate spaces for experiments.** Experiment workbenches use their own windows and data directories for trying configurations or validating workflows. Credentials are configured separately for each workbench, and creating an experiment does not dispatch a model task.
 
 **Reusable collaboration through local workflows.** Import a versioned workflow template, preview its step dependencies, completion criteria, and coordinator guidance, then apply it to a requirements draft. Templates can support different task types; models, tools, and execution authority remain governed by the project configuration and approved plan.
@@ -140,6 +151,7 @@ The aim is to make AI collaboration reviewable and resumable. Whether you are im
 | Integrations | Configure model services and execution tools, and inspect connection status and capabilities. |
 | Execution and supervision | Follow progress and check results, pause further scheduling, and resolve issues. |
 | Recheck review | Revise checks for an original submission, approve a recheck separately, and reconcile its result or close it while retaining evidence. |
+| Project blind review | Review materials and the roster, authorize independent voting, inspect complete results, and confirm delivery or request a revision. |
 | Experiment workbenches | Organize experiments in separate windows and data directories while retaining everyday project records. |
 | Handoffs and history | Review collaboration records and decisions, and continue work across sessions. |
 | Project settings | Configure project directories, workers, resources, and final delivery checks. |
@@ -156,6 +168,8 @@ The aim is to make AI collaboration reviewable and resumable. Whether you are im
 4. **Follow execution.** Inspect assignment, execution, and verification records; pause further scheduling or provide input when needed.
 
 5. **Review delivery.** Assess independent checks alongside the actual artifacts, and retain handoff records for future work.
+
+6. **Optionally enable project blind review.** In a workbench meeting account-isolation and API-reviewer requirements, approve the material, confirm a unanimous result, or return to lead-planner questions, plan revision, and user approval.
 
 For example, when adding a data-processing feature to an existing project, you can first agree on the affected files and validation script, let a worker implement the change, verify its output independently, and then review the overall delivery record.
 
@@ -177,11 +191,11 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.34 has completed functional acceptance within the agreed scope** and is available as a **public preview**. Results apply to the selected configurations and scenarios; deferred integrations and on-site tests remain deferred. See [Support scope](SUPPORT.md). The installer does not yet have trusted code signing, and this preview is not a stable-release commitment.
+**0.1.35 is a public preview** adding role-directory isolation and project-level API blind review, and removing new WorkBuddy integrations. Existing 0.1.34 acceptance records are retained. The new mechanism has local protocol, UI, and standard Windows account boundary checks using synthetic model responses; no new live-provider quality conclusion is claimed. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.35.md). This is not a stable-release commitment.
 
-The features above describe this 0.1.34 release. Earlier internal preview assets remain as historical versions.
+Try blind review in a separate experiment workbench and configure checking accounts before plan approval. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.34 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.34). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.35 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.35). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 ---
 
@@ -193,17 +207,17 @@ Download the installer and source package from the [0.1.34 release](https://gith
 
 ![CeruleanLonging 0.1.34 工作总览 / Project overview](docs/images/overview-0.1.34.png)
 
-0.1.34 当前候选安装版实测截图。展示项目入口与记录分类，图中的项目名和路径属于测试环境。
+0.1.34 历史安装版实测截图，不代表 0.1.35 新界面。展示项目入口与记录分类，图中的项目名和路径属于测试环境。
 
-Captured from the installed 0.1.34 candidate test build. Shows project entry points and record categories; the project name and path belong to a test environment.
+Historical screenshot from the installed 0.1.34 test build, not the new 0.1.35 UI. Shows project entry points and record categories; the project name and path belong to a test environment.
 
 ### 独立实验工作台 / Separate experiment workbench
 
 ![0.1.34 独立实验工作台 / Separate experiment workbench](docs/images/experiment-workbench-0.1.34.png)
 
-0.1.34 当前候选安装版实测截图，展示实验工作台选择面板。示例目录和历史核查提示属于测试环境；创建与打开实验不会自动派发模型任务。
+0.1.34 历史安装版实测截图，展示实验工作台选择面板。示例目录和历史核查提示属于测试环境；创建与打开实验不会自动派发模型任务。
 
-Captured from the installed 0.1.34 candidate test build, showing the experiment selector. Example directories and historical review notices belong to the test environment; creating or opening an experiment does not automatically dispatch model tasks.
+Historical screenshot from the installed 0.1.34 test build, showing the experiment selector. Example directories and historical review notices belong to the test environment; creating or opening an experiment does not automatically dispatch model tasks.
 
 ### 整体交付验收 / Final integration checks
 

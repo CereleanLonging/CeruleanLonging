@@ -28,6 +28,13 @@ impl RuntimeHost {
         require(
             !self.jobs.values().any(|j| {
                 j.project_id == *project
+                    // Historical failures remain in the journal after an
+                    // approved revision or successful corrected check. Only
+                    // the current, still-unverified attempt blocks admission.
+                    // Unknown jobs remain globally blocked by require_available_inner.
+                    && snapshot.state.tasks.get(&j.task_id).is_some_and(|t| {
+                        t.attempt.as_deref() == Some(j.attempt_id.as_str()) && !t.verified
+                    })
                     && !matches!(
                         j.state,
                         VerificationState::Running | VerificationState::Succeeded

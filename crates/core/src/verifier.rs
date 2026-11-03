@@ -284,6 +284,39 @@ fn execute(
             .execution_root(&input.attempt.task_id, &input.attempt.id)?,
     )?;
     let evidence = root_path(evidence_root.to_str().ok_or("non-Unicode evidence root")?)?;
+    if let Some(data) = evidence
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+    {
+        crate::blind_review_guard::require_isolated_execution(
+            data,
+            input
+                .plan
+                .task(&input.attempt.task_id)?
+                .worker_directory
+                .is_some(),
+        )?;
+    }
+    let isolated_account = if input
+        .plan
+        .task(&input.attempt.task_id)?
+        .worker_directory
+        .is_some()
+    {
+        let data = evidence
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .ok_or("检查数据根目录缺失")?;
+        Some(crate::windows_worker_account::load(
+            data,
+            input.plan,
+            &input.attempt.task_id,
+        )?)
+    } else {
+        None
+    };
     require(
         !crate::artifacts::contains_path(&root, &evidence),
         "evidence must be outside worker project",
@@ -333,6 +366,16 @@ fn execute(
         .zip(specs)
         .map(|(p, c)| p.lock(c))
         .collect::<Result<_, _>>()?;
+    if let Some(account) = &isolated_account {
+        crate::windows_worker_account::with_identity(account, || {
+            for pin in pins {
+                for (path, _) in &pin.files {
+                    File::open(path).map_err(|_|"隔离检查账户无法读取已批准的检查工具；请先准备可读取的固定工具，未降回宿主权限".to_string())?;
+                }
+            }
+            Ok(())
+        })?;
+    }
     let dir = evidence.join(operation_id);
     // A crash may leave an intent without a terminal result. A new ID must not
     // bypass that uncertainty and repeat potentially effectful checks.
@@ -414,6 +457,13 @@ fn execute(
         };
         let deadline =
             Instant::now() + Duration::from_secs(u64::from(input.plan.policy.max_seconds));
+        if let Some(account) = &isolated_account {
+            save(&dir.join("check-isolation.json"), &serde_json::to_vec(&serde_json::json!({
+                "schemaVersion":1,"operationId":operation_id,"revisionDigest":input.plan.approval_digest()?,
+                "attemptId":input.attempt.id,"sid":account.record.sid,"ownerSid":account.record.owner_sid,
+                "identity":account.record.identity,"mode":"windows-account-job-v1"
+            })).map_err(|e|e.to_string())?)?;
+        }
         for (spec, pin) in specs.iter().zip(pins) {
             observer.require_unchanged(input.manifest)?;
             snapshot.require_unchanged()?;
@@ -428,16 +478,36 @@ fn execute(
                     process::named_job::name(&scope, &spec.id)
                 })
                 .transpose()?;
-            let outcome = process::run_scoped(
-                &pin.executable,
-                &spec.args,
-                &snapshot.work,
-                &temp,
-                remaining.min(Duration::from_secs(u64::from(spec.timeout_seconds))),
-                cancel,
-                &pin.environment,
-                job_name.as_deref(),
-            )?;
+            let outcome = if let Some(account) = &isolated_account {
+                crate::windows_worker_account::with_check_workspaces(
+                    &[snapshot.work.as_path(), temp.as_path()],
+                    account,
+                    || {
+                        process::run_isolated(
+                            &pin.executable,
+                            &spec.args,
+                            &snapshot.work,
+                            &temp,
+                            remaining.min(Duration::from_secs(u64::from(spec.timeout_seconds))),
+                            cancel,
+                            &pin.environment,
+                            job_name.as_deref(),
+                            account,
+                        )
+                    },
+                )?
+            } else {
+                process::run_scoped(
+                    &pin.executable,
+                    &spec.args,
+                    &snapshot.work,
+                    &temp,
+                    remaining.min(Duration::from_secs(u64::from(spec.timeout_seconds))),
+                    cancel,
+                    &pin.environment,
+                    job_name.as_deref(),
+                )?
+            };
             if let Some(name) = &job_name {
                 let receipt = process::named_job::ExitReceipt::new(name, &outcome)?;
                 save(

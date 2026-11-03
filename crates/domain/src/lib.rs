@@ -1,4 +1,5 @@
 pub mod baseline_product;
+pub mod blind_review;
 pub mod omp_jobs;
 pub mod omp_restore;
 pub mod team_timing;
@@ -68,6 +69,8 @@ pub struct EventSummary {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    #[serde(default)]
+    pub blind_reviews: Vec<blind_review::BlindReviewView>,
     #[serde(default)]
     pub worker_account_setups: Vec<project_setup::WorkerAccountSetupView>,
     #[serde(default)]
@@ -349,6 +352,9 @@ pub struct CodexConnectionCheck {
     rename_all_fields = "camelCase"
 )]
 pub enum Command {
+    BlindReview {
+        action: blind_review::BlindReviewAction,
+    },
     Baseline {
         action: baseline_product::BaselineAction,
     },

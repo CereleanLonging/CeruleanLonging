@@ -375,6 +375,10 @@ pub(crate) fn desktop(
     task: &str,
 ) -> Result<Option<Account>, String> {
     let selected = plan.task(task)?;
+    crate::blind_review_guard::require_isolated_execution(
+        data,
+        selected.worker_directory.is_some(),
+    )?;
     if selected.worker_directory.is_none() {
         return Ok(None);
     }
@@ -393,6 +397,14 @@ pub(crate) fn load_binding(
     binding: &WorkerDirectory,
 ) -> Result<Account, String> {
     let folder = directory(data, &project.id, &binding.identity)?;
+    require(
+        !folder.join("check-quarantine.json").exists(),
+        "该执行账户存在未完成的检查权限回收，请先核对原检查；不会继续执行",
+    )?;
+    require(
+        !folder.join("check-active-lease.json").exists(),
+        "该账户的原检查权限尚未确认回收，请核对原操作；不会启动新进程",
+    )?;
     root_path(folder.to_str().ok_or("账户路径无效")?)
         .map_err(|_| "该模型的Windows隔离账户尚未就绪，请先设置账户；不会使用当前账户执行")?;
     let owner = crate::ipc::current_sid().map_err(|e| e.to_string())?;
@@ -449,7 +461,13 @@ pub(crate) struct PreparedAccounts {
     plan: PathBuf,
     _pins: Vec<fs::File>,
 }
-fn private_directory(path: &Path, owner: &str) -> Result<(), String> {
+#[cfg(test)]
+impl PreparedAccounts {
+    pub(crate) fn plan_path_for_test(&self) -> &Path {
+        &self.plan
+    }
+}
+pub(crate) fn private_directory(path: &Path, owner: &str) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
     if path.exists() {
         ordinary(path, true)?;
@@ -489,6 +507,173 @@ fn private_directory(path: &Path, owner: &str) -> Result<(), String> {
     }
     require(result != 0, &format!("账户设置目录无法创建：{error}"))?;
     check_acl(path, owner, None, false)
+}
+/// Grant only a newly-created check workspace to its isolated account. This is
+/// never applied to the core root, sealed inputs, credentials or evidence files.
+pub(crate) fn grant_check_workspace(path: &Path, account: &Account) -> Result<(), String> {
+    check_workspace_acl(path, account, true)
+}
+pub(crate) fn revoke_check_workspace(path: &Path, account: &Account) -> Result<(), String> {
+    check_workspace_acl(path, account, false)
+}
+fn check_workspace_acl(path: &Path, account: &Account, allow: bool) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    let extra = if allow {
+        format!("(A;OICI;0x1301bf;;;{})", account.record.sid)
+    } else {
+        String::new()
+    };
+    // OWNER RIGHTS suppresses the implicit WRITE_DAC of files created by the
+    // checker, so it cannot remove host access or grant itself access after exit.
+    let sddl = format!(
+        "D:P(A;OICI;FA;;;{})(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;RC;;;OW){}\0",
+        account.record.owner_sid, extra
+    )
+    .encode_utf16()
+    .collect::<Vec<_>>();
+    let mut descriptor = ptr::null_mut();
+    require(
+        unsafe {
+            ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                sddl.as_ptr(),
+                1,
+                &mut descriptor,
+                ptr::null_mut(),
+            )
+        } != 0,
+        "检查目录ACL无法构造",
+    )?;
+    let result = (|| {
+        let mut present = 0;
+        let mut defaulted = 0;
+        let mut acl = ptr::null_mut();
+        require(
+            unsafe {
+                GetSecurityDescriptorDacl(descriptor, &mut present, &mut acl, &mut defaulted)
+            } != 0
+                && present != 0
+                && !acl.is_null(),
+            "检查目录ACL无效",
+        )?;
+        let mut pending = vec![path.to_owned()];
+        let mut count = 0;
+        while let Some(p) = pending.pop() {
+            count += 1;
+            require(count <= 20000, "检查目录条目超限")?;
+            let meta = fs::symlink_metadata(&p).map_err(|e| e.to_string())?;
+            ordinary(&p, meta.is_dir())?;
+            let wide = p
+                .as_os_str()
+                .encode_wide()
+                .chain(Some(0))
+                .collect::<Vec<_>>();
+            require(
+                unsafe {
+                    SetNamedSecurityInfoW(
+                        wide.as_ptr(),
+                        SE_FILE_OBJECT,
+                        DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        acl,
+                        ptr::null_mut(),
+                    )
+                } == 0,
+                "检查目录ACL设置失败",
+            )?;
+            if meta.is_dir() {
+                for e in fs::read_dir(&p).map_err(|e| e.to_string())? {
+                    pending.push(e.map_err(|e| e.to_string())?.path());
+                }
+            }
+        }
+        Ok(())
+    })();
+    unsafe {
+        LocalFree(descriptor);
+    }
+    result
+}
+pub(crate) fn with_check_workspaces<T>(
+    paths: &[&Path],
+    account: &Account,
+    action: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    use std::io::Write;
+    let folder = directory(
+        Path::new(&account.record.data_root),
+        &account.record.project_id,
+        &account.record.identity,
+    )?;
+    let lease = folder.join("check-active-lease.json");
+    let mut file = fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&lease)
+        .map_err(|_| "已有检查权限租约或无法保存；未开放检查目录")?;
+    file.write_all(
+        &serde_json::to_vec(
+            &serde_json::json!({"schema":1,"paths":paths,"sid":account.record.sid}),
+        )
+        .map_err(|e| e.to_string())?,
+    )
+    .and_then(|_| file.sync_all())
+    .map_err(|e| e.to_string())?;
+    drop(file);
+    struct Grant<'a> {
+        paths: &'a [&'a Path],
+        account: &'a Account,
+        closed: bool,
+    }
+    impl Drop for Grant<'_> {
+        fn drop(&mut self) {
+            if !self.closed {
+                for p in self.paths {
+                    let _ = revoke_check_workspace(p, self.account);
+                }
+            }
+        }
+    }
+    let mut guard = Grant {
+        paths,
+        account,
+        closed: false,
+    };
+    let result = (|| {
+        for p in paths {
+            grant_check_workspace(p, account)?;
+        }
+        action()
+    })();
+    let cleanup = paths
+        .iter()
+        .filter_map(|p| revoke_check_workspace(p, account).err())
+        .collect::<Vec<_>>();
+    guard.closed = true;
+    if !cleanup.is_empty() {
+        let error = cleanup.join("；");
+        let marker = directory(
+            Path::new(&account.record.data_root),
+            &account.record.project_id,
+            &account.record.identity,
+        )?
+        .join("check-quarantine.json");
+        if !marker.exists() {
+            let mut file = fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&marker)
+                .map_err(|e| format!("检查权限回收及账户隔离标记均失败：{e}"))?;
+            file.write_all(b"{\"reason\":\"check-workspace-permission-cleanup-failed\"}")
+                .and_then(|_| file.sync_all())
+                .map_err(|e| e.to_string())?;
+        }
+        return Err(format!(
+            "检查目录权限回收失败，该账户已阻止再次执行，原检查不计通过：{error}"
+        ));
+    }
+    fs::remove_file(lease).map_err(|e| format!("检查权限已回收，但租约尚未关闭：{e}"))?;
+    result
 }
 // Explicit user action only. The marker is durable before UAC; cancellation or
 // interruption never schedules another elevation automatically.

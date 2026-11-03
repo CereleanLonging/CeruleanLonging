@@ -4,6 +4,18 @@ use cerulean_domain::*;
 use ts_rs::TS;
 fn main() {
     let declarations = [
+        blind_review::BlindReviewAction::decl(),
+        blind_review::BlindReviewView::decl(),
+        blind_review::ReviewSeat::decl(),
+        blind_review::ReviewPhase::decl(),
+        blind_review::Redaction::decl(),
+        blind_review::Ballot::decl(),
+        blind_review::RevealedBallot::decl(),
+        blind_review::FailureAnalysis::decl(),
+        blind_review::Vote::decl(),
+        blind_review::Fragment::decl(),
+        blind_review::ReviewMaterial::decl(),
+        blind_review::ReviewCoverage::decl(),
         WorkerDirectory::decl(),
         AssertionResult::decl(),
         AssertionReport::decl(),

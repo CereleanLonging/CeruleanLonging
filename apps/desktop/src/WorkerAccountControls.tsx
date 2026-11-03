@@ -8,7 +8,7 @@ export function WorkerAccountControls({saved,data,disabled,send}:{saved:SavedPro
   const choices=[{id:null,adapter:saved.setup.workerAdapter??'codex',model:saved.setup.worker?.model??saved.setup.desktopWorker?.modelLabel},...(saved.setup.profiles??[]).map(p=>({id:p.id,adapter:p.workerAdapter,model:p.worker?.model??p.desktopWorker?.modelLabel}))].filter(p=>['codex','qoder'].includes(p.adapter));
   return <section className="panel" aria-label="执行账户隔离">
     <h3>Windows 执行账户</h3>
-    <p>CLI 和桌面接入使用各自的普通账户。设置会请求 UAC，保护主指挥资料、核心数据和其他模型目录。系统与公开运行依赖仍可读取。登录凭证分别保存，不复制当前用户的登录。</p>
+    <p>目录隔离项目的独立客观检查，以及 CLI 和桌面接入，使用各自绑定的普通账户。请先设置账户，再批准方案和开始执行。设置会请求 UAC，保护主指挥资料、核心数据和其他模型目录。系统与公开运行依赖仍可读取。登录凭证分别保存，不复制当前用户的登录。</p>
     {setup&&<p role="status">{names[setup.state]??setup.state}{setup.message&&`：${setup.message}`}</p>}
     <button className="secondary-button" type="button" disabled={disabled||retired||setup?.state==='pending'} onClick={()=>void send({type:'provisionWorkerAccounts',projectId:saved.setup.projectId,setupDigest:saved.digest})}>设置或补齐独立账户</button>
     {choices.map(p=><button key={p.id??'primary'} type="button" disabled={disabled||setup?.state!=='ready'} onClick={()=>void send({type:'openWorkerLogin',projectId:saved.setup.projectId,setupDigest:saved.digest,profileId:p.id})}>打开 {p.adapter} · {p.model} 独立{p.adapter==='codex'?'登录':'应用'}</button>)}

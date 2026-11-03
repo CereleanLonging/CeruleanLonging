@@ -200,12 +200,28 @@ pub(crate) fn inventory(root: &Path, cold: bool) -> io::Result<Tree> {
     tree.nodes.sort_by(|a, b| a.entry.path.cmp(&b.entry.path));
     Ok(tree)
 }
+fn has_private_review(tree: &Tree) -> bool {
+    tree.nodes
+        .iter()
+        .any(|n| n.entry.path == "blind-review" || n.entry.path.starts_with("blind-review/"))
+}
+fn create_copy_directory(path: &Path, private: bool) -> io::Result<()> {
+    if private {
+        let owner = crate::ipc::current_sid()?;
+        crate::windows_worker_account::private_directory(path, &owner).map_err(|e| invalid(&e))
+    } else {
+        fs::create_dir(path)
+    }
+}
 pub(crate) fn copy(tree: &mut Tree, destination: &Path) -> io::Result<()> {
-    fs::create_dir(destination)?;
+    // Copies of sealed ballots must not inherit a public backup destination's
+    // ACL. Protect every destination directory before writing any payload.
+    let private = has_private_review(tree);
+    create_copy_directory(destination, private)?;
     for node in &mut tree.nodes {
         let path = destination.join(&node.entry.path);
         if node.entry.directory {
-            fs::create_dir(&path)?;
+            create_copy_directory(&path, private)?;
         } else {
             let mut output = OpenOptions::new().write(true).create_new(true).open(path)?;
             node.file.seek(SeekFrom::Start(0))?;
@@ -404,7 +420,7 @@ fn create_inner(
         }
     }
     let temporary = stage(&destination);
-    fs::create_dir(&temporary)?;
+    create_copy_directory(&temporary, has_private_review(&tree))?;
     copy(&mut tree, &temporary.join("payload"))?;
     let manifest = Manifest {
         schema: 1,

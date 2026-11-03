@@ -290,6 +290,10 @@ async fn run(
     {
         return Err("OMP目录准备已停止，尚未启动执行器".into());
     }
+    crate::blind_review_guard::require_isolated_execution(
+        root,
+        plan.task(&job.task_id)?.worker_directory.is_some(),
+    )?;
     let account = if plan.task(&job.task_id)?.worker_directory.is_some() {
         Some(crate::windows_worker_account::load(
             root,

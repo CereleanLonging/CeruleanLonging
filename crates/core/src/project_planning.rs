@@ -128,6 +128,10 @@ impl RuntimeHost {
         Ok(())
     }
     pub(super) fn configure_project(&mut self, draft: ProjectSetupDraft) -> Result<(), String> {
+        crate::blind_review_guard::require_management_source(
+            &self.root,
+            draft.management_sources.as_ref(),
+        )?;
         let binding = self
             .projects
             .get(&draft.project_id)

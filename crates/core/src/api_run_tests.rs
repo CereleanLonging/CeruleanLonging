@@ -17,10 +17,17 @@ use std::time::{Duration, Instant};
 
 #[path = "flexible_management_tests.rs"]
 mod flexible_management;
+#[path = "api_run_native_continuation_tests.rs"]
+mod native_continuation;
 #[path = "api_supervision_dag_tests.rs"]
 mod supervision_pipeline;
 #[path = "api_run_wait_commit_tests.rs"]
 mod wait_commit_interleaving;
+
+// PowerShell's provider location can fall back to C:\ under private ancestor
+// ACLs even though the native process cwd is correct. Use the launch contract,
+// and stop on read errors instead of returning a null assertion detail.
+const ROLE_ASSERTION_SCRIPT: &str = r#"$ErrorActionPreference='Stop';$s=[IO.File]::ReadAllText([IO.Path]::Combine([Environment]::CurrentDirectory,'result.txt'));[Console]::Write((@{schemaVersion=1;assertions=@(@{id='artifact-content';passed=($s -eq 'alpha' -or $s -eq 'alpha beta');detail=$s})}|ConvertTo-Json -Compress -Depth 4));exit 0"#;
 
 fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObservation, String> {
     let tasks = &i.context["workflow"]["state"]["tasks"];
@@ -180,7 +187,7 @@ fn manager_reviewing_materials(
     manager(i)
 }
 #[test]
-fn role_isolated_api_dag_supplies_actual_sealed_contents_to_chief_and_reopens() {
+fn role_isolated_api_dag_missing_checker_account_stops_without_acceptance() {
     let root = tempfile::tempdir().unwrap();
     let mut host = configured(
         root.path(),
@@ -195,17 +202,88 @@ fn role_isolated_api_dag_supplies_actual_sealed_contents_to_chief_and_reopens() 
     spin(&mut host, |h| {
         h.runs.all()[0].state != RunState::Active && h.api_active.is_empty()
     });
+    assert_eq!(host.runs.all()[0].state, RunState::Attention);
+    let state = host.projects["project"].state();
+    assert_eq!(state.tasks["a"].state, TaskState::Submitted);
+    assert!(!state.tasks["a"].verified);
+    assert_eq!(state.tasks["b"].state, TaskState::Pending);
+    assert!(host
+        .jobs
+        .values()
+        .all(|j| j.state != VerificationState::Succeeded));
+    assert!(host
+        .blind_review_action(cerulean_domain::blind_review::BlindReviewAction::Prepare {
+            project_id: "project".into(),
+            redactions: vec![],
+            model_aliases: BTreeMap::new()
+        })
+        .is_err());
+    let history = host.projects["project"].history().to_vec();
+    let requests = host.management.statuses().len();
+    assert_eq!(requests, 2); // Plan and assignment only; no chief acceptance.
+    drop(host);
+    let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
+    host.poll_verifications();
+    assert_eq!(host.projects["project"].history(), history.as_slice());
+    assert_eq!(host.management.statuses().len(), requests);
+    assert!(host.snapshot().blind_reviews.is_empty());
+}
+#[test]
+#[ignore = "requires explicit fresh disposable root and one UAC for checker account; synthetic model transports only"]
+fn role_isolated_api_dag_supplies_actual_sealed_contents_to_chief_and_reopens() {
+    let root = PathBuf::from(
+        std::env::var_os("BLIND_REVIEW_HOST_NATIVE_ROOT")
+            .expect("explicit disposable root required"),
+    )
+    .canonicalize()
+    .unwrap();
+    assert!(
+        root.starts_with(Path::new(r"D:\test").canonicalize().unwrap())
+            && !root.join("data").exists()
+    );
+    let mut host = configured(
+        &root,
+        ProjectWorkerAdapter::Openai,
+        ApiTarget::OpenAi {},
+        "ROLE_ISOLATION",
+        8,
+    );
+    host.management_fixture = Some(manager_reviewing_materials);
+    approved(&mut host);
+    let setup = &host.project_setups["project"].setup;
+    let project = host.projects["project"].revision().unwrap().project.clone();
+    let prepared = crate::windows_worker_account::prepare(
+        &host.root,
+        &project,
+        setup.chief_directory.as_deref().unwrap(),
+        &setup.worker_directories,
+    )
+    .unwrap();
+    // This test is ignored by default and may only be explicitly invoked after
+    // the operator authorizes this single account-setup attempt. Never retries.
+    crate::windows_worker_account::elevate(prepared.plan_path_for_test()).unwrap();
+    drop(prepared);
+    start(&mut host);
+    spin(&mut host, |h| {
+        h.runs.all()[0].state != RunState::Active && h.api_active.is_empty()
+    });
     if host.runs.all()[0].state != RunState::Completed {
-        let retained = root.keep();
         panic!(
             "role DAG failed; evidence retained at {}: runs={:?}, jobs={:?}",
-            retained.display(),
+            root.display(),
             host.runs.all(),
             host.jobs
         );
     }
+    complete_native_blind_review_and_boundaries(&root, host);
+}
+fn complete_native_blind_review_and_boundaries(root: &Path, mut host: RuntimeHost) {
     let setup = &host.project_setups["project"].setup;
+    let project = host.projects["project"].revision().unwrap().project.clone();
     let binding = setup.worker_directories.values().next().unwrap();
+    let boundary_plan = root.join("boundary-plan.json");
+    assert!(!boundary_plan.exists());
+    fs::write(&boundary_plan,serde_json::to_vec_pretty(&serde_json::json!({"projectId":"project","dataRoot":host.root,"sharedRoot":project.root,"slots":[{"identity":binding.identity}]})).unwrap()).unwrap();
     let workspace = binding
         .root(
             &host.projects["project"]
@@ -221,7 +299,7 @@ fn role_isolated_api_dag_supplies_actual_sealed_contents_to_chief_and_reopens() 
         fs::read_to_string(Path::new(&workspace).join("result.txt")).unwrap(),
         "alpha beta"
     );
-    assert!(!root.path().join("project/result.txt").exists());
+    assert!(!root.join("project/result.txt").exists());
     let packets =
         fs::read_dir(Path::new(setup.chief_directory.as_deref().unwrap()).join("reviews"))
             .unwrap()
@@ -229,10 +307,52 @@ fn role_isolated_api_dag_supplies_actual_sealed_contents_to_chief_and_reopens() 
             .collect::<Vec<_>>();
     assert_eq!(packets.len(), 2);
     assert!(packets.iter().any(|p| p.contains("\"content\":\"alpha\"")));
+    host.blind_fixture = Some(|seat, _, _, material, analysis| {
+        assert!(analysis.is_none());
+        Ok(blind_review_host::ReviewResponse::Vote(
+            cerulean_adapters::blind_review::Observation {
+                model: seat.model,
+                ballot: cerulean_domain::blind_review::Ballot {
+                    vote: cerulean_domain::blind_review::Vote::Pass,
+                    citations: vec![material.fragments[0].id.clone()],
+                    reason: "Synthetic transport confirms the fixed alpha beta fixture".into(),
+                },
+            },
+        ))
+    });
+    use cerulean_domain::blind_review::BlindReviewAction;
+    host.blind_review_action(BlindReviewAction::Prepare {
+        project_id: "project".into(),
+        redactions: vec![],
+        model_aliases: BTreeMap::new(),
+    })
+    .unwrap();
+    let round = host.snapshot().blind_reviews.into_iter().next().unwrap();
+    host.blind_review_action(BlindReviewAction::Start {
+        project_id: "project".into(),
+        round_id: round.round_id.clone(),
+        digest: round.digest.clone(),
+    })
+    .unwrap();
+    spin(&mut host, |h| h.blind_active.is_none());
+    host.blind_review_action(BlindReviewAction::Confirm {
+        project_id: "project".into(),
+        round_id: round.round_id,
+        digest: round.digest,
+    })
+    .unwrap();
+    assert!(host.snapshot().blind_reviews[0].final_accepted);
     let history = host.projects["project"].history().to_vec();
     drop(host);
-    let host = RuntimeHost::open(&root.path().join("data")).unwrap();
+    let host = RuntimeHost::open(&root.join("data")).unwrap();
     assert_eq!(host.projects["project"].history(), history.as_slice());
+    assert!(host.snapshot().blind_reviews[0].final_accepted);
+    assert!(host.blind_active.is_none());
+    drop(host);
+    crate::blind_review::tests::native_checker_boundary_for(
+        &boundary_plan,
+        &root.join("boundary-result.json"),
+    );
 }
 fn configured(
     root: &Path,
@@ -280,7 +400,7 @@ fn configured_inputs(
     }
     if mode == "ROLE_ISOLATION" {
         let script = root.join("assertions.ps1");
-        fs::write(&script,r#"$s=[IO.File]::ReadAllText((Join-Path (Get-Location) 'result.txt'));[Console]::Write((@{schemaVersion=1;assertions=@(@{id='artifact-content';passed=($s -eq 'alpha' -or $s -eq 'alpha beta');detail=$s})}|ConvertTo-Json -Compress -Depth 4));exit 0"#).unwrap();
+        fs::write(&script, ROLE_ASSERTION_SCRIPT).unwrap();
         let shell = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
             .join("System32/WindowsPowerShell/v1.0/powershell.exe");
         host.register_validator(

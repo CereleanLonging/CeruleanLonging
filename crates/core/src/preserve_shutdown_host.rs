@@ -10,6 +10,7 @@ impl RuntimeHost {
     pub(crate) fn preserved_shutdown_evidence(&self) -> Result<(Snapshot, String), String> {
         require(
             !self.base.poisoned
+                && self.blind_reviews.healthy()
                 && self.runs.healthy()
                 && self.management.healthy()
                 && self.startups.healthy()
@@ -39,6 +40,7 @@ impl RuntimeHost {
                 && self.api_fault.is_none()
                 && self.desktop_probe.is_none()
                 && self.desktop_active.is_none()
+                && self.blind_active.is_none()
                 && self.api_active.is_empty()
                 && self.codex_active.is_empty()
                 && self.omp_active.is_empty()
