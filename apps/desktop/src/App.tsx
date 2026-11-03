@@ -367,7 +367,7 @@ export function App() {
               <TeamTimingPanel data={data} busy={busy} send={send} desktop={desktop}/>
               <BaselinePanel data={data} busy={busy} send={send}/>
               <ProjectPlanning data={data} busy={busy} send={send} configuration={configuration} onConfigurationReady={token=>setConfiguration(c=>c?.token===token?null:c)} onSetup={()=>configure("chief")}/>
-              <WorkflowPlans workflows={data?.workflows ?? []} revisions={data?.projectRevisions ?? []} send={send} busy={busy} />
+              <WorkflowPlans workflows={data?.workflows ?? []} revisions={data?.projectRevisions ?? []} setups={data?.projectSetups??[]} send={send} busy={busy} />
               <HistoricalCurrencyPanel snapshot={data} query={queryHistorical} busy={busy}/>
               <ManagementCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
               <ApiCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>

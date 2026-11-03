@@ -149,6 +149,7 @@ pub(crate) fn assigned(root: &Path, money: bool) -> (DurableWorkflow, PlanRevisi
             approval_source: Some("offline-test".into()),
             execution: Some(ExecutionEvidence::Approval {
                 approval: Approval {
+                    worker_account_setup: None,
                     plan_id: "plan".into(),
                     revision: 1,
                     policy_version: 1,

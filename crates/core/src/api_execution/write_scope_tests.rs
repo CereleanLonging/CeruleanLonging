@@ -108,6 +108,7 @@ fn write_scope_is_explicit_and_changes_approval_without_changing_legacy_bytes() 
         scoped.approval_digest().unwrap()
     );
     let approval = Approval {
+        worker_account_setup: None,
         plan_id: original.workflow.id.clone(),
         revision: 1,
         policy_version: 1,

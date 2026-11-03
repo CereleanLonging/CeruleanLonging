@@ -1022,8 +1022,10 @@ mod tests {
         let stdin = child.stdin.take().unwrap();
         let mut reader = BufReader::new(child.stdout.take().unwrap());
         let mut ready = String::new();
+        // Cold PowerShell startup on a busy Windows CI runner is not part of
+        // the EOF-close behavior being tested. Keep the production close limit.
         timeout_at(
-            Instant::now() + Duration::from_secs(10),
+            Instant::now() + Duration::from_secs(60),
             reader.read_line(&mut ready),
         )
         .await

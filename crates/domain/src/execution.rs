@@ -517,12 +517,21 @@ impl PlanRevision {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Approval {
+    /// Only the host's fixed ordinary-account/ACL preparation, never a worker grant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_account_setup: Option<WorkerAccountAuthorization>,
     pub plan_id: String,
     pub revision: u32,
     pub policy_version: u32,
     pub revision_digest: String,
     pub user_id: String,
     pub approved_at: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkerAccountAuthorization {
+    pub setup_digest: String,
+    pub scope_digest: String,
 }
 impl Approval {
     /// authenticated_user is host channel identity, never a field accepted from an agent.
@@ -532,6 +541,14 @@ impl Approval {
         authenticated_user: &str,
         active_policy_version: u32,
     ) -> Result<(), String> {
+        if let Some(scope) = &self.worker_account_setup {
+            sha256(&scope.setup_digest)?;
+            sha256(&scope.scope_digest)?;
+            require(
+                plan.management_setup_digest.as_ref() == Some(&scope.setup_digest),
+                "account authorization setup differs from plan",
+            )?;
+        }
         identifier(&self.user_id)?;
         require(self.user_id == authenticated_user, "approval user mismatch")?;
         require(

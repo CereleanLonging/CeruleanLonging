@@ -24,6 +24,7 @@ fn approval(spec: &RunSpec) -> RunApproval {
     RunApproval {
         spec_digest: digest(spec).unwrap(),
         approval: Approval {
+            worker_account_setup: None,
             plan_id: spec.plan.workflow.id.clone(),
             revision: spec.plan.workflow.version,
             policy_version: spec.plan.policy.version,

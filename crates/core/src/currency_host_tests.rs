@@ -41,6 +41,7 @@ fn commit_approval_only(host: &mut RuntimeHost) {
     let store = host.projects.get_mut("project").unwrap();
     let revision = store.revision().unwrap();
     let approval = Approval {
+        worker_account_setup: None,
         plan_id: revision.workflow.id.clone(),
         revision: revision.workflow.version,
         policy_version: revision.policy.version,

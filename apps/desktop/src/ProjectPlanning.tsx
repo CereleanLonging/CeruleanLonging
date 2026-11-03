@@ -153,7 +153,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
       {locked && <p className="secondary">已有批准的任务，仍可编辑并保存后续模型配置草稿。原尝试保持原模型与目录；任务收口后请求方案修订，再保存下一版配置、重新规划并批准。</p>}
       <button className="secondary-button" type="button" disabled={busy} onClick={loadNextDraft}>载入下一版草稿</button>
       {draftMessage&&<p role="status">{draftMessage}</p>}
-      {saved&&<WorkerAccountControls saved={saved} data={data} disabled={busy||pending||locked||dirty} send={send}/>}
+      {saved&&<WorkerAccountControls saved={saved} data={data} disabled={busy||pending||dirty} send={send}/>}
       <div className="card-footer"><p className="secondary">主副指挥请求已记录 {requestCount} 次{saved?` / 上限 ${saved.setup.managementMaxRequests} 次`:""}。包含全部历史与已放弃请求，保存配置不会清零。</p><button className="primary" disabled={retiredAdapter||busy||dirty||!saved||!!saved?.setup.policy.currencyBudget||pending||locked||(managementKeyMissing(data,saved?.setup.managementSources?.chief))||requestCount>=(saved?.setup.managementMaxRequests??0)} onClick={()=>{if(saved)void send({type:"requestChiefPlan",projectId,setupDigest:saved.digest});}}>请求主指挥生成方案</button></div>
       {saved?.setup.policy.currencyBudget && <section className="panel" aria-label="规划金额许可">
         <p>主指挥生成方案也会产生费用。请先审阅规划预算许可，后续执行仍须批准具体方案，同一项目的费用和预留不会清零。</p>

@@ -1,6 +1,7 @@
 import { ExecutionAuthorization } from "./ExecutionAuthorization";
-import { useEffect, useState } from "react";
-import type { Command, ExecutionSnapshot, ProjectRevisionReview, VerificationDetail, VerificationJob, VerificationState, VerificationStageState } from "./contracts";
+import { WorkerAccountAuthorization } from "./WorkerAccountAuthorization";
+import { useEffect, useRef, useState } from "react";
+import type { Command, ExecutionSnapshot, ProjectRevisionReview, SavedProjectSetup, VerificationDetail, VerificationJob, VerificationState, VerificationStageState } from "./contracts";
 type Send = (command: Command) => Promise<boolean>;
 const projectName = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
 const verificationLabels: Record<VerificationState,string> = {running:"验收进行中",cancelling:"正在停止验收",succeeded:"验收检查通过",failed:"验收未通过",unknown:"验收待对账",abandoned:"本次验收已放弃"};
@@ -82,10 +83,15 @@ export function ProjectRegistration({ send, busy, connected }: { send: Send; bus
   </section>;
 }
 
-export function WorkflowPlans({ workflows, revisions, send, busy }: { workflows: ExecutionSnapshot[]; revisions:ProjectRevisionReview[]; send: Send; busy: boolean }) {
+export function WorkflowPlans({ workflows, revisions, setups=[], send, busy }: { workflows: ExecutionSnapshot[]; revisions:ProjectRevisionReview[]; setups?:SavedProjectSetup[]; send: Send; busy: boolean }) {
   // Keep the exact displayed revision while the dialog is open. A newer server
   // proposal must reject this digest rather than silently approve new content.
   const [review, setReview] = useState<ExecutionSnapshot | null>(null);
+  const [accountScope,setAccountScope]=useState<string|null>(null);
+  const [submitted,setSubmitted]=useState(false);
+  const submitLock=useRef(false);
+  const setup=setups.find(s=>s.setup.projectId===review?.project.id&&s.setup.chiefDirectory);
+  const scopeKey=setup&&review ? `${review.project.id}:${review.revisionDigest}:${setup.digest}` : null;
   const [revisionReview,setRevisionReview]=useState<ProjectRevisionReview|null>(null);
   const [revisionReason,setRevisionReason]=useState("");
   const [retireConfirmed,setRetireConfirmed]=useState(false);
@@ -104,7 +110,7 @@ export function WorkflowPlans({ workflows, revisions, send, busy }: { workflows:
           <ul>{workflow.revision.workflow.tasks.map(task => <li key={task.id}>{task.goal}</li>)}</ul>
           {workflow.state.revisionRequested&&<p>已请求修订下一版。请在上方更新需求配置并请求主指挥规划；原方案不会继续执行。</p>}
           {revisions.filter(r=>r.projectId===workflow.project.id).map(r=><button key={r.projectId} className="secondary-button" disabled={busy} onClick={()=>{setRevisionReason("");setRetireConfirmed(false);setRevisionReview(r);}}>{r.submittedTasks>0?"结束本版提交并修订":"修订下一版方案"}</button>)}
-          {!workflow.approval && <button className="secondary-button" disabled={busy} onClick={() => setReview(workflow)}>审阅执行方案</button>}
+          {!workflow.approval && <button className="secondary-button" disabled={busy} onClick={() => {submitLock.current=false;setAccountScope(null);setSubmitted(false);setReview(workflow);}}>审阅执行方案</button>}
         </> : <p className="secondary">项目已关联。主指挥接入后将在这里提交方案，确认前不会派发任务。</p>}
       </article>
     )}
@@ -123,10 +129,16 @@ export function WorkflowPlans({ workflows, revisions, send, busy }: { workflows:
     {review && revision && <div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-labelledby="execution-review-title">
       <span className="section-tag">执行授权</span><h2 id="execution-review-title">审阅项目执行方案</h2>
       <ExecutionAuthorization revision={revision}/>
+      <WorkerAccountAuthorization available={!!scopeKey} directories={setup?.setup.chiefDirectory?[setup.setup.chiefDirectory,...Object.values(setup.setup.workerDirectories??{}).flatMap(d=>d?[`${review.project.root}\\${d.relativePath.replaceAll('/','\\')}`]:[])]:[]} checked={!!scopeKey&&accountScope===scopeKey} disabled={busy||submitted} onChange={v=>setAccountScope(v?scopeKey:null)}/>
+      {submitted&&<p role="status">原批准已提交，请读取原记录核对。不会自动重发批准或 UAC。</p>}
       <p className="secondary">授权仅对应以上方案；目录、模型、程序或权限变化后需要重新确认。</p>
       <div className="card-footer"><button className="secondary-button" disabled={busy} onClick={() => setReview(null)}>返回检查</button>
-        <button className="primary" disabled={busy || !review.revisionDigest} onClick={async () => {
-          if (review.revisionDigest && await send({ type: "approveRevision", projectId: review.project.id, digest: review.revisionDigest })) setReview(null);
+        <button className="primary" disabled={busy || submitted || !review.revisionDigest} onClick={async () => {
+          if (!review.revisionDigest||submitted||submitLock.current) return;
+          submitLock.current=true;
+          setSubmitted(true);
+          const command:Command=scopeKey&&accountScope===scopeKey&&setup ? {type:"approveRevisionWithWorkerAccounts",projectId:review.project.id,digest:review.revisionDigest,setupDigest:setup.digest} : {type:"approveRevision",projectId:review.project.id,digest:review.revisionDigest};
+          try { if(await send(command))setReview(null); } catch { /* Unknown result stays frozen. */ }
         }}>确认执行授权</button></div>
     </section></div>}
   </section>;

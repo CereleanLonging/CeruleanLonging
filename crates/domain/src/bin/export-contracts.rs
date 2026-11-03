@@ -288,6 +288,7 @@ fn main() {
         SourceSnapshot::decl(),
         cerulean_domain::project_setup::WorkerAccountSetupView::decl(),
         Approval::decl(),
+        WorkerAccountAuthorization::decl(),
         IdentityStrength::decl(),
         ControllerRequestIdentity::decl(),
         SessionBinding::decl(),

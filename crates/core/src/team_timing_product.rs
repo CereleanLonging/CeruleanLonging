@@ -254,11 +254,23 @@ impl RuntimeHost {
         project: &str,
         revision: &str,
     ) -> Result<(), String> {
+        self.approve_with_timing_scoped(project, revision, None)
+    }
+    pub(crate) fn approve_with_timing_scoped(
+        &mut self,
+        project: &str,
+        revision: &str,
+        scope: Option<WorkerAccountAuthorization>,
+    ) -> Result<(), String> {
         identifier(project)?;
         if self.timing_bound(project) {
-            self.use_timing(project, None, |t, h| t.approve_plan(h, revision))
-        } else {
+            self.use_timing(project, None, |t, h| {
+                t.approve_plan_scoped(h, revision, scope)
+            })
+        } else if scope.is_none() {
             self.approve(project, revision)
+        } else {
+            self.approve_scoped(project, revision, scope)
         }
     }
     pub(crate) fn start_project_run_with_timing(

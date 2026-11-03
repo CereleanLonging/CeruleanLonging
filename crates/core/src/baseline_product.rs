@@ -313,6 +313,7 @@ impl Controller {
                 Ok::<_, String>(RunApproval {
                     spec_digest: e.view.spec_digest.clone().ok_or("原方案摘要缺失")?,
                     approval: Approval {
+                        worker_account_setup: None,
                         plan_id: s.plan.workflow.id.clone(),
                         revision: s.plan.workflow.version,
                         policy_version: s.plan.policy.version,

@@ -2432,6 +2432,7 @@ fn omp_controller_request_replays_submission_and_cannot_regress_started_to_unsen
 }
 fn approve(s: &mut DurableWorkflow, p: &PlanRevision) {
     let approval = Approval {
+        worker_account_setup: None,
         plan_id: p.workflow.id.clone(),
         revision: p.workflow.version,
         policy_version: 1,

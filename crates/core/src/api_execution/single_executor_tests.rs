@@ -36,6 +36,7 @@ fn approve(store: &mut DurableWorkflow, p: &PlanRevision) {
             approval_source: Some("synthetic baseline user approval".into()),
             execution: Some(ExecutionEvidence::Approval {
                 approval: Approval {
+                    worker_account_setup: None,
                     plan_id: p.workflow.id.clone(),
                     revision: p.workflow.version,
                     policy_version: p.policy.version,

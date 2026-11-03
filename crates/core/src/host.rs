@@ -235,6 +235,8 @@ mod verification_recheck;
 mod verification_recheck_host;
 #[path = "verification_recovery.rs"]
 mod verification_recovery;
+#[path = "worker_account_authorization.rs"]
+mod worker_account_authorization;
 #[cfg(all(test, windows))]
 #[path = "worker_boundaries_host_tests.rs"]
 mod worker_boundaries_host_tests;
@@ -1625,23 +1627,40 @@ impl RuntimeHost {
         Ok(())
     }
     fn approve(&mut self, project: &str, wanted: &str) -> Result<(), String> {
+        self.approve_scoped(project, wanted, None)
+    }
+    fn approve_scoped(
+        &mut self,
+        project: &str,
+        wanted: &str,
+        worker_account_setup: Option<WorkerAccountAuthorization>,
+    ) -> Result<(), String> {
         let store = self.projects.get(project).ok_or("project not registered")?;
         let revision = store.revision().ok_or("chief proposal missing")?;
         require(
             revision.approval_digest()? == wanted,
             "计划内容或权限已变化，请重新审阅",
         )?;
-        if store.approval().is_some() {
+        if let Some(prior) = store.approval() {
+            require(
+                worker_account_setup.is_none()
+                    || prior.worker_account_setup == worker_account_setup,
+                "原批准不包含这次管理授权；请重新审阅新方案，不能追加或扩大原授权",
+            )?;
             return self.reconcile_currency_account(project);
         }
         crate::worker_boundaries::validate(revision, false)?;
         let currency_approval = self.prepare_currency_approval(project)?;
+        if worker_account_setup.is_some() {
+            crate::worker_account_guard::enable(&self.root)?;
+        }
         let store = self
             .projects
             .get_mut(project)
             .ok_or("project not registered")?;
         let revision = store.revision().ok_or("chief proposal missing")?;
         let approval = Approval {
+            worker_account_setup,
             plan_id: revision.workflow.id.clone(),
             revision: revision.workflow.version,
             policy_version: revision.policy.version,
@@ -3117,6 +3136,13 @@ impl RuntimeHost {
                 #[cfg(windows)]
                 {
                     (|| -> Result<(), String> {
+                        if self.projects.get(&project_id).is_some_and(|s| {
+                            s.approval().is_some() && s.state().revision_requested.is_none()
+                        }) {
+                            let plan = self
+                                .prepare_authorized_worker_accounts(&project_id, &setup_digest)?;
+                            return crate::windows_worker_account::start(plan);
+                        }
                         self.planning_idle(&project_id)?;
                         let saved = self
                             .project_setups
@@ -3164,7 +3190,7 @@ impl RuntimeHost {
                 #[cfg(windows)]
                 {
                     (|| -> Result<(), String> {
-                        self.planning_idle(&project_id)?;
+                        self.worker_account_idle(&project_id)?;
                         let saved = self.project_setups.get(&project_id).ok_or("项目配置缺失")?;
                         require(saved.digest == setup_digest, "项目配置已变化")?;
                         let task = saved.setup.execution_for("login", profile_id.as_deref())?;
@@ -3246,6 +3272,11 @@ impl RuntimeHost {
             Command::ApproveRevision { project_id, digest } => {
                 self.approve_with_timing(&project_id, &digest)
             }
+            Command::ApproveRevisionWithWorkerAccounts {
+                project_id,
+                digest,
+                setup_digest,
+            } => self.approve_with_worker_accounts(&project_id, &digest, &setup_digest),
             Command::CancelVerification {
                 project_id,
                 operation_id,

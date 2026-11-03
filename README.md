@@ -98,17 +98,25 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.40 为公开预览版**，强化正常执行目录隔离、跨执行端文件分工检查，以及主副指挥可核对的任务边界。独立验收程序继续随工作台固定绑定分发。沿用 API 主指挥的 Markdown 提炼、审阅确认、目录隔离和项目级盲评。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.40.md)。本版本不作稳定版承诺。
+**0.1.41 为公开预览版**，新增方案范围内的隔离账户与目录权限授权。明确勾选后由工作台发起一次固定准备；执行模型保持普通账户。沿用目录分工、独立验收、片段盲评与用户确认流程。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.41.md)。本版本不作稳定版承诺。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.40 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.40)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.41 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.41)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.41 · 2026-11-03 · 公开预览
+
+- 审阅方案时可明确授权创建普通隔离账户、设置项目目录权限，默认关闭；授权绑定方案、配置、目录和固定脚本。
+- 已有管理员权限时直接准备，否则由 Windows 请求一次 UAC。取消、失败、重复批准和重开不会自动重弹；模型登录和任务启动仍单独进行。
+- 首次使用此授权启用 reader20 数据保护，之后需使用 0.1.41 或更新的兼容版本；未勾选时保持原批准格式。
+
+[版本说明](docs/releases/0.1.41.md)
 
 #### 0.1.40 · 2026-11-03 · 公开预览
 
@@ -264,17 +272,25 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.40 is a public preview** strengthening normal execution directory isolation, cross-worker file ownership checks, and explicit boundaries for lead planning and coordinator assignment. The fixed independent verifier continues to ship with the workbench. API-chief Markdown refinement, review and confirmation, workspace isolation, and project-level blind review remain available. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.40.md). This is not a stable-release commitment.
+**0.1.41 is a public preview** adding plan-scoped authorization for isolated account creation and project directory permissions. An explicit opt-in starts one fixed preparation; workers remain ordinary users. Directory ownership, independent verification, fragment-only blind review and user confirmation remain in place. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.41.md). This is not a stable-release commitment.
 
-Try blind review in a separate experiment workbench and configure checking accounts before plan approval. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
+Try blind review in a separate experiment workbench and prepare checking accounts before execution, either manually or through the optional authorization in plan review. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.40 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.40). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.41 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.41). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.41 · 2026-11-03 · Public Preview
+
+- Plan review can explicitly authorize ordinary isolated accounts and project ACL preparation. Default off; bound to the plan, configuration, directories and fixed script.
+- An elevated host uses its existing token; otherwise Windows asks for one UAC consent. Cancellation, failure, duplicate approval and reopening never automatically repeat it. Model login and task start remain separate.
+- First use enables reader20 data protection, requiring 0.1.41 or a newer compatible reader. Unchecked approvals retain their original format.
+
+[Release notes](docs/releases/0.1.41.md)
 
 #### 0.1.40 · 2026-11-03 · Public Preview
 

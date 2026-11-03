@@ -85,6 +85,8 @@ impl ProjectView<'_> {
         }
         crate::workspace_read::bounded(WorkspaceResult::ExecutionReview(Box::new(
             WorkspaceExecutionReview {
+                worker_account_setup_digest: None,
+                worker_account_directories: vec![],
                 project: self.project.clone(),
                 revision: self.plan_revision.cloned(),
                 revision_digest: original_digest,
@@ -511,9 +513,24 @@ impl RuntimeHost {
                 return self.workspace_observation(query);
             }
             WorkspaceQuery::ExecutionReview { project_id, digest } => {
-                return self
+                let mut result = self
                     .workspace_project_view(project_id)?
-                    .execution_review(digest.as_deref());
+                    .execution_review(digest.as_deref())?;
+                if let WorkspaceResult::ExecutionReview(review) = &mut result {
+                    review.worker_account_setup_digest =
+                        self.worker_account_review_digest(project_id);
+                    if review.worker_account_setup_digest.is_some() {
+                        let saved = &self.project_setups[project_id];
+                        review.worker_account_directories =
+                            saved.setup.chief_directory.iter().cloned().collect();
+                        for directory in saved.setup.worker_directories.values() {
+                            review
+                                .worker_account_directories
+                                .push(directory.root(&review.project.root)?);
+                        }
+                    }
+                }
+                return crate::workspace_read::bounded(result);
             }
             WorkspaceQuery::Tasks { project_id, .. }
             | WorkspaceQuery::Task { project_id, .. }

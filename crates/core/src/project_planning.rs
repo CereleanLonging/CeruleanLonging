@@ -5,6 +5,13 @@ use cerulean_domain::project_setup::*;
 
 impl RuntimeHost {
     pub(super) fn planning_idle(&self, project: &str) -> Result<(), String> {
+        self.planning_idle_inner(project, false)
+    }
+    #[cfg(windows)]
+    pub(super) fn worker_account_idle(&self, project: &str) -> Result<(), String> {
+        self.planning_idle_inner(project, true)
+    }
+    fn planning_idle_inner(&self, project: &str, account_preparation: bool) -> Result<(), String> {
         self.require_available(project)?;
         let store = self.projects.get(project).ok_or("项目尚未登记")?;
         let current = store
@@ -12,6 +19,19 @@ impl RuntimeHost {
             .map(PlanRevision::approval_digest)
             .transpose()?;
         let revising = store.state().revision_requested.is_some();
+        if account_preparation && store.approval().is_some() && !revising {
+            require(
+                store
+                    .state()
+                    .tasks
+                    .values()
+                    .all(|t| t.state == TaskState::Pending)
+                    && !self.runs.all().iter().any(|r| {
+                        r.project_id == project && current.as_ref() == Some(&r.revision_digest)
+                    }),
+                "账户准备和登录只能在本版任务尚未启动时进行",
+            )?;
+        }
         require(
             !self.runs.all().iter().any(|r| {
                 r.project_id == project
@@ -48,6 +68,7 @@ impl RuntimeHost {
         )?;
         require(
             store.approval().is_none()
+                || account_preparation
                 || revising
                 || store.state().tasks.values().all(|t| {
                     matches!(
@@ -67,6 +88,14 @@ impl RuntimeHost {
         )
     }
     pub(super) fn validate_project_setups(&self) -> Result<(), String> {
+        let uses_account_authority = self.projects.values().any(|store| store.history().iter().any(|e|
+            matches!(&e.body.context.execution, Some(ExecutionEvidence::Approval { approval }) if approval.worker_account_setup.is_some())));
+        require(
+            !uses_account_authority
+                || crate::data_format::status(&self.root)?.minimum_reader_generation
+                    >= crate::worker_account_guard::GENERATION,
+            "账户管理授权缺少 reader20 保护，请保留原记录核对",
+        )?;
         for saved in self.project_setups.values() {
             let binding = self
                 .projects

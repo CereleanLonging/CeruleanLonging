@@ -734,7 +734,9 @@ pub(crate) fn elevate(plan: &Path) -> Result<(), String> {
     let script = plan.parent().ok_or("设置目录缺失")?.join("provision.ps1");
     // Quoted literals only, never concatenate untrusted text as PowerShell code.
     let quote = |p: &Path| format!("'{}'", p.to_string_lossy().replace('\'', "''"));
-    let text=format!("$ErrorActionPreference='Stop'; $workerSetupProcess=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe') -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',('\"'+{}+'\"'),'-PlanPath',('\"'+{}+'\"')) -Wait -PassThru; exit $workerSetupProcess.ExitCode",quote(&script),quote(&plan));
+    // An already elevated host can use its token. Otherwise Windows owns the
+    // one consent prompt; no auto-clicking, UAC policy change or persistent broker.
+    let text = elevation_script(host_is_elevated()?, &quote(&script), &quote(&plan));
     let shell = PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot缺失")?)
         .join("System32/WindowsPowerShell/v1.0/powershell.exe");
     let status = std::process::Command::new(shell)
@@ -745,6 +747,49 @@ pub(crate) fn elevate(plan: &Path) -> Result<(), String> {
         .status()
         .map_err(|_| "无法发起账户设置")?;
     require(status.success(), "账户设置取消或失败；不会自动重弹UAC")
+}
+pub(crate) fn provision_script_digest() -> String {
+    use sha2::{Digest, Sha256};
+    format!(
+        "{:x}",
+        Sha256::digest(include_bytes!(
+            "../../../scripts/provision-worker-accounts.ps1"
+        ))
+    )
+}
+fn elevation_script(elevated: bool, script: &str, plan: &str) -> String {
+    let verb = if elevated { "" } else { "-Verb RunAs " };
+    format!("$ErrorActionPreference='Stop'; $workerSetupProcess=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe') {verb}-WindowStyle Hidden -ArgumentList @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',('\"'+{script}+'\"'),'-PlanPath',('\"'+{plan}+'\"')) -Wait -PassThru; exit $workerSetupProcess.ExitCode")
+}
+fn host_is_elevated() -> Result<bool, String> {
+    use windows_sys::Win32::{
+        Foundation::CloseHandle,
+        System::Threading::{GetCurrentProcess, OpenProcessToken},
+    };
+    let mut token = ptr::null_mut();
+    require(
+        unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } != 0,
+        "无法核对工作台当前权限",
+    )?;
+    let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
+    let mut size = 0;
+    let ok = unsafe {
+        GetTokenInformation(
+            token,
+            TokenElevation,
+            (&mut elevation as *mut TOKEN_ELEVATION).cast(),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut size,
+        )
+    };
+    unsafe {
+        CloseHandle(token);
+    }
+    require(
+        ok != 0 && size as usize == std::mem::size_of::<TOKEN_ELEVATION>(),
+        "无法读取工作台当前权限",
+    )?;
+    Ok(elevation.TokenIsElevated != 0)
 }
 pub(crate) fn start(prepared: PreparedAccounts) -> Result<(), String> {
     std::thread::Builder::new()
@@ -1284,6 +1329,20 @@ mod native_tests;
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn account_elevation_uses_existing_token_or_one_windows_prompt() {
+        let plain = super::elevation_script(false, "'fixed.ps1'", "'fixed.json'");
+        let elevated = super::elevation_script(true, "'fixed.ps1'", "'fixed.json'");
+        assert_eq!(plain.matches("-Verb RunAs").count(), 1);
+        assert!(!elevated.contains("-Verb"));
+        for script in [&plain, &elevated] {
+            assert!(script.contains("-WindowStyle Hidden"));
+            assert!(script.contains("-Wait -PassThru"));
+            assert!(!script.contains("while"));
+            assert!(!script.contains("SendKeys"));
+        }
+        super::host_is_elevated().unwrap(); // Real read-only Windows token query.
+    }
     use super::*;
     #[test]
     fn isolated_environment_expands_windows_system_drive() {

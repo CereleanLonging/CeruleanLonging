@@ -114,6 +114,7 @@ impl Command {
             | Self::ApprovePlan { .. }
             | Self::RegisterProject { .. }
             | Self::ApproveRevision { .. }
+            | Self::ApproveRevisionWithWorkerAccounts { .. }
             | Self::CancelVerification { .. }
             | Self::AbandonVerification { .. } => true,
         }

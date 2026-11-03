@@ -492,6 +492,14 @@ impl TimedTeam {
     }
     /// Explicit user approval through the original validator. Never call automatically.
     pub fn approve_plan(&mut self, host: &mut RuntimeHost, expected: &str) -> Result<(), String> {
+        self.approve_plan_scoped(host, expected, None)
+    }
+    pub(crate) fn approve_plan_scoped(
+        &mut self,
+        host: &mut RuntimeHost,
+        expected: &str,
+        scope: Option<cerulean_domain::execution::WorkerAccountAuthorization>,
+    ) -> Result<(), String> {
         self.check(host)?;
         host.observation_quiet()?;
         let state = replay(
@@ -510,7 +518,7 @@ impl TimedTeam {
                 && store.revision() == Some(&binding.plan),
             "unapproved plan changed",
         )?;
-        host.approve(&self.start.project, expected)?;
+        host.approve_scoped(&self.start.project, expected, scope)?;
         append(
             host,
             &self.start,

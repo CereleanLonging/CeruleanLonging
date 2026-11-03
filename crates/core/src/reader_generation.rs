@@ -58,7 +58,8 @@ pub(crate) fn observe(root: &Path, status: &mut Status) -> Result<(), String> {
     crate::relay_guard::observe(root, status)?;
     crate::rejected_usage_guard::observe(root, status)?;
     crate::verification_recheck_guard::observe(root, status)?;
-    crate::blind_review_guard::observe(root, status)
+    crate::blind_review_guard::observe(root, status)?;
+    crate::worker_account_guard::observe(root, status)
 }
 fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
     match fs::read_dir(root.join("events")) {
@@ -84,6 +85,7 @@ fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
                     && name != crate::rejected_usage_guard::FILE_NAME
                     && name != crate::verification_recheck_guard::FILE_NAME
                     && name != crate::blind_review_guard::FILE_NAME
+                    && name != crate::worker_account_guard::FILE_NAME
                     && name != crate::experiment_guard::FILE_NAME
                     && name != crate::experiment_guard::LEGACY_FILE_NAME
                 {

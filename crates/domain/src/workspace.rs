@@ -464,6 +464,10 @@ pub struct WorkspaceTaskEvidencePage {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WorkspaceExecutionReview {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_account_setup_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub worker_account_directories: Vec<String>,
     pub project: Project,
     /// Complete original authorization content, never a task-summary substitute.
     pub revision: Option<crate::execution::PlanRevision>,

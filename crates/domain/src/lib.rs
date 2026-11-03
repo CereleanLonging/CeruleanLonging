@@ -740,6 +740,11 @@ pub enum Command {
         project_id: String,
         digest: String,
     },
+    ApproveRevisionWithWorkerAccounts {
+        project_id: String,
+        digest: String,
+        setup_digest: String,
+    },
     CancelVerification {
         project_id: String,
         operation_id: String,

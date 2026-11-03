@@ -6,6 +6,7 @@ fn authorization(spec: &RunSpec) -> RunApproval {
     RunApproval {
         spec_digest: digest(spec).unwrap(),
         approval: Approval {
+            worker_account_setup: None,
             plan_id: spec.plan.workflow.id.clone(),
             revision: 1,
             policy_version: 1,

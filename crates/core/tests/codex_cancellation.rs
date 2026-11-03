@@ -118,6 +118,7 @@ fn ready(root: &Path) -> (DurableWorkflow, PlanRevision, WorkerBinding) {
         )
         .unwrap();
     let approval = Approval {
+        worker_account_setup: None,
         plan_id: "plan".into(),
         revision: 1,
         policy_version: 1,

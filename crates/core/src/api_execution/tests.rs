@@ -164,6 +164,7 @@ fn assigned(root: &Path, plan: PlanRevision) -> DurableWorkflow {
     )
     .unwrap();
     let approved = Approval {
+        worker_account_setup: None,
         plan_id: "plan".into(),
         revision: 1,
         policy_version: 1,
@@ -365,6 +366,7 @@ fn api_selection_binds_target_limits_and_permissions_without_changing_old_json()
     let dir = tempfile::tempdir().unwrap();
     let original = plan(dir.path(), selection(targets().remove(2)));
     let approval = Approval {
+        worker_account_setup: None,
         plan_id: "plan".into(),
         revision: 1,
         policy_version: 1,

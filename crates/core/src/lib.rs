@@ -3,7 +3,8 @@ mod blind_review;
 mod blind_review_guard;
 #[cfg(windows)]
 pub mod independent_verifier;
-pub const DATA_READER_GENERATION: u32 = blind_review_guard::GENERATION;
+mod worker_account_guard;
+pub const DATA_READER_GENERATION: u32 = worker_account_guard::GENERATION;
 #[cfg(windows)]
 pub mod windows_worker_account;
 #[cfg(all(test, windows))]
@@ -14,7 +15,7 @@ pub const BACKUP_WRITER_VERSIONS: &[&str] = &[
     "0.1.10", "0.1.11", "0.1.12", "0.1.13", "0.1.14", "0.1.15", "0.1.16", "0.1.17", "0.1.18",
     "0.1.19", "0.1.20", "0.1.21", "0.1.22", "0.1.23", "0.1.24", "0.1.25", "0.1.26", "0.1.27",
     "0.1.28", "0.1.29", "0.1.30", "0.1.31", "0.1.32", "0.1.33", "0.1.34", "0.1.35", "0.1.36",
-    "0.1.37", "0.1.38", "0.1.39", "0.1.40",
+    "0.1.37", "0.1.38", "0.1.39", "0.1.40", "0.1.41",
 ];
 #[cfg(windows)]
 mod acceptance_scope;
@@ -272,6 +273,7 @@ impl Store {
                 || f.file_name() == rejected_usage_guard::FILE_NAME
                 || f.file_name() == verification_recheck_guard::FILE_NAME
                 || f.file_name() == blind_review_guard::FILE_NAME
+                || f.file_name() == worker_account_guard::FILE_NAME
                 || f.file_name() == experiment_guard::FILE_NAME
                 || f.file_name() == experiment_guard::LEGACY_FILE_NAME
             {
@@ -624,6 +626,7 @@ impl Store {
             | Command::AbandonUnsentAttempt { .. }
             | Command::RegisterValidator { .. }
             | Command::ApproveRevision { .. }
+            | Command::ApproveRevisionWithWorkerAccounts { .. }
             | Command::CancelVerification { .. }
             | Command::AbandonVerification { .. } => return Err("完整项目命令需要常驻宿主".into()),
             Command::Snapshot => {}
