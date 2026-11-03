@@ -61,6 +61,9 @@ fn provider_wait_284_prompt_matches_strict_schema_for_every_management_purpose()
 }
 fn decision(purpose: Purpose) -> serde_json::Value {
     match purpose {
+        Purpose::Refine => {
+            json!({"action":"refine","document":{"title":"Document fixture","points":[{"kind":"task","text":"bounded edit","quote":"source excerpt"}]}})
+        }
         Purpose::Plan => {
             json!({"action":"plan","tasks":[{"id":"t","goal":"bounded edit","dependencies":[],"workerId":"worker-a6api","validatorId":"tests"}],"rationale":"bounded plan"})
         }
@@ -91,6 +94,7 @@ fn flexible_role_provider_matrix_binds_tool_free_wire_and_keeps_usage_on_rejecte
     ] {
         for purpose in [
             Purpose::Plan,
+            Purpose::Refine,
             Purpose::Assign,
             Purpose::Accept,
             Purpose::Advise,

@@ -548,6 +548,7 @@ impl RuntimeHost {
         )
     }
     pub(super) fn poll_planning_results(&mut self) {
+        self.poll_document_refinements();
         let ready: Vec<_> = self
             .management
             .statuses()

@@ -266,7 +266,7 @@ export function App() {
               {notice}
             </div>
           )}
-          {(page === "工作总览" || page === "需求与计划") && <WorkspaceBrowser read={readWorkspace} send={send} enabled={desktop} busy={busy} showPlans={page === "需求与计划"} onOverview={setWorkspace}/>}
+          {(page === "工作总览" || page === "需求与计划") && <WorkspaceBrowser refinementSetups={data?.projectSetups} read={readWorkspace} send={send} enabled={desktop} busy={busy} showPlans={page === "需求与计划"} onOverview={setWorkspace}/>}
           {needsFullView && !data && <div role="status" className="banner">{snapshotLoading ? "正在读取此页的完整记录；独立项目与计划入口仍可使用。" : "此页完整记录尚不可用，不能据此判断没有任务或事件。请重新读取；独立项目与计划入口仍可使用。"}<button disabled={busy || snapshotLoading || !desktop} onClick={() => void query({type:"snapshot"})}>读取完整记录</button></div>}
           {page === "工作总览" && (
             <>

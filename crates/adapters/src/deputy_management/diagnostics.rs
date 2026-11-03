@@ -53,6 +53,7 @@ pub(super) fn envelope(
         return Err(DecodeStage::StateDigest);
     }
     let role_ok = match &envelope.decision {
+        ManagementDecision::Refine { .. } => h.purpose == Purpose::Refine,
         ManagementDecision::Plan { .. } => h.purpose == Purpose::Plan,
         ManagementDecision::Assign { .. } => h.purpose == Purpose::Assign,
         ManagementDecision::Accept { .. } => h.purpose == Purpose::Accept,

@@ -35,6 +35,7 @@ use windows_sys::Win32::{
     },
 };
 
+mod document_stream;
 const REQUEST_LIMIT: usize = 64 * 1024;
 const RESPONSE_LIMIT: usize = 4 * 1024 * 1024;
 const DEADLINE: Duration = Duration::from_secs(15);
@@ -253,6 +254,8 @@ async fn write_frame_bytes<W: AsyncWrite + Unpin>(
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Greeting {
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub document_stream: bool,
     pub product: String,
     pub protocol_version: u32,
     pub server_pid: u32,
@@ -730,10 +733,11 @@ async fn handle(
     if process_sid(client_pid).map_err(|e| e.to_string())? != sid {
         return Err("client user mismatch".into());
     }
-    let operation: UserOperation = timeout(DEADLINE, async {
+    let (operation, documents, size): (UserOperation, bool, usize) = timeout(DEADLINE, async {
         write_frame(
             &mut pipe,
             &Greeting {
+                document_stream: true,
                 product: PRODUCT_NAME.into(),
                 protocol_version: PROTOCOL_VERSION,
                 server_pid: std::process::id(),
@@ -742,15 +746,33 @@ async fn handle(
             REQUEST_LIMIT,
         )
         .await?;
-        read_frame(&mut pipe, REQUEST_LIMIT).await
+        document_stream::read(&mut pipe, REQUEST_LIMIT).await
     })
     .await
     .map_err(|_| "service input timed out")??;
+    if documents && !document_stream::document_operation(&operation) {
+        return Err("document transport is restricted to user documents".into());
+    }
+    if !documents && size > REQUEST_LIMIT {
+        return Err("request exceeds limit".into());
+    }
     timeout(response_deadline(&operation), async {
         let reply = store.lock().await.apply(operation);
         // Commit the stop barrier before awaiting delivery: a lost ACK cannot
         // leave an upgrade-prepared process accepting requests indefinitely.
-        send_reply(&mut pipe, &reply, &stop).await
+        if documents
+            && (reply.workspace.as_ref().is_some_and(|v| {
+                matches!(
+                    v,
+                    cerulean_domain::workspace::WorkspaceResult::Plan(_)
+                        | cerulean_domain::workspace::WorkspaceResult::Configuration(_)
+                )
+            }) || reply.response.result.is_some())
+        {
+            document_stream::write(&mut pipe, &reply).await
+        } else {
+            send_reply(&mut pipe, &reply, &stop).await
+        }
     })
     .await
     .map_err(|_| "service response timed out")?
@@ -846,6 +868,7 @@ async fn serve_mode(directory: &Path, host: ServiceHost) -> Result<(), String> {
     Ok(())
 }
 pub struct Client {
+    documents: bool,
     pipe: NamedPipeClient,
     pub server_pid: u32,
 }
@@ -1091,8 +1114,12 @@ impl Client {
             facts.stage = "serverIdentity";
             return Err(facts.reject("server user mismatch"));
         }
-        connection_greeting(&mut pipe, &mut facts, DEADLINE).await?;
-        Ok(Self { pipe, server_pid })
+        let greeting = connection_greeting(&mut pipe, &mut facts, DEADLINE).await?;
+        Ok(Self {
+            documents: greeting.document_stream,
+            pipe,
+            server_pid,
+        })
     }
     pub async fn call(mut self, operation: UserOperation) -> Result<ServiceReply, String> {
         let deadline = response_deadline(&operation);
@@ -1119,8 +1146,19 @@ impl Client {
             | UserOperation::RestartDataDiagnostics { id, .. } => id.clone(),
         };
         timeout(deadline, async {
-            write_frame(&mut self.pipe, &operation, REQUEST_LIMIT).await?;
-            let reply: ServiceReply = read_frame(&mut self.pipe, RESPONSE_LIMIT).await?;
+            let documents = self.documents && document_stream::document_operation(&operation);
+            if documents {
+                document_stream::write(&mut self.pipe, &operation).await?;
+            } else {
+                write_frame(&mut self.pipe, &operation, REQUEST_LIMIT).await?;
+            }
+            let reply: ServiceReply = if documents {
+                document_stream::read(&mut self.pipe, RESPONSE_LIMIT)
+                    .await?
+                    .0
+            } else {
+                read_frame(&mut self.pipe, RESPONSE_LIMIT).await?
+            };
             if reply.response.id != id {
                 return Err("response correlation mismatch".into());
             }
@@ -1300,6 +1338,7 @@ mod tests {
             ..Default::default()
         };
         let greeting = Greeting {
+            document_stream: true,
             product: PRODUCT_NAME.into(),
             protocol_version: PROTOCOL_VERSION,
             server_pid: 99,

@@ -243,10 +243,8 @@ pub(crate) fn history(root: &Path) -> Result<Vec<SavedProjectSetup>, String> {
         let mut bytes = Vec::new();
         fs::File::open(f.path())
             .map_err(|e| e.to_string())?
-            .take(65537)
             .read_to_end(&mut bytes)
             .map_err(|e| e.to_string())?;
-        require(bytes.len() <= 65536, "project setup too large")?;
         let saved: SavedProjectSetup =
             serde_json::from_slice(&bytes).map_err(|_| "invalid project setup record")?;
         crate::management_source_guard::require_protected(
@@ -315,7 +313,6 @@ pub(crate) fn save(root: &Path, saved: &SavedProjectSetup) -> Result<(), String>
         "project setup revision exists; reopen before retry",
     )?;
     let bytes = serde_json::to_vec(saved).map_err(|e| e.to_string())?;
-    require(bytes.len() <= 65536, "project setup too large")?;
     let mut f = OpenOptions::new()
         .create_new(true)
         .write(true)

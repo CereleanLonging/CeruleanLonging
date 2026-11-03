@@ -87,7 +87,7 @@ impl BudgetLedger {
                 request_id: intent.operation_id.clone(),
                 operation_id: intent.operation_id.clone(),
                 role: match intent.purpose {
-                    Purpose::Plan | Purpose::Accept => ChargeRole::Chief,
+                    Purpose::Plan | Purpose::Refine | Purpose::Accept => ChargeRole::Chief,
                     _ => ChargeRole::Deputy,
                 },
                 quote_digest: quote.into(),

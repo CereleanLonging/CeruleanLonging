@@ -37,7 +37,7 @@ pub enum ManagementRole {
 impl ManagementRole {
     pub fn for_purpose(purpose: Purpose) -> Self {
         match purpose {
-            Purpose::Plan | Purpose::Accept => Self::Chief,
+            Purpose::Plan | Purpose::Refine | Purpose::Accept => Self::Chief,
             _ => Self::Deputy,
         }
     }

@@ -1,74 +1,272 @@
 import { useEffect, useRef, useState } from "react";
-
+import { ErrorText } from "./ErrorText";
+import type { SavedProjectSetup } from "./contracts";
+import {
+  nativeRefinement,
+  refineDocument,
+  refinementText,
+  type RefinementApi,
+} from "./MarkdownRefinement";
 export type MarkdownPlan = { title: string; tasks: string[] };
-const bytes = (text: string) => new TextEncoder().encode(text).length;
 
 export async function readMarkdown(file: File): Promise<string> {
-  if (!/\.md$/i.test(file.name)) throw Error("仅支持 .md 文档，请选择 Markdown 文件。");
-  if (file.size > 64 * 1024) throw Error("Markdown 文档不得超过 64 KiB，请拆分后导入。");
-  const text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()).replace(/^\uFEFF/, "");
-  if (!text.trim()) throw Error("Markdown 文档为空。");
-  if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(text)) throw Error("文档含有非文本内容，请保存为 UTF-8 Markdown 后重试。");
+  if (!/\.md$/i.test(file.name))
+    throw Error("仅支持 .md 文档，请选择 Markdown 文件。");
+  const text = new TextDecoder("utf-8", { fatal: true })
+    .decode(await file.arrayBuffer())
+    .replace(/^\uFEFF/, "");
+  if (!text.trim()) throw Error("文档为空，请选择包含正文的 Markdown 文件。");
+  if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(text))
+    throw Error("文档含有非文本内容，请保存为 UTF-8 Markdown 后重试。");
   return text.replace(/\r\n?/g, "\n");
 }
 
-export function markdownPlan(text: string, filename: string): MarkdownPlan {
-  // Do not execute/render Markdown or follow links. Keep the complete body;
-  // only an initial H1 becomes the title. Nonempty lines retain existing plan semantics.
-  const lines = text.split("\n");
-  const first = lines.findIndex(line => line.trim());
-  const heading = first >= 0 ? /^#\s+(.+?)\s*$/.exec(lines[first]) : null;
-  const title = heading ? heading[1] : filename.replace(/\.md$/i, "");
-  const tasks = lines.filter((line, i) => i !== (heading ? first : -1) && line.trim());
-  if (!title.trim() || title.length > 200 || bytes(title) > 600) throw Error("计划名称过长，请缩短文档首行标题或文件名。");
-  if (!tasks.length || tasks.length > 30 || tasks.some(task => bytes(task) > 2000)) {
-    throw Error("文档正文须有 1–30 个非空行，每行最多 2000 字节；不会截断内容，请整理后导入。");
-  }
-  return { title, tasks };
-}
-
-type Review = { filename: string; text: string; plan?: MarkdownPlan };
-export function MarkdownImport({ mode, contextKey, disabled, onApply }: {
+type Review = {
+  filename: string;
+  source: string;
+  scope: string;
+  quotes: string[];
+};
+export function MarkdownImport({
+  mode,
+  contextKey,
+  disabled,
+  onApply,
+  chief,
+  api = nativeRefinement,
+}: {
   mode: "plan" | "requirement";
   contextKey: string;
   disabled: boolean;
+  chief?: SavedProjectSetup;
+  api?: RefinementApi;
   onApply: (text: string, plan?: MarkdownPlan) => void;
 }) {
-  const [review, setReview] = useState<Review>();
-  const [reading, setReading] = useState(false), [error, setError] = useState("");
-  const generation = useRef(0), latest = useRef({ contextKey, disabled });
-  latest.current = { contextKey, disabled };
+  const [reading, setReading] = useState(false),
+    [error, setError] = useState(""),
+    [progress, setProgress] = useState("");
+  const [review, setReview] = useState<Review>(),
+    [draft, setDraft] = useState(""),
+    [title, setTitle] = useState(""),
+    [evidence, setEvidence] = useState(false);
+  const scope = JSON.stringify([
+    contextKey,
+    chief?.setup.projectId,
+    chief?.digest,
+  ]);
+  const generation = useRef(0),
+    latest = useRef({ scope, disabled, onApply });
+  latest.current = { scope, disabled, onApply };
   useEffect(() => {
-    generation.current++; setReview(undefined); setError(""); setReading(false);
-    return () => { generation.current++; };
-  }, [contextKey, disabled]);
+    generation.current++;
+    setReview(undefined);
+    setReading(false);
+    setError("");
+    setProgress("");
+    return () => {
+      generation.current++;
+    };
+  }, [scope, disabled]);
+  const external =
+    chief?.setup.managementSources?.chief.kind === "codexSession";
+  function cancel() {
+    generation.current++;
+    setReading(false);
+    setReview(undefined);
+    setError("");
+    setProgress(
+      "已取消读入，并停止后续分段。已发出的模型请求仍保留在指挥调用记录中。",
+    );
+  }
   async function select(file?: File) {
-    const token = ++generation.current, context = contextKey;
-    setReview(undefined); setError("");
-    if (!file || disabled) { setReading(false); return; }
-    const active = () => generation.current === token && latest.current.contextKey === context && !latest.current.disabled;
+    const token = ++generation.current;
+    setReview(undefined);
+    setError("");
+    setProgress("");
+    setEvidence(false);
+    if (!file || disabled || !chief || external) {
+      setReading(false);
+      return;
+    }
+    const active = () =>
+      generation.current === token &&
+      latest.current.scope === scope &&
+      !latest.current.disabled;
     setReading(true);
     try {
-      const text = await readMarkdown(file);
-      if (mode === "requirement" && bytes(text) > 8000) throw Error("项目需求最多 8000 字节；文档不会被截断，请精简后导入。");
-      const plan = mode === "plan" ? markdownPlan(text, file.name) : undefined;
-      if (active()) setReview({ filename: file.name, text, plan });
+      const source = await readMarkdown(file);
+      if (!active()) return;
+      const refined = await refineDocument(
+        source,
+        chief,
+        api,
+        active,
+        (done, total) => {
+          if (active())
+            setProgress(
+              `主指挥自动提炼：${done}/${total} 段。每段发送一次，失败不自动重试。`,
+            );
+        },
+      );
+      if (!active()) return;
+      const result = refinementText(refined);
+      setTitle(result.title);
+      setDraft(mode === "plan" ? result.tasks.join("\n\n") : result.text);
+      setReview({
+        filename: file.name,
+        source,
+        scope,
+        quotes: refined.flatMap((doc) =>
+          doc.points.map((point) => point.quote),
+        ),
+      });
+      setProgress(
+        "提炼完成。请对照原文核对目标、任务与验收标准，确认后才会替换草稿。",
+      );
     } catch (e) {
-      if (active()) setError(e instanceof TypeError ? "无法按 UTF-8 读取文档，请另存为 UTF-8 .md 文件。" : String(e).replace(/^Error: /, ""));
-    } finally { if (active()) setReading(false); }
+      if (active())
+        setError(
+          e instanceof TypeError
+            ? "无法读取文档或提炼结果，请核对 UTF-8 编码及原调用记录。"
+            : String(e).replace(/^Error: /, ""),
+        );
+    } finally {
+      if (active()) setReading(false);
+    }
   }
-  return <section className="markdown-import" aria-label="导入 Markdown 文档">
-    <label>导入本地 Markdown 文档（仅 .md）<input type="file" accept=".md" disabled={disabled || reading} onChange={e => { const file = e.currentTarget.files?.[0]; e.currentTarget.value = ""; void select(file); }}/></label>
-    <p className="secondary">{mode === "plan" ? "首个非空行若为一级标题，将用作计划名称；正文每个非空行对应一项任务。" : "文档原文将填入项目需求，可继续编辑。"}只在本机读取文本，不执行文档内容或加载外部链接；确认导入不会自动保存、调用模型或批准任务。</p>
-    {reading && <p role="status">正在读取文档…</p>}
-    {error && <p role="alert">{error}</p>}
-    {review && <div className="panel" aria-label="Markdown 导入预览">
-      <h4>{review.filename}</h4>
-      {review.plan && <p>计划名称：{review.plan.title} · {review.plan.tasks.length} 项任务</p>}
-      <label>文档原文预览<textarea readOnly rows={8} value={review.text}/></label>
-      <p>确认后将替换当前{mode === "plan" ? "计划名称与任务" : "需求"}草稿。请核对内容，保存和批准仍需分别操作。</p>
-      <div className="integration-actions"><button type="button" className="secondary-button" disabled={disabled || reading} onClick={() => setReview(undefined)}>取消导入</button>
-        <button type="button" className="primary" disabled={disabled || reading} onClick={() => { if (!latest.current.disabled && latest.current.contextKey === contextKey) { onApply(review.text, review.plan); setReview(undefined); } }}>确认导入 Markdown</button></div>
-    </div>}
-  </section>;
+  function apply() {
+    if (
+      !review ||
+      reading ||
+      latest.current.disabled ||
+      review.scope !== latest.current.scope
+    )
+      return;
+    if (!draft.trim()) {
+      setError("提炼内容不能为空，请核对后确认。");
+      return;
+    }
+    latest.current.onApply(
+      draft,
+      mode === "plan"
+        ? {
+            title: title.trim() || review.filename.replace(/\.md$/i, ""),
+            tasks: draft.split(/\n\s*\n/).filter((line) => line.trim()),
+          }
+        : undefined,
+    );
+    setReview(undefined);
+    setProgress("已确认读入草稿，保存、批准和启动仍需分别操作。");
+  }
+  return (
+    <section className="markdown-import" aria-label="导入 Markdown 文档">
+      <label>
+        导入本地 Markdown 文档（仅 .md）
+        <input
+          type="file"
+          accept=".md"
+          disabled={disabled || reading || !chief || external}
+          onChange={(e) => {
+            const file = e.currentTarget.files?.[0];
+            e.currentTarget.value = "";
+            void select(file);
+          }}
+        />
+      </label>
+      <p className="secondary">
+        选择文档 → 主指挥自动提炼 → 审阅结果 →
+        确认读入。不设文件大小、行数和正文长度上限；长文档会分段提炼，保留原文供核对。实际处理受本机资源、模型能力及项目调用额度约束。
+      </p>
+      {chief ? (
+        <p className="secondary">
+          使用已保存的主指挥：{chief.setup.chiefModel}
+          。文档内容会发送至该模型，可能计费，并计入项目指挥请求额度。
+        </p>
+      ) : (
+        <p role="status">请先保存并选择一个已配置主指挥的项目。</p>
+      )}
+      {external && (
+        <p role="status">
+          此主指挥绑定外部 Codex 聊天，不能后台自动提炼。请在项目配置中选择 API
+          主指挥；不会改用其他模型。
+        </p>
+      )}
+      {progress && <p role="status">{progress}</p>}
+      {error && (
+        <p role="alert">
+          <ErrorText error={error} />
+        </p>
+      )}
+      {reading && (
+        <button type="button" className="secondary-button" onClick={cancel}>
+          停止后续提炼
+        </button>
+      )}
+      {review && (
+        <div className="panel" aria-label="主指挥文档提炼预览">
+          <h4>{review.filename} · 待确认</h4>
+          {mode === "plan" && (
+            <label>
+              提炼后的计划名称
+              <input
+                value={title}
+                maxLength={200}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+          )}
+          <label>
+            提炼内容，可修改
+            <textarea
+              rows={12}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setEvidence(!evidence)}
+          >
+            {evidence ? "收起原文与引用" : "查看原文与引用"}
+          </button>
+          {evidence && (
+            <>
+              <label>
+                原文
+                <textarea
+                  aria-label="原文"
+                  readOnly
+                  rows={12}
+                  value={review.source}
+                />
+              </label>
+              <label>
+                模型引用原文片段
+                <textarea
+                  aria-label="模型引用原文片段"
+                  readOnly
+                  rows={8}
+                  value={review.quotes.join("\n\n")}
+                />
+              </label>
+            </>
+          )}
+          <div className="integration-actions">
+            <button type="button" className="secondary-button" onClick={cancel}>
+              取消导入
+            </button>
+            <button
+              type="button"
+              className="primary"
+              disabled={disabled || reading}
+              onClick={apply}
+            >
+              确认读入草稿
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }

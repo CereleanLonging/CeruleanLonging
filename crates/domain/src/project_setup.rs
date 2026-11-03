@@ -367,6 +367,8 @@ impl AcceptanceDraft {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagementView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refinement: Option<crate::management::RefinedDocument>,
     #[serde(default)]
     pub supervision_advice: Option<crate::supervision::SupervisionAdviceView>,
     pub operation_id: String,
@@ -598,10 +600,8 @@ impl ProjectSetupDraft {
             )?;
         }
         require(
-            !self.requirement.trim().is_empty()
-                && self.requirement.len() <= 8000
-                && !self.requirement.contains('\0'),
-            "需求不能为空，且最多 8000 字节",
+            !self.requirement.trim().is_empty() && !self.requirement.contains('\0'),
+            "需求不能为空，且不能含 NUL 字符",
         )?;
         for (model, allow_slash, ui_label) in [
             (

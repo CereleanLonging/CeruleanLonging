@@ -19,7 +19,7 @@ impl DeputyRequest {
                 && self.wire.requested_model == model
                 && self.wire.tool_catalog_sha256 == digest(&Vec::<Value>::new())?
                 && self.wire.max_output_tokens
-                    == if self.handoff.purpose == Purpose::Plan {
+                    == if matches!(self.handoff.purpose, Purpose::Plan | Purpose::Refine) {
                         4096
                     } else {
                         2048

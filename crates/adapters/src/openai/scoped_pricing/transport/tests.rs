@@ -86,6 +86,7 @@ fn response(purpose: Purpose) -> Value {
         Purpose::Advise => {
             json!({"action":"advise","taskId":"task","suggestion":"bounded suggestion","rationale":"observed failure"})
         }
+        Purpose::Refine => json!({"action":"wait","reason":"Document fixture not requested"}),
         Purpose::Plan => {
             json!({"action":"plan","rationale":"feasible","tasks":[{"id":"task","profileId":null,"goal":"code","dependencies":[],"workerId":"worker-codex","validatorId":"tests"}]})
         }

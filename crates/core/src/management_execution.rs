@@ -208,9 +208,12 @@ impl ApplicationTarget {
             context,
         } = self
         else {
+            if let D::Refine { document } = &observation.decision {
+                crate::host::document_refinement::validate_quotes(intent, document)?;
+            }
             return require(
-                matches!(observation.decision, D::Wait { .. }),
-                "only wait can resolve without workflow command",
+                matches!(observation.decision, D::Wait { .. } | D::Refine { .. }),
+                "only wait or document refinement can resolve without workflow command",
             );
         };
         let mut expected = CommandContext::default();
@@ -1178,6 +1181,9 @@ impl DecisionJournal {
         intent: &DecisionIntent,
         o: &DecisionObservation,
     ) -> Result<(), String> {
+        if let ManagementDecision::Refine { document } = &o.envelope.decision {
+            crate::host::document_refinement::validate_quotes(intent, document)?;
+        }
         if let Some(supervision) = intent.context.get("supervision") {
             require(
                 intent.purpose == Purpose::Advise,

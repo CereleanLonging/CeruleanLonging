@@ -9,9 +9,14 @@ fn validate(intent: &DecisionIntent, request: &DeputyRequest) -> Result<(), Stri
         request.handoff.source,
         cerulean_domain::management_ingress::ManagementSource::Provider { .. }
     ) {
-        let saved = &intent.context["executionSetup"]["setup"];
+        let refinement = serde_json::json!({"chiefModel":intent.context["chiefModel"],"managementSources":{"chief":intent.context["chiefSource"]}});
+        let saved = if intent.purpose == Purpose::Refine {
+            &refinement
+        } else {
+            &intent.context["executionSetup"]["setup"]
+        };
         let role = match intent.purpose {
-            Purpose::Plan | Purpose::Accept => "chief",
+            Purpose::Plan | Purpose::Refine | Purpose::Accept => "chief",
             _ => "deputy",
         };
         let model = if role == "chief" {

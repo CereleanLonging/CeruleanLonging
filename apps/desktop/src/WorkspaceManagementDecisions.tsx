@@ -16,7 +16,7 @@ const states: Record<string, string> = {
   abandoned: "应用事务已关闭",
   startupClosed: "启动记录已关闭",
 };
-const purposes: Record<string, string> = { plan: "主指挥规划", assign: "副指挥分配", advise: "副指挥建议", accept: "主指挥收口" };
+const purposes: Record<string, string> = { plan: "主指挥规划", refine: "主指挥文档提炼", assign: "副指挥分配", advise: "副指挥建议", accept: "主指挥收口" };
 const pageBytes = 64 * 1024;
 const detailBytes = 512 * 1024;
 

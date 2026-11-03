@@ -63,6 +63,13 @@ fn page_window<T: serde::Serialize>(
     Ok((entries, (end < total).then_some(end as u32)))
 }
 pub(crate) fn bounded(result: WorkspaceResult) -> Result<WorkspaceResult, String> {
+    // User-authored documents use negotiated chunk transport; evidence stays bounded.
+    if matches!(
+        result,
+        WorkspaceResult::Plan(_) | WorkspaceResult::Configuration(_)
+    ) {
+        return Ok(result);
+    }
     require(
         serde_json::to_vec(&result)
             .map_err(|e| e.to_string())?

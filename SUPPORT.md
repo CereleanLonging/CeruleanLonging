@@ -1,10 +1,10 @@
-# 0.1.37 接入与能力说明 / Integration and capability notes
+# 0.1.38 接入与能力说明 / Integration and capability notes
 
 [简体中文](#zh-support) · [English](#en-support)
 
-0.1.37 为公开预览，新增确认退出并停止对应后台核心，以及仅支持 .md 的本地文档导入。下表继承 0.1.34 已完成的约定范围实测记录，不表示全部供应商已在本版重测。0.1.35 引入的隔离与盲评使用本地合成回包及真实 Windows 账户验证；本版扫描只发现候选位置，登录和执行需分别确认，延期项保持原状态。
+0.1.38 为公开预览，新增由已保存 API 主指挥提炼 .md 文档、审阅确认后读入草稿，长文档分段处理。下表继承 0.1.34 已完成的约定范围实测记录，不表示全部供应商已在本版重测。0.1.35 引入的隔离与盲评使用本地合成回包及真实 Windows 账户验证；本版扫描只发现候选位置，登录和执行需分别确认，延期项保持原状态。
 
-0.1.37 is a public preview adding confirmed exit with associated core shutdown and local .md-only document import. The table retains live-test records from the agreed 0.1.34 scope; it does not claim every provider was retested in this version. Isolation and review introduced in 0.1.35 use local synthetic responses and real Windows accounts. Discovery only lists candidate paths; login and execution require separate checks. Deferred items remain deferred.
+0.1.38 is a public preview adding .md refinement by the saved API chief, segmented long-document processing, and user confirmation before draft insertion. The table retains live-test records from the agreed 0.1.34 scope; it does not claim every provider was retested in this version. Isolation and review introduced in 0.1.35 use local synthetic responses and real Windows accounts. Discovery only lists candidate paths; login and execution require separate checks. Deferred items remain deferred.
 
 <a id="zh-support"></a>
 
@@ -101,3 +101,9 @@ CeruleanLonging targets Windows x64 and requires an available Microsoft Edge Web
 固定 72 次效率对照完整记录了 50 次通过、22 次未通过；团队模式在这批测量中消耗的 token 和时间更多。原失败样本全部保留，项目不承诺固定节省比例，也不据这些结果断言一般质量等价。
 
 The fixed 72-run efficiency study recorded 50 passes and 22 non-passes. Team mode used more tokens and time in this sample. Failed samples are retained; no fixed savings or general quality equivalence is claimed.
+
+## 文档提炼 / Document refinement
+
+导入只支持 UTF-8 `.md`；选择文档即可能发送给所配置 API 主指挥并计费。外部 Codex 聊天尚不支持后台自动提炼。用户确认前不会改写草稿，模型引用能定位不代表摘要完整正确；请对照原文审阅。文件和正文不设固定上限，但仍受本机资源、供应商能力及项目调用额度约束。保存大文档不代表模型一定能接受整个规划上下文。
+
+Import supports UTF-8 `.md` only. Selection may send segments to the configured API chief and incur charges. External Codex chats cannot refine automatically in the background. Drafts remain unchanged until confirmation; locatable citations do not prove completeness or correctness. Review against the source. No fixed file/text import cap is imposed, but local resources, provider capabilities and project request budgets apply. Saving a large document does not guarantee the model can accept the complete planning context.

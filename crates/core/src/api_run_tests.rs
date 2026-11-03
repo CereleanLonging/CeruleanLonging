@@ -41,6 +41,7 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
         .as_str()
         .unwrap_or("tests");
     let decision = match i.purpose {
+        Purpose::Refine => return Err("Document refinement uses its dedicated fixture".into()),
         Purpose::Plan => ManagementDecision::Plan {
             tasks: vec![
                 ProposedTask {

@@ -94,6 +94,65 @@ fn configured(temp: &Path, chief: E, deputy: E) -> RuntimeHost {
 }
 
 #[test]
+fn document_refinement_uses_configured_provider_without_workflow_mutation() {
+    use cerulean_domain::management::DocumentRefinementRequest;
+    for chief in [E::DeepSeek {}, E::A6Api {}] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut host = configured(temp.path(), chief.clone(), E::DeepSeek {});
+        host.deputy_management_fixture = Some(|p| {
+            let r = p.request();
+            assert_eq!(r.handoff.purpose, Purpose::Refine);
+            assert!(r.handoff.context.get("workflow").is_none());
+            let text = r.handoff.context["document"]["text"].as_str().unwrap();
+            deputy_management::fixture_result(
+                p,
+                json!({
+                    "id":"refinement-fixture", "model":r.wire.requested_model,
+                    "usage":{"prompt_tokens":12,"completion_tokens":8},
+                    "choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":
+                        json!({"stateDigest":r.handoff.state_digest,"decision":{"action":"refine","document":{
+                            "title":"需求提炼","points":[{"kind":"acceptance","text":"核对 CSV 全部行", "quote":text}]
+                        }}}).to_string()}}]
+                }),
+            )
+        });
+        let before = serde_json::to_value(host.projects["project"].history()).unwrap();
+        host.request_document_refinement(DocumentRefinementRequest {
+            project_id: "project".into(),
+            setup_digest: host.project_setups["project"].digest.clone(),
+            operation_id: "md-provider-0".into(),
+            document_digest: "a".repeat(64),
+            part: 0,
+            total: 1,
+            text: "CSV 不得遗漏任何行".into(),
+        })
+        .unwrap();
+        spin(&mut host, |h| {
+            h.management
+                .application("md-provider-0")
+                .is_some_and(|(_, applied, _)| applied)
+        });
+        let (request, result, _) = host.read_deepseek_management("md-provider-0").unwrap();
+        assert_eq!(request.handoff.source.api_selection().unwrap().0, chief);
+        assert!(result.unwrap().billing().is_some());
+        assert_eq!(
+            serde_json::to_value(host.projects["project"].history()).unwrap(),
+            before
+        );
+        assert!(host.projects["project"].approval().is_none());
+        assert!(host.runs.all().is_empty());
+        drop(host);
+        let host = RuntimeHost::open(&temp.path().join("data")).unwrap();
+        assert!(host
+            .management_detail("md-provider-0")
+            .unwrap()
+            .refinement
+            .is_some());
+        assert!(host.management_active.is_empty());
+    }
+}
+
+#[test]
 fn flexible_managers_plan_and_accept_a6api_worker_without_official_key_and_reopen() {
     let all = endpoints();
     for (index, chief) in all.iter().enumerate() {

@@ -80,10 +80,17 @@ pub(crate) fn read(chief: &str, kind: &str, key: &str) -> Result<Value, String> 
     let mut file = fs::File::open(&path).map_err(|e| e.to_string())?;
     let mut bytes = vec![];
     (&mut file)
-        .take((LIMIT + 1) as u64)
+        .take(if kind == "requirements" {
+            u64::MAX
+        } else {
+            (LIMIT + 1) as u64
+        })
         .read_to_end(&mut bytes)
         .map_err(|e| e.to_string())?;
-    require(bytes.len() <= LIMIT, "chief material exceeds read limit")?;
+    require(
+        kind == "requirements" || bytes.len() <= LIMIT,
+        "chief material exceeds read limit",
+    )?;
     serde_json::from_slice(&bytes).map_err(|_| "主指挥资料无效，请核对原版本；不会覆盖".into())
 }
 
@@ -107,7 +114,10 @@ pub(crate) fn publish(
         return Ok(file);
     }
     let bytes = serde_json::to_vec(value).map_err(|e| e.to_string())?;
-    require(bytes.len() <= LIMIT, "chief material exceeds write limit")?;
+    require(
+        kind == "requirements" || bytes.len() <= LIMIT,
+        "chief material exceeds write limit",
+    )?;
     let pending = file.with_extension("pending");
     let mut stream = OpenOptions::new()
         .create_new(true)

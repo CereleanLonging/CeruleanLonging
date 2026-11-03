@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObservation, String> {
     let tasks = &i.context["workflow"]["state"]["tasks"];
     let decision = match i.purpose {
+        Purpose::Refine => return Err("Document refinement uses its dedicated fixture".into()),
         Purpose::Plan => ManagementDecision::Plan {
             tasks: vec![
                 ProposedTask {

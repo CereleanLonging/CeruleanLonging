@@ -66,7 +66,7 @@ impl<R: Clone> ManagementChargeIdentity<R> {
             "management billing project mismatch",
         )?;
         let configured = match intent.purpose {
-            Purpose::Plan | Purpose::Accept => &saved.setup.chief_model,
+            Purpose::Plan | Purpose::Refine | Purpose::Accept => &saved.setup.chief_model,
             _ => &saved.setup.deputy_model,
         };
         require(
@@ -147,7 +147,7 @@ pub(super) fn validate_binding(
     )?;
     let quote = policy.quote(&r.quote_digest)?;
     let expected_role = match id.request.purpose {
-        Purpose::Plan | Purpose::Accept => ChargeRole::Chief,
+        Purpose::Plan | Purpose::Refine | Purpose::Accept => ChargeRole::Chief,
         _ => ChargeRole::Deputy,
     };
     require(
@@ -195,7 +195,7 @@ impl BudgetLedger {
             request_id: intent.operation_id.clone(),
             operation_id: intent.operation_id.clone(),
             role: match intent.purpose {
-                Purpose::Plan | Purpose::Accept => ChargeRole::Chief,
+                Purpose::Plan | Purpose::Refine | Purpose::Accept => ChargeRole::Chief,
                 _ => ChargeRole::Deputy,
             },
             quote_digest: quote_digest.into(),

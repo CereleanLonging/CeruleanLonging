@@ -98,17 +98,25 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.37 为公开预览版**，新增确认退出时停止对应后台核心，以及仅支持 `.md` 的本地计划／需求导入。保留此前的角色接入分组、本机 Codex 扫描、中文错误说明、目录隔离和项目级 API 盲评。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.37.md)。本版本不作稳定版承诺。
+**0.1.38 为公开预览版**，本地 `.md` 先由已配置主指挥自动提炼目标、任务与验收标准，再经用户审阅确认读入草稿。支持长文档分段处理；确认退出时仍会停止对应后台核心。保留此前的角色接入分组、本机 Codex 扫描、中文错误说明、目录隔离和项目级 API 盲评。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.38.md)。本版本不作稳定版承诺。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.37 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.37)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.38 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.38)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.38 · 2026-11-03 · 公开预览
+
+- `.md` 导入由已保存的 API 主指挥自动提炼，展示可编辑结果、原文与引用；确认后才替换草稿，保存、批准与启动各自独立。
+- 取消固定文件、正文和手工记录条数上限；长文档分段处理，仍受本机资源及项目调用额度约束。选择文档可能产生模型调用费用，失败不自动重发。
+- 切换项目或修改配置、草稿会使旧结果失效；修复导入计划保存后旧任务缓存影响下一份手工计划的问题。
+
+[版本说明](docs/releases/0.1.38.md) · [发布页与下载](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.38)
 
 #### 0.1.37 · 2026-11-03 · 公开预览
 
@@ -237,17 +245,25 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.37 is a public preview** adding confirmed window exit with shutdown of its associated core, and local `.md` import for plans and requirements. Role-based integration groups, local Codex discovery, Chinese error explanations, directory isolation, and project-level API blind review remain available. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.37.md). This is not a stable-release commitment.
+**0.1.38 is a public preview** with automatic refinement of local `.md` documents by the configured chief into objectives, tasks and acceptance criteria, followed by user review and confirmation into the draft. Long documents are processed in segments; confirmed exit still stops the associated core. Role-based integration groups, local Codex discovery, Chinese error explanations, directory isolation, and project-level API blind review remain available. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.38.md). This is not a stable-release commitment.
 
 Try blind review in a separate experiment workbench and configure checking accounts before plan approval. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.37 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.37). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.38 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.38). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.38 · 2026-11-03 · Public Preview
+
+- The saved API chief automatically refines imported `.md` files. Editable results, original text and citations are reviewed before confirmation replaces the draft; saving, approval and execution remain separate.
+- Fixed file/text/manual-record import limits have been removed. Long documents use segmented processing, subject to local resources and project request budgets. Selecting a document may incur model charges; failed calls are not automatically resent.
+- Project, configuration and draft changes invalidate earlier results. Imported task state is cleared after saving so it cannot affect the next manual plan.
+
+[Release notes](docs/releases/0.1.38.md) · [Release and downloads](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.38)
 
 #### 0.1.37 · 2026-11-03 · Public Preview
 

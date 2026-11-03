@@ -127,6 +127,19 @@ impl RuntimeHost {
             .review(&s.operation_id)
             .expect("known management request");
         project_setup::ManagementView {
+            refinement: self
+                .management
+                .original_envelope(&s.operation_id)
+                .ok()
+                .and_then(|e| {
+                    if let cerulean_domain::management::ManagementDecision::Refine { document } =
+                        &e.decision
+                    {
+                        Some(document.clone())
+                    } else {
+                        None
+                    }
+                }),
             supervision_advice: None,
             purpose: serde_json::to_value(s.purpose)
                 .unwrap()

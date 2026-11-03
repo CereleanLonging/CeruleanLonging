@@ -192,6 +192,9 @@ impl RuntimeHost {
         intent: &DecisionIntent,
         context: Value,
     ) -> Result<Value, String> {
+        if intent.purpose == management::Purpose::Refine {
+            return self.rebuild_refinement_context(intent);
+        }
         let context = self.rebuild_role_context(&intent.context, context, intent.purpose)?;
         rebuild(
             intent,
@@ -204,6 +207,10 @@ impl RuntimeHost {
         purpose: management::Purpose,
         requirement: &str,
     ) -> Result<Value, String> {
+        if purpose == management::Purpose::Refine {
+            let input = serde_json::from_str(requirement).map_err(|_| "文档提炼输入无效")?;
+            return self.document_refinement_context(project, input);
+        }
         let context = self.role_context(
             self.management_context(project, requirement)?,
             purpose,

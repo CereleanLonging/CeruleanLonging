@@ -71,7 +71,7 @@ impl RuntimeHost {
         if let Some(setup) = self.project_setups.get(project) {
             if setup.setup.management_sources.is_some() {
                 let expected_model = match purpose {
-                    Purpose::Plan | Purpose::Accept => &setup.setup.chief_model,
+                    Purpose::Plan | Purpose::Refine | Purpose::Accept => &setup.setup.chief_model,
                     _ => &setup.setup.deputy_model,
                 };
                 require(

@@ -677,6 +677,9 @@ pub enum Command {
         setup_digest: String,
         profile_id: Option<String>,
     },
+    RequestDocumentRefinement {
+        input: management::DocumentRefinementRequest,
+    },
     RequestChiefPlan {
         project_id: String,
         setup_digest: String,
@@ -779,10 +782,11 @@ pub fn validate_plan(title: &str, tasks: &[String]) -> Result<(), String> {
         return Err("计划标题不能为空，且不得超过 600 字节".into());
     }
     if tasks.is_empty()
-        || tasks.len() > 30
-        || tasks.iter().any(|t| t.trim().is_empty() || t.len() > 2000)
+        || tasks
+            .iter()
+            .any(|t| t.trim().is_empty() || t.contains('\0'))
     {
-        return Err("计划须包含 1–30 项非空任务，每项不得超过 2000 字节".into());
+        return Err("计划须包含非空任务，且不能含 NUL 字符".into());
     }
     Ok(())
 }

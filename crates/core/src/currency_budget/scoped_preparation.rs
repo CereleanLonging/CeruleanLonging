@@ -19,7 +19,7 @@ pub struct ScopedManagementPreparation {
 }
 fn role(purpose: Purpose) -> ChargeRole {
     match purpose {
-        Purpose::Plan | Purpose::Accept => ChargeRole::Chief,
+        Purpose::Plan | Purpose::Refine | Purpose::Accept => ChargeRole::Chief,
         _ => ChargeRole::Deputy,
     }
 }

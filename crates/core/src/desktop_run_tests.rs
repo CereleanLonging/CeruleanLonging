@@ -14,6 +14,7 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
     let tasks = &i.context["workflow"]["state"]["tasks"];
     let requirement = i.context["requirement"].as_str().unwrap_or_default();
     let decision = match i.purpose {
+        Purpose::Refine => return Err("Document refinement uses its dedicated fixture".into()),
         Purpose::Plan => {
             let mut tasks = vec![ProposedTask {
                 profile_id: None,

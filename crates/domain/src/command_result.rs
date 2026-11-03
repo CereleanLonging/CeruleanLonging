@@ -98,6 +98,7 @@ impl Command {
             | Self::ProvisionWorkerAccounts { .. }
             | Self::OpenWorkerLogin { .. }
             | Self::RequestChiefPlan { .. }
+            | Self::RequestDocumentRefinement { .. }
             | Self::AuthorizePlanningBudget { .. }
             | Self::SetOpenAiKey { .. }
             | Self::RemoveOpenAiKey

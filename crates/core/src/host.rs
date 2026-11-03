@@ -94,6 +94,8 @@ mod currency_product_tests;
 mod dependency_host_fixture;
 #[path = "deputy_management_host.rs"]
 mod deputy_management_host;
+#[path = "document_refinement.rs"]
+pub(crate) mod document_refinement;
 #[cfg(windows)]
 #[path = "execution_resources.rs"]
 mod execution_resources;
@@ -472,9 +474,7 @@ impl RuntimeHost {
         requirement: &str,
     ) -> Result<serde_json::Value, String> {
         require(
-            !requirement.trim().is_empty()
-                && requirement.len() <= 8000
-                && !requirement.contains('\0'),
+            !requirement.trim().is_empty() && !requirement.contains('\0'),
             "invalid management requirement",
         )?;
         #[cfg(windows)]
@@ -618,7 +618,9 @@ impl RuntimeHost {
         {
             use cerulean_domain::project_setup::{ChiefSource, DeputySource};
             let openai = match intent.purpose {
-                management::Purpose::Plan | management::Purpose::Accept => {
+                management::Purpose::Plan
+                | management::Purpose::Refine
+                | management::Purpose::Accept => {
                     matches!(sources.chief, ChiefSource::OpenAi {})
                 }
                 management::Purpose::Assign | management::Purpose::Advise => {
@@ -3175,6 +3177,7 @@ impl RuntimeHost {
                     Err("执行账户隔离需要Windows".into())
                 }
             }
+            Command::RequestDocumentRefinement { input } => self.request_document_refinement(input),
             Command::RequestChiefPlan {
                 project_id,
                 setup_digest,

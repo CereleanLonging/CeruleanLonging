@@ -52,6 +52,7 @@ fn root() -> PathBuf {
 fn manager_live(i: DecisionIntent) -> Result<DecisionObservation, String> {
     let task = &i.context["workflow"]["state"]["tasks"]["task"];
     let decision = match i.purpose {
+        Purpose::Refine => return Err("Document refinement uses its dedicated fixture".into()),
         Purpose::Assign => {
             require(task["state"] == "pending", "Single attempt only")?;
             ManagementDecision::Assign {

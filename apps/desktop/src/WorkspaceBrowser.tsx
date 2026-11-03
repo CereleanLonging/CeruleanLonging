@@ -1,5 +1,6 @@
 import { ErrorText } from "./ErrorText";
 import { MarkdownImport } from "./MarkdownImport";
+import type { RefinementApi } from "./MarkdownRefinement";
 import { useEffect, useRef, useState } from "react";
 import { WorkspaceTasks } from "./WorkspaceTasks";
 import { WorkspaceExecution } from "./WorkspaceExecution";
@@ -10,7 +11,7 @@ import { WorkspaceConfigurations } from "./WorkspaceConfigurations";
 import { WorkspaceHistory } from "./WorkspaceHistory";
 import { WorkspaceCodexStartups } from "./WorkspaceCodexStartups";
 import { WorkspaceManagementDecisions } from "./WorkspaceManagementDecisions";
-import type { Command, Plan, PlanPage, ProjectPage, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
+import type { SavedProjectSetup, Command, Plan, PlanPage, ProjectPage, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
 import { WorkspaceProjectRuns } from "./WorkspaceProjectRuns";
 import { WorkspaceRevisionReviews } from "./WorkspaceRevisionReviews";
 import { WorkspaceUnsentAssignments } from "./WorkspaceUnsentAssignments";
@@ -18,7 +19,7 @@ import { WorkspaceCodexCancellations } from "./WorkspaceCodexCancellations";
 import { WorkspaceManagementRecordReviews } from "./WorkspaceManagementRecordReviews";
 import { WorkspaceApiPublicationReviews } from "./WorkspaceApiPublicationReviews";
 export type WorkspaceReader = (query: WorkspaceQuery) => Promise<WorkspaceResult>;
-type Props = { read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
+type Props = { refinementApi?: RefinementApi; refinementSetups?: SavedProjectSetup[]; read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
 type Pending = { type: "create" } | { type: "approve"; id: string; digest: string };
 
 export function WorkspaceBrowser(props: Props) {
@@ -30,6 +31,9 @@ export function WorkspaceBrowser(props: Props) {
   const [planBack, setPlanBack] = useState<number[]>([]), [projectBack, setProjectBack] = useState<number[]>([]);
   const [detail, setDetail] = useState<Plan | null>(null), [pending, setPending] = useState<Pending | null>(null);
   const [title, setTitle] = useState(""), [tasks, setTasks] = useState("");
+  const [refinementProject,setRefinementProject]=useState("");
+  const chief=props.refinementSetups?.find(s=>s.setup.projectId===refinementProject)??(props.refinementSetups?.length===1?props.refinementSetups[0]:undefined);
+  const [importedTasks, setImportedTasks] = useState<string[] | null>(null);
   const [message, setMessage] = useState(""), [projectError, setProjectError] = useState("");
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [projectRunsProject, setProjectRunsProject] = useState<string | null>(null);
@@ -112,7 +116,7 @@ export function WorkspaceBrowser(props: Props) {
     if (!current()) return;
     if (!accepted) { setMessage("操作结果尚未确认。请读取原记录核对；不会自动再次提交。"); return; }
     setPending(null); setDetail(null);
-    if (uncertain.type === "create") { setTitle(""); setTasks(""); }
+    if (uncertain.type === "create") { setTitle(""); setTasks(""); setImportedTasks(null); }
     await refresh(current);
     if (current()) setMessage("操作确认已收到。若列表尚未更新，请重新读取；不会重复提交原操作。");
   }
@@ -145,10 +149,11 @@ export function WorkspaceBrowser(props: Props) {
     {showApiPublicationReviews && <WorkspaceApiPublicationReviews read={props.read} enabled={props.enabled} busy={props.busy}/>}
     {props.showPlans ? <>
       <section className="panel"><h3>创建计划</h3><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
-        <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>
-          <MarkdownImport mode="plan" contextKey={JSON.stringify([title,tasks])} disabled={!canWrite} onApply={(_text,plan)=>{if(plan){setTitle(plan.title);setTasks(plan.tasks.join("\n"));}}}/>
+        <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: importedTasks ?? tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>
+          <label>文档提炼使用的项目主指挥<select value={chief?.setup.projectId??""} onChange={e=>setRefinementProject(e.target.value)} disabled={!canWrite}><option value="">请选择已配置项目</option>{props.refinementSetups?.map(s=><option key={s.setup.projectId} value={s.setup.projectId}>{s.setup.projectId} · {s.setup.chiefModel}</option>)}</select></label>
+          <MarkdownImport chief={chief} api={props.refinementApi} mode="plan" contextKey={JSON.stringify([title,tasks])} disabled={!canWrite} onApply={(_text,plan)=>{if(plan){setTitle(plan.title);setTasks(plan.tasks.join("\n\n"));setImportedTasks(plan.tasks);}}}/>
           <label htmlFor="workspace-title">计划名称</label><input id="workspace-title" required maxLength={200} value={title} disabled={blocked || !!pending} onChange={e => setTitle(e.target.value)}/>
-          <label htmlFor="workspace-tasks">具体任务，每行一项</label><textarea id="workspace-tasks" required rows={5} value={tasks} disabled={blocked || !!pending} onChange={e => setTasks(e.target.value)}/>
+          <label htmlFor="workspace-tasks">{importedTasks ? "导入的任务内容，空行分隔" : "具体任务，每行一项"}</label><textarea id="workspace-tasks" required rows={5} value={tasks} disabled={blocked || !!pending} onChange={e => {setTasks(e.target.value);if(importedTasks)setImportedTasks(e.target.value.split(/\n\s*\n/).filter(t=>t.trim()));}}/>
           <button className="primary" disabled={!canWrite}>保存计划</button>
         </form>
       </section>
