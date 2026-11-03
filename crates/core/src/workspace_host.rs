@@ -910,14 +910,15 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    fn workspace_configuration_boundary_synthetic_encoded_result_limit() {
+    fn workspace_configuration_boundary_preserves_large_encoded_document() {
         let temp = tempfile::tempdir().unwrap();
         let (mut host, draft) = project_planning::tests::fixture(temp.path());
         host.configure_project(draft).unwrap();
         settle_derived_views(&host);
         let before = crate::reader_generation::tests::snapshot(&host.root);
-        // Synthetic in-memory corruption/oversize probe, NOT a valid production
-        // setup or a claim about the separate 256 KiB durable-event limit.
+        // Synthetic JSON-escaping probe: document details can exceed the ordinary
+        // evidence limit in 0.1.38. This does not exercise durable-event storage;
+        // document_stream tests cover real service persistence and transport.
         let saved = host.project_setups.get_mut("project").unwrap();
         saved.setup.requirement = "\u{0001}".repeat(crate::workspace_read::RESULT_BYTES / 2);
         saved.digest = digest(&saved.setup).unwrap();
@@ -935,13 +936,15 @@ mod tests {
         assert!(
             serde_json::to_vec(&candidate).unwrap().len() > crate::workspace_read::RESULT_BYTES
         );
-        assert_eq!(
-            host.workspace_query(&WorkspaceQuery::Configuration {
+        let result = host
+            .workspace_query(&WorkspaceQuery::Configuration {
                 project_id: "project".into(),
                 revision: page.revision,
             })
-            .unwrap_err(),
-            "单条工作区详情超过返回上限；原记录已保留"
+            .unwrap();
+        assert!(
+            serde_json::to_vec(&result).unwrap() == serde_json::to_vec(&candidate).unwrap(),
+            "large document detail must remain complete and unchanged"
         );
         assert_eq!(serde_json::to_vec(&host.project_setups).unwrap(), original);
         assert_eq!(
