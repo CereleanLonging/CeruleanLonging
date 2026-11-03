@@ -8,6 +8,10 @@
 
 <a id="zh-support"></a>
 
+接入界面按主指挥、副指挥、执行端分区，不改变能力范围：主指挥支持 API 或绑定当前 Codex 聊天，副指挥支持 API，CLI/OMP 与 Qoder 桌面用于执行端。API 检查和 Key 管理分开；供应商 Key 在同一工作台内共享。模型变更仍须保存项目配置并审阅新方案。仅 Codex CLI 提供本机目录扫描。
+
+The integration UI separates chief, deputy, and worker settings without extending capabilities: chiefs use API or a bound Codex chat, deputies use API, and CLI/OMP or Qoder desktop are worker routes. API checks and Key management are separate; provider credentials remain shared within a workbench. Model changes still require saved project settings and review of a new plan. Local program discovery is available for Codex CLI only.
+
 ## 简体中文
 
 CeruleanLonging 面向 Windows x64，桌面界面需要可用的 Microsoft Edge WebView2 Runtime。接入能力取决于具体程序版本、服务地址、模型和账户权限。下表说明已经验证的配置与适用范围，不代表所有供应商组合均已验证。

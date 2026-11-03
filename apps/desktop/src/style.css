@@ -750,6 +750,32 @@ form .primary {
 .validator-catalog { margin-top: 24px; }
 .codex-connection { margin-bottom: 24px; }
 .codex-connection p { overflow-wrap: anywhere; }
+.codex-path-row { display: flex; align-items: stretch; gap: 10px; }
+.codex-path-row input { flex: 1; min-width: 0; margin: 0; }
+.codex-path-row button { flex: 0 0 auto; white-space: nowrap; margin: 0; }
+.integration-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.codex-check-actions { padding-top: 2px; margin-top: 12px; }
+.integration-hub { display: grid; gap: 20px; }
+.integration-role-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
+.integration-role-heading h2 { font-size: 24px; margin: 4px 0 0; }
+.integration-role-eyebrow { color: var(--muted); font-size: 12px; }
+.integration-group { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 16px; min-width: 0; }
+.integration-group > summary { cursor: pointer; font-size: 16px; font-weight: 600; padding: 6px 0; }
+.integration-entry { margin-top: 18px; min-width: 0; }
+.integration-hub select { display: block; width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; margin: 8px 0 16px; font: inherit; color: var(--text); background: #f8fbfc; border: 1px solid var(--border); border-radius: 8px; }
+.integration-entry > .panel { border: 0; box-shadow: none; padding: 18px 0 0; margin: 0; }
+.integration-note { padding: 16px 0; }
+.integration-hub code, .integration-hub p { overflow-wrap: anywhere; }
+.integration-hub .desktop-sessions { padding-top: 16px; }
+.integration-catalog { margin: 0; }
+.role-model-fields { border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; min-width: 0; }
+.role-model-fields h3 { font-size: 21px; margin: 0 0 16px; }
+.planning-fields > .management-source-fields { grid-column: 1 / -1; }
+@media(max-width:600px) {
+  .codex-path-row { flex-direction: column; align-items: stretch; }
+  .codex-path-row button { align-self: flex-start; }
+  .integration-role-heading { flex-direction: column; align-items: flex-start; }
+}
 .codex-scan-results { margin-top: 16px; }
 .codex-scan-candidate { border-top: 1px solid var(--border); padding: 12px 0; }
 .codex-scan-candidate code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; margin-bottom: 10px; }

@@ -112,6 +112,8 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 #### 0.1.36 · 2026-11-03 · 公开预览
 
+- 主指挥、副指挥和执行端各有独立标题；API、Key、CLI 与桌面接入按当前角色能力分类折叠，主指挥先选方式再显示单一配置入口。
+- 项目模型配置按角色分区；扫描按钮紧邻 Codex 路径，登录检查放在下一行，仅需要程序路径的已支持入口显示扫描。
 - 接入管理新增“扫描本地 Codex”，查找运行中的程序、PATH 和常见安装目录；确认候选路径后，单独进行登录检查。
 - 区分安装文件夹、桌面启动程序与命令行程序，提供明确的中文路径提示。
 - 工作台通用报错增加中文说明和可展开的原始技术详情，保留原错误记录及结果未知提示。
@@ -241,6 +243,8 @@ Newest first. Dates use Beijing time (UTC+8). See each release page for full not
 
 #### 0.1.36 · 2026-11-03 · Public Preview
 
+- Chief, deputy, and workers have separate headings. API, Key, CLI, and desktop entries are grouped by supported role capabilities; the chief uses one entry selected by connection method.
+- Project model settings are separated by role. Codex discovery sits beside the executable path, with login checking on the next row; scanning appears only for supported entries that require a program path.
 - Added local Codex discovery in Integrations, covering running programs, PATH, and common installation directories. Select a candidate before explicitly checking login.
 - Distinguishes installation folders, desktop launchers, and CLI executables, with actionable Chinese path messages.
 - Added Chinese explanations and expandable original diagnostics to common workbench errors, retaining original records and unknown-result semantics.

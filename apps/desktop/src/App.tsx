@@ -11,7 +11,7 @@ import { ApiGenerationPanel } from "./ApiGenerationPanel";
 import { HistoricalCurrencyPanel } from "./HistoricalCurrencyPanel";
 import { ProjectRegistration, WorkflowPlans, VerificationJobs } from "./WorkflowPlans";
 import { ValidatorCatalog } from "./ValidatorCatalog";
-import { CodexConnection } from "./CodexConnection";
+import { IntegrationHub, type IntegrationRole } from "./IntegrationHub";
 import { CodexJobs } from "./CodexJobs";
 import { OmpJobs } from "./OmpJobs";
 import { ApiJobs } from "./ApiJobs";
@@ -19,13 +19,10 @@ import { OmpStopDiagnostics } from "./OmpStopDiagnostics";
 import { CoreDiagnostics } from "./CoreDiagnostics";
 import { OmpFileRestore } from "./OmpFileRestore";
 import { CodexStartups } from "./CodexStartups";
-import { OpenAiConnection } from "./OpenAiConnection";
-import { ProviderConnections } from "./ProviderConnections";
 import { ProjectPlanning } from "./ProjectPlanning";
 import { ProjectRuns } from "./ProjectRuns";
 import { BlindReviewPanel } from "./BlindReviewPanel";
 import { ManagementReview } from "./ManagementReview";
-import { DesktopSessions } from "./DesktopSessions";
 import { DesktopTasks } from "./DesktopTasks";
 import { Maintenance } from "./Maintenance";
 import { TeamTimingPanel } from "./TeamTimingPanel";
@@ -49,6 +46,17 @@ const time = (s: string) =>
 
 export function App() {
   const [page, setPage] = useState<Page>("工作总览");
+  const [roleFocus, setRoleFocus] = useState<IntegrationRole | null>(null);
+  useEffect(() => {
+    if(page!=="需求与计划"||!roleFocus)return;
+    const frame=requestAnimationFrame(()=>{
+      const field=document.getElementById(`planning-${roleFocus==="worker"?"adapter":roleFocus}`);
+      field?.closest(".role-model-fields")?.scrollIntoView({block:"start",behavior:"smooth"});
+      field?.focus({preventScroll:true});
+      setRoleFocus(null);
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[page,roleFocus]);
   const [data, setData] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -379,27 +387,7 @@ export function App() {
             </div>
           )}
           {page === "接入管理" && data && (
-            <>
-              <CodexConnection status={data?.codexConnection ?? null} send={send} busy={busy} connected={!!data} />
-              <OpenAiConnection status={data?.openaiConnection} send={send} busy={busy} connected={!!data} />
-              <ProviderConnections data={data} send={send} busy={busy} />
-              <DesktopSessions data={data} send={send} busy={busy} />
-              <div className="banner">
-                以下为首批接入范围，各项能力以当前验证结果为准。任务执行需要先批准具体方案。
-              </div>
-              <section className="adapter-grid">
-                {data?.adapters.map((a) => (
-                  <article className="panel" key={a.id}>
-                    <div className="section-heading">
-                      <h2>{a.name}</h2>
-                      <span className="badge">{a.status==="partial"?"部分接入":a.status==="prototype"?"原型验证":"待接入"}</span>
-                    </div>
-                    <span className="transport">{a.transport}</span>
-                    <p>{a.note}</p>
-                  </article>
-                )) ?? <div className="empty">请连接本地核心读取接入清单</div>}
-              </section>
-            </>
+            <IntegrationHub data={data} busy={busy} send={send} configure={role=>{setRoleFocus(role);setPage("需求与计划");}}/>
           )}
           {page === "交接记录" && <WorkspaceHistory read={readWorkspace} enabled={desktop} busy={busy}/>}
           {page === "项目设置" && (

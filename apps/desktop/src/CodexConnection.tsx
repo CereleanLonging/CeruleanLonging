@@ -31,10 +31,13 @@ export function CodexConnection({status,send,busy,connected}:{status:CodexConnec
     <div className="section-heading"><h2>Codex Agent</h2><span className="badge">{label}</span></div>
     <p className="secondary">使用本机 Codex 已有登录，检查协议连接和可用模型。本操作不发送编程任务。</p>
     <form onSubmit={async event=>{event.preventDefault();if(disabled||lock.current||!connected)return;lock.current=true;setNotice("");try{await send({type:"checkCodex",executable:executable.trim()});}finally{lock.current=false;}}}>
-      <label htmlFor="codex-executable">Codex 程序完整路径</label><input id="codex-executable" required disabled={disabled} value={executable} onChange={event=>{edited.current=true;setExecutable(event.target.value);setNotice("");}} placeholder="C:\\…\\codex.exe" aria-describedby="codex-path-help" />
-      <p id="codex-path-help" className="secondary">请选择具体的 codex.exe 文件。若只知道安装文件夹，可先填入该目录，再扫描查找。</p>
-      <div className="card-footer">
+      <label htmlFor="codex-executable">Codex 程序完整路径</label>
+      <div className="codex-path-row">
+        <input id="codex-executable" required disabled={disabled} value={executable} onChange={event=>{edited.current=true;setExecutable(event.target.value);setNotice("");}} placeholder="C:\\…\\codex.exe" aria-describedby="codex-path-help" />
         <button type="button" className="secondary-button" disabled={disabled||!desktop} onClick={()=>void discover()}>{scanning ? "正在扫描…" : "扫描本地 Codex"}</button>
+      </div>
+      <p id="codex-path-help" className="secondary">请选择具体的 codex.exe 文件。若只知道安装文件夹，可先填入该目录，再扫描查找。</p>
+      <div className="integration-actions codex-check-actions">
         <button type="submit" className="primary" disabled={!connected||disabled||!executable.trim()}>{checking ? "检查中…" : "检查现有 Codex 登录"}</button>
       </div>
     </form>

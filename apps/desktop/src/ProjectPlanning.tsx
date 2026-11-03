@@ -69,8 +69,9 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
           <label htmlFor="planning-requirement">项目需求</label><textarea id="planning-requirement" required rows={4} value={draft.requirement} onChange={e=>update("requirement",e.target.value)} placeholder="描述要解决的问题、预期行为和完成标准。" />
           <div className="planning-fields">
             <ManagementSourceFields draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}/>
-            <div><label htmlFor="planning-chief">主指挥模型 ID</label><input id="planning-chief" required readOnly={draft.managementSources?.chief.kind==="codexSession"} list="planning-chief-models" value={draft.chiefModel} onChange={e=>update("chiefModel",e.target.value)} /></div>
-            <div><label htmlFor="planning-deputy">副指挥模型 ID</label><input id="planning-deputy" required list="planning-deputy-models" value={draft.deputyModel} onChange={e=>update("deputyModel",e.target.value)} /></div>
+          </div>
+          <section className="role-model-fields" aria-label="执行端模型配置"><h3>执行端</h3>
+          <div className="planning-fields">
             <div><label htmlFor="planning-adapter">编程执行器</label><select id="planning-adapter" value={draft.workerAdapter??"codex"} onChange={e=>{setDraft(d=>({...d,workerAdapter:e.target.value as ProjectWorkerAdapter,worktree:["qoder","workbuddy"].includes(e.target.value)?undefined:d.worktree,apiWorker:newApiWorker(e.target.value as ProjectWorkerAdapter),desktopWorker:undefined,codexExecutable:"",workerModel:"",ompRuntimeParent:undefined}));setDirty(true);}}><option value="codex">Codex</option><option value="omp">OMP · DeepSeek</option><option value="qoder">Qoder · 已有桌面会话</option>{draft.workerAdapter==="workbuddy"&&<option value="workbuddy" disabled>WorkBuddy · 支持已移除</option>}{apiWorkerOptions.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></div>
             {!draft.apiWorker&&!desktopAdapter&&<div><label htmlFor="planning-executable">编程程序路径</label><input id="planning-executable" required value={draft.codexExecutable} onChange={e=>update("codexExecutable",e.target.value)} placeholder={draft.workerAdapter==="omp"?"OMP 可执行文件的绝对路径":"Codex 可执行文件的绝对路径"} /></div>}
             {!desktopAdapter&&<div><label htmlFor="planning-worker">编程模型 ID</label><input id="planning-worker" required list="planning-worker-models" value={draft.workerModel} onChange={e=>{const model=e.target.value;setDraft(d=>({...d,workerModel:model,apiWorker:d.apiWorker?{...d.apiWorker,model}:undefined}));setDirty(true);}} /></div>}
@@ -84,6 +85,7 @@ export function ProjectPlanning({data,busy,send}:{data:Snapshot|null;busy:boolea
           <WorktreeFields disabledReason={draft.chiefDirectory?"已启用固定模型目录，不与按尝试创建的 Git 目录池混用。":undefined} validators={data.validators} value={draft.worktree??undefined} disabled={!!draft.chiefDirectory||desktopAdapter||(draft.profiles??[]).some(p=>p.workerAdapter==="qoder"||p.workerAdapter==="workbuddy")} onChange={value=>update("worktree",value)}/>
           <ResourceFields id="planning-resources" value={draft.resourceKeys} onChange={value=>update("resourceKeys",value)}/>
           <WorkerProfiles isolationEnabled={!!draft.chiefDirectory} supervision={draft.supervision} commonResources={draft.resourceKeys??[]} data={data} projectId={projectId} value={draft.profiles??[]} worktree={!!draft.worktree} onChange={profiles=>{setDraft(d=>({...d,profiles:profiles.length?profiles:undefined}));setDirty(true);}}/>
+          </section>
           <CurrencyBudgetFields resetKey={projectId+":"+(saved?.digest??"")} resetValue={saved?.setup.policy.currencyBudget} draft={draft} value={draft.currencyBudget} onChange={value=>update("currencyBudget",value)} onInvalid={setBudgetError}/>
           <h3>有序验收检查</h3>
           <p className="secondary">按以下顺序执行，全部通过后才可收口。每项使用已登记工具，参数按行传递。</p>
