@@ -98,17 +98,26 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.41 为公开预览版**，新增方案范围内的隔离账户与目录权限授权。明确勾选后由工作台发起一次固定准备；执行模型保持普通账户。沿用目录分工、独立验收、片段盲评与用户确认流程。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.41.md)。本版本不作稳定版承诺。
+**0.1.42 为公开预览版**，新增默认关闭的独立实验功能页，并将 API 中断与管理复核记录集中到“维护与升级”的独立只读日志窗口。支持分类、分页和原记录详情，正常退出所属工作台时一并关闭。沿用方案授权、目录分工、独立验收与用户确认流程。0.1.34 的既有功能验收记录保留；本轮不增加真实供应商质量结论。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.42.md)。本版本不作稳定版承诺。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.41 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.41)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.42 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.42)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.42 · 2026-11-03 · 公开预览
+
+- “独立实验工作台”单列在维护页上方，默认关闭，勾选后集中展开工作台管理及团队／单执行者效率实验。开启不自动创建或执行实验。
+- API 中断与管理复核记录移入“维护与升级 → 只读日志”，在独立窗口内分类查看；工作总览不再显示这两个入口。
+- 日志窗口仅可读取这两类记录，保留分页、原身份与过期校验；重复打开复用窗口，关闭日志不停止任务，退出工作台时一并关闭。
+- 日志刷新不自动启动或重启核心，不改变原记录、项目配置或数据格式。
+
+[版本说明](docs/releases/0.1.42.md)
 
 #### 0.1.41 · 2026-11-03 · 公开预览
 
@@ -272,17 +281,26 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.41 is a public preview** adding plan-scoped authorization for isolated account creation and project directory permissions. An explicit opt-in starts one fixed preparation; workers remain ordinary users. Directory ownership, independent verification, fragment-only blind review and user confirmation remain in place. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.41.md). This is not a stable-release commitment.
+**0.1.42 is a public preview** adding an opt-in experiment page and moving API interruption and management review records into a separate read-only log window under Maintenance & Upgrade. It provides category tabs, pagination and original-record details, and closes with its owning workbench. Plan authorization, directory ownership, independent verification and user confirmation remain in place. Existing 0.1.34 acceptance records are retained; this update adds no live-provider quality claim. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.42.md). This is not a stable-release commitment.
 
 Try blind review in a separate experiment workbench and prepare checking accounts before execution, either manually or through the optional authorization in plan review. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.41 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.41). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.42 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.42). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.42 · 2026-11-03 · Public Preview
+
+- A dedicated experiment page above Maintenance defaults to off. Opting in reveals workbench management and both efficiency experiments without creating or executing experiments automatically.
+- API interruption and management review records now live in a separate window under Maintenance & Upgrade → Read-only Logs, with category tabs instead of overview buttons.
+- The window can read only those records, retaining pagination, original identities and stale-result checks. Reopening focuses the existing window; closing logs leaves tasks running, while exiting the owner closes its logs.
+- Log refresh never starts or restarts the core, and changes no records, project configuration or data format.
+
+[Release notes](docs/releases/0.1.42.md)
 
 #### 0.1.41 · 2026-11-03 · Public Preview
 

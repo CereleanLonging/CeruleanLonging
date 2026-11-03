@@ -16,8 +16,6 @@ import { WorkspaceProjectRuns } from "./WorkspaceProjectRuns";
 import { WorkspaceRevisionReviews } from "./WorkspaceRevisionReviews";
 import { WorkspaceUnsentAssignments } from "./WorkspaceUnsentAssignments";
 import { WorkspaceCodexCancellations } from "./WorkspaceCodexCancellations";
-import { WorkspaceManagementRecordReviews } from "./WorkspaceManagementRecordReviews";
-import { WorkspaceApiPublicationReviews } from "./WorkspaceApiPublicationReviews";
 export type WorkspaceReader = (query: WorkspaceQuery) => Promise<WorkspaceResult>;
 type Props = { refinementApi?: RefinementApi; refinementSetups?: SavedProjectSetup[]; configureChief?: (projectId?: string) => void; read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
 type Pending = { type: "create" } | { type: "approve"; id: string; digest: string };
@@ -47,8 +45,6 @@ export function WorkspaceBrowser(props: Props) {
   const [startupProject, setStartupProject] = useState<string | null>(null);
   const [managementProject, setManagementProject] = useState<string | null>(null);
   const [showConfigurations, setShowConfigurations] = useState(false);
-  const [showManagementRecordReviews, setShowManagementRecordReviews] = useState(false);
-  const [showApiPublicationReviews, setShowApiPublicationReviews] = useState(false);
   const [executionReview, setExecutionReview] = useState<{projectId:string;digest:string|null}|null>(null);
   const blocked = loading || props.busy || !props.enabled;
   const canWrite = !blocked && !stale && overview?.mode === "ready" && !pending;
@@ -143,10 +139,6 @@ export function WorkspaceBrowser(props: Props) {
     {message && <p role="status">{message}</p>}
     <button className="secondary-button" disabled={!props.enabled || props.busy} onClick={() => setShowConfigurations(value => !value)}>{showConfigurations ? "关闭已保存项目配置" : "查看已保存项目配置"}</button>
     {showConfigurations && <WorkspaceConfigurations read={props.read} enabled={props.enabled} busy={props.busy}/>}
-    <button className="secondary-button" disabled={!props.enabled || props.busy} onClick={() => setShowApiPublicationReviews(value => !value)}>{showApiPublicationReviews ? "关闭全局 API 中断复核记录" : "查看全局 API 中断复核记录"}</button>
-    <button className="secondary-button" disabled={!props.enabled || props.busy} onClick={() => setShowManagementRecordReviews(value => !value)}>{showManagementRecordReviews ? "关闭全局管理复核记录" : "查看全局管理复核记录"}</button>
-    {showManagementRecordReviews && <WorkspaceManagementRecordReviews read={props.read} enabled={props.enabled} busy={props.busy}/>}
-    {showApiPublicationReviews && <WorkspaceApiPublicationReviews read={props.read} enabled={props.enabled} busy={props.busy}/>}
     {props.showPlans ? <>
       <section className="panel"><h3>创建计划</h3><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
         <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: importedTasks ?? tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>

@@ -18,12 +18,14 @@ try{
       window.calls.push({name,args});
       if(name==='maintenance_info')return {version:'0.1.3',installationDirectory:'D:\\test install',dataDirectory:'D:\\test data',holdPresent:true,bundleSchema:1};
       if(name==='open_maintenance_window')return new Promise((ok,no)=>{window.pending={ok,no};});
+      if(name==='open_review_logs_window')return new Promise((ok,no)=>{window.logsPending={ok,no};});
       throw Error('Unexpected command '+name);
     }};
   });
   await page.addScriptTag({content:await readFile(join(run,'bundle/form.js'),'utf8')});
   const open=page.getByRole('button',{name:'打开独立维护窗口'});
   assert.equal(await open.isDisabled(),true);assert.equal(await page.evaluate(()=>window.calls.length),0);cases.push('preview-has-no-native-actions');
+  assert.equal(await page.getByRole('button',{name:'打开只读日志窗口'}).isDisabled(),true);
   await page.evaluate(()=>window.renderFixture(true,1));await page.waitForFunction(()=>window.calls.length===1);
   await page.getByText('已锁定，请读取原事务后恢复').waitFor();cases.push('held-data-does-not-require-core-connection');
   await open.click();assert.equal(await page.getByRole('button',{name:'正在准备维护副本…'}).isDisabled(),true);cases.push('launch-single-in-flight');
@@ -32,6 +34,18 @@ try{
   await open.click();await page.evaluate(()=>window.pending.no(Error('启动未确认，未重试')));await page.getByRole('alert').waitFor();
   assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='open_maintenance_window').length),2);cases.push('failure-not-retried');
   assert.equal(await page.evaluate(()=>window.calls.some(x=>x.name==='core_request')),false);cases.push('maintenance-entry-never-starts-core');
+  const logs=page.getByRole('button',{name:'打开只读日志窗口'});
+  await logs.evaluate(button=>{button.click();button.click();});
+  await page.getByRole('button',{name:'正在打开日志窗口…'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='open_review_logs_window').length),1);
+  await page.evaluate(()=>window.logsPending.no(Error('日志窗口未确认打开')));
+  await page.getByRole('region',{name:'只读日志入口'}).getByRole('alert').waitFor();
+  assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='open_review_logs_window').length),1);
+  await logs.click();await page.evaluate(()=>window.logsPending.ok());await logs.waitFor();
+  assert.equal(await page.getByRole('region',{name:'只读日志入口'}).getByRole('alert').count(),0);
+  assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='open_review_logs_window').length),2);
+  assert.equal(await page.evaluate(()=>window.calls.some(x=>['core_submit','workspace_read','review_logs_read'].includes(x.name))),false);
+  cases.push('log-window-explicit-single-flight-launch-and-failure-does-not-retry');
   await page.screenshot({path:join(run,'maintenance-entry.png')});assert.deepEqual(errors,[]);
   const result={status:'passed',run,passed:cases.length,cases,mockedTauri:true,realModelCalls:0,userDesktopActions:0};await writeFile(join(run,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }finally{await browser.close();}

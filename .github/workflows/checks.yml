@@ -24,5 +24,7 @@ jobs:
           $coreBefore = (Get-FileHash target/debug/cerulean-core.exe).Hash
           cargo clippy --workspace --all-targets --features custom-protocol --locked -- -D warnings
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test -p cerulean-desktop --features custom-protocol --locked
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           if ((Get-FileHash target/debug/cerulean-core.exe).Hash -ne $coreBefore) { throw 'Desktop build replaced Cargo core binary' }
           npm run test:ipc

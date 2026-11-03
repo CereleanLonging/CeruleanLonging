@@ -8,6 +8,7 @@ use tauri::{Emitter, Manager};
 mod experiment_workbench;
 mod maintenance;
 mod portable_archive;
+mod review_logs;
 mod webview_profile;
 mod workbench_exit;
 
@@ -73,6 +74,13 @@ async fn close_workbench(
     )
     .await
     .map_err(|e| format!("后台退出尚未完成，窗口已保留：{e}"))?;
+    if let Some(logs) = window
+        .app_handle()
+        .get_webview_window(&review_logs::label(window.label()))
+    {
+        logs.destroy()
+            .map_err(|e| format!("后台已停止，日志窗口尚未关闭：{e}"))?;
+    }
     window
         .destroy()
         .map_err(|e| format!("后台已停止，窗口关闭未完成，可再次确认退出：{e}"))
@@ -598,6 +606,9 @@ fn main() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if review_logs::owner(window.label()).is_some() {
+                    return; // Read-only windows close normally without stopping the owner.
+                }
                 // Intercept in native code, including close before React mounts.
                 // Only close_workbench destroys the window after verified stop.
                 api.prevent_close();
@@ -605,6 +616,8 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            review_logs::open_review_logs_window,
+            review_logs::review_logs_read,
             close_workbench,
             cancel_workbench_exit,
             scan_codex_installations,

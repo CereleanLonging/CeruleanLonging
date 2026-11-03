@@ -26,9 +26,7 @@ import { BlindReviewPanel } from "./BlindReviewPanel";
 import { ManagementReview } from "./ManagementReview";
 import { DesktopTasks } from "./DesktopTasks";
 import { Maintenance } from "./Maintenance";
-import { TeamTimingPanel } from "./TeamTimingPanel";
-import { BaselinePanel } from "./BaselinePanel";
-import { ExperimentWorkbenches } from "./ExperimentWorkbenches";
+import { ExperimentLab } from "./ExperimentLab";
 import packageInfo from "../../../package.json";
 
 const pages = [
@@ -37,16 +35,18 @@ const pages = [
   "接入管理",
   "交接记录",
   "项目设置",
+  "独立实验工作台",
   "维护与升级",
 ] as const;
 type Page = (typeof pages)[number];
-const icons = ["◈", "▤", "⌘", "≋", "⚙", "↻"];
+const icons = ["◈", "▤", "⌘", "≋", "⚙", "⚗", "↻"];
 const desktop = "__TAURI_INTERNALS__" in window;
 const time = (s: string) =>
   new Date(s).toLocaleString("zh-CN", { hour12: false });
 
 export function App() {
   const [page, setPage] = useState<Page>("工作总览");
+  const [experimentsEnabled,setExperimentsEnabled]=useState(false);
   const [configuration,setConfiguration]=useState<ConfigurationRequest|null>(null);
   const configurationSequence=useRef(0);
   const [data, setData] = useState<Snapshot | null>(null);
@@ -120,7 +120,7 @@ export function App() {
     catch(e){setError(String(e));return false;}
     finally{setBusy(false);}
   }
-  const needsFullView = page !== "工作总览" && page !== "维护与升级" && page !== "交接记录";
+  const needsFullView = page === "独立实验工作台" ? experimentsEnabled : page !== "工作总览" && page !== "维护与升级" && page !== "交接记录";
   useEffect(() => {
     // The landing page uses bounded workspace queries. Load legacy collections
     // only on pages that still need them; leaving a page invalidates late reads.
@@ -182,7 +182,6 @@ export function App() {
           </span>
           <span className="local-dot" />
         </div>
-        <ExperimentWorkbenches desktop={desktop} />
         <div className="nav-label">工作台</div>
         <nav>
           {pages.map((p, i) => (
@@ -217,9 +216,8 @@ export function App() {
           <span className="pill">本地优先</span>
         </header>
         <div className="content">
-          {page === "维护与升级" ? <Maintenance desktop={desktop}/> : data?.coreDiagnostic ? <CoreDiagnostics data={data} busy={busy} error={error} refresh={()=>send({type:"snapshot"})} restart={restartDataDiagnostics} send={send}/> : <>
+          {page === "维护与升级" ? <Maintenance desktop={desktop}/> : page === "独立实验工作台" ? <ExperimentLab desktop={desktop} enabled={experimentsEnabled} onEnabled={setExperimentsEnabled} data={data} busy={busy} loading={snapshotLoading} error={error} refresh={()=>void query({type:"snapshot"})} send={send}/> : data?.coreDiagnostic ? <CoreDiagnostics data={data} busy={busy} error={error} refresh={()=>send({type:"snapshot"})} restart={restartDataDiagnostics} send={send}/> : <>
           {data?.apiRecovery&&<section className="panel" aria-label="API 写入恢复"><h2>API 记录需要重新校验</h2><p>{data.apiRecovery.message}</p><p>暂停所有项目调度并等待后台结束后，可重启核心读取原证据。不会重新发送原模型请求；已有修改保留。</p><button className="primary" disabled={busy||!data.apiRecovery.canRestart} onClick={()=>void restartDataDiagnostics()}>重新校验 API 记录</button></section>}
-          <p className="secondary">已复核的管理残片可在工作总览的“查看全局管理复核记录”中按页核对；未决请求和关联启动仍须在原入口处理。</p>
           {!!data?.startupReservations?.length&&<section className="panel" aria-label="启动复核记录"><h2>已复核的半写启动意图</h2><p>原文件保留，以下尝试编号永久禁止复用。复核不代表任务完成或取消。</p>{data.startupReservations.map(r=><details key={r.executor+":"+r.projectId+":"+r.attemptId}><summary>{r.executor} · {r.projectId} · {r.attemptId}</summary><p>{r.reason}</p><p>{time(r.at)}</p></details>)}</section>}
           {!!data?.startupClosureReviews?.length&&<section className="panel" aria-label="关闭复核记录"><h2>已复核的半写关闭记录</h2><p>原文和有效启动身份保留。请在“需求与计划”中核对原启动记录，仍未关闭的项目须重新审阅关闭操作。</p>{data.startupClosureReviews.map(r=><details key={r.relativePath}><summary>{r.executor} · {r.projectId} · {r.attemptId}</summary><p>{r.reason}</p><p style={{overflowWrap:"anywhere"}}>{r.relativePath}</p><p>{time(r.at)}</p></details>)}</section>}
           <OmpStopDiagnostics data={data} send={send} busy={busy} restart={restartReviewedStops}/>
@@ -364,8 +362,6 @@ export function App() {
           )}
           {page === "需求与计划" && data && (
             <div className="plan-layout">
-              <TeamTimingPanel data={data} busy={busy} send={send} desktop={desktop}/>
-              <BaselinePanel data={data} busy={busy} send={send}/>
               <ProjectPlanning data={data} busy={busy} send={send} configuration={configuration} onConfigurationReady={token=>setConfiguration(c=>c?.token===token?null:c)} onSetup={()=>configure("chief")}/>
               <WorkflowPlans workflows={data?.workflows ?? []} revisions={data?.projectRevisions ?? []} setups={data?.projectSetups??[]} send={send} busy={busy} />
               <HistoricalCurrencyPanel snapshot={data} query={queryHistorical} busy={busy}/>

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "review-logs",
+  "description": "Read-only log viewer window; core mutations reject its unbound label",
+  "windows": ["review-logs-*"],
+  "permissions": ["core:default", "core:window:allow-close"]
+}

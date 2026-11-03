@@ -14,7 +14,7 @@ const api: Api = {
   create: id => invoke("create_experiment_workbench", { id }),
   open: id => invoke("open_experiment_workbench", { id }),
 };
-export function ExperimentWorkbenches({ desktop, client = api }: { desktop: boolean; client?: Api }) {
+export function ExperimentWorkbenches({ desktop, client = api, inline = false }: { desktop: boolean; client?: Api; inline?: boolean }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [visible, setVisible] = useState(false);
   const [id, setId] = useState("exp-");
@@ -39,10 +39,10 @@ export function ExperimentWorkbenches({ desktop, client = api }: { desktop: bool
   const current = catalog?.currentLabel === "main" ? "日常工作台" : catalog?.currentLabel.replace(/^experiment-/, "") ?? "读取工作台…";
   return <div>
     <p style={{ overflowWrap: "anywhere" }}>{desktop ? current : "浏览器预览"}</p>
-    <button className="secondary-button" disabled={!desktop} onClick={() => setVisible(true)}>实验工作台</button>
-    {visible && <div className="modal-backdrop"><section className="modal panel experiment-workbench-dialog" role="dialog" aria-modal="true" aria-label="独立实验工作台" style={{ maxHeight: "85vh", overflow: "auto" }}>
-      <h2>独立实验工作台</h2>
-      <p>实验在独立窗口和数据目录中运行。打开其他工作台会保留当前窗口及后台任务；关闭窗口不等于停止任务。</p>
+    {!inline && <button className="secondary-button" disabled={!desktop} onClick={() => setVisible(true)}>实验工作台</button>}
+    {(inline || visible) && <div className={inline ? undefined : "modal-backdrop"}><section className={inline ? "panel" : "modal panel experiment-workbench-dialog"} role={inline ? "region" : "dialog"} aria-modal={inline ? undefined : true} aria-label={inline ? "独立实验工作台管理" : "独立实验工作台"} style={inline ? undefined : { maxHeight: "85vh", overflow: "auto" }}>
+      <h2>实验工作台管理</h2>
+      <p>实验在独立窗口和数据目录中运行。打开其他工作台会保留当前窗口及后台任务；退出时按所属窗口的流程核对并停止后台。</p>
       <p style={{ overflowWrap: "anywhere" }}>当前：{catalog?.currentDirectory ?? "未读取"}</p>
       <p>新建时会保存空目录冷备份并启用实验数据保护。凭证需在新窗口的接入管理中单独配置；创建和打开均不派发模型任务。</p>
       <p style={{ overflowWrap: "anywhere" }}>保存位置：{catalog?.catalogRoot ?? "未读取"}。固定实验材料的 dataRoot 应与所选工作台数据目录一致。</p>
@@ -79,7 +79,7 @@ export function ExperimentWorkbenches({ desktop, client = api }: { desktop: bool
           <button className="secondary-button" disabled={busy} onClick={() => { setId("exp-"); setNotice(`已保留 ${entry.id} 的原现场。请在上方填写新编号，再决定是否创建；本按钮尚未创建任何工作台。`); }}>保留 {entry.id}，填写新编号</button>
         </>}
       </article>)}
-      <button className="secondary-button" disabled={busy} onClick={() => setVisible(false)}>关闭选择面板</button>
+      {!inline && <button className="secondary-button" disabled={busy} onClick={() => setVisible(false)}>关闭选择面板</button>}
     </section></div>}
   </div>;
 }
