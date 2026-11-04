@@ -359,6 +359,7 @@ impl RuntimeHost {
             return Ok(());
         }
         self.require_resolved_advice_deliveries(project)?;
+        self.require_resolved_desktop_advice(project)?;
         if !self.has_omp_activity(project) {
             self.require_resolved_omp_advice(project)?;
         }
@@ -370,6 +371,7 @@ impl RuntimeHost {
         if self.api_supervision_pending(run)? {
             return Ok(());
         }
+        self.poll_desktop_supervision(run)?;
         if self.has_codex_activity(project) {
             self.poll_supervision_request(run)?;
             if self.management.statuses().iter().any(|s| {

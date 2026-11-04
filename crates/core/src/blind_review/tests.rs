@@ -33,7 +33,8 @@ fn fixture(root: &Path) -> (Ledger, String) {
     .map(|(id, role)| ReviewSeat {
         id: id.into(),
         role: role.into(),
-        target: ApiTarget::OpenAi {},
+        target: Some(ApiTarget::OpenAi {}),
+        transport: None,
         model: "model-a".into(),
         allowed_models: vec!["model-a".into()],
     })
@@ -54,6 +55,7 @@ fn fixture(root: &Path) -> (Ledger, String) {
 }
 fn ballot(vote: Vote) -> Ballot {
     Ballot {
+        assessments: vec![],
         vote,
         citations: vec!["f1".into()],
         reason: "Verified sum semantics".into(),
@@ -114,6 +116,114 @@ fn submit(l: &mut Ledger, id: &str, vote: Vote) -> Pending {
     p
 }
 #[test]
+fn weighted_round_keeps_scores_sealed_and_blocks_functional_test_on_missing_criteria() {
+    use cerulean_domain::{
+        independent_checks::{CheckArchive, CheckFact, CheckRecord},
+        review_weights::CriterionAssessment,
+    };
+    for complete in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let (_, old) = fixture(root.path());
+        let original = Ledger::open(root.path()).unwrap().rounds[&old].clone();
+        let fresh = tempfile::tempdir().unwrap();
+        let mut ledger = Ledger::open(fresh.path()).unwrap();
+        let record = CheckRecord {
+            schema_version: 1,
+            project_id: "p1".into(),
+            revision: original.binding.revision.clone(),
+            task_id: "task".into(),
+            attempt_id: "attempt".into(),
+            operation_id: "verification".into(),
+            source_digest: "f".repeat(64),
+            manifest_digest: "e".repeat(64),
+            report_digest: "d".repeat(64),
+            observed_at: "2026-11-05T01:00:00Z".into(),
+            checks: vec![CheckFact {
+                id: "check".into(),
+                command_digest: "c".repeat(64),
+                tool_digest: "b".repeat(64),
+                passed: true,
+                reason: "real fixture assertion".into(),
+            }],
+        };
+        let archive = CheckArchive {
+            schema_version: 1,
+            project_id: "p1".into(),
+            revision: original.binding.revision.clone(),
+            final_task: "task".into(),
+            final_source: record.source_digest.clone(),
+            records: vec![record],
+        };
+        let id = ledger
+            .prepare_with_checks(
+                original.binding,
+                original.material,
+                original.seats,
+                original.coverage,
+                Some(archive),
+            )
+            .unwrap();
+        start(&mut ledger, &id);
+        for index in 0..4 {
+            let (pending, seat, _) = ledger.reserve(&id, 101).unwrap().unwrap();
+            let mut value = ballot(Vote::Pass);
+            if complete || index != 2 {
+                value.assessments = vec![CriterionAssessment {
+                    criterion: 1,
+                    aligned: true,
+                    citations: vec!["f1".into()],
+                }];
+            }
+            ledger
+                .complete_review(
+                    &id,
+                    &pending,
+                    &seat.model,
+                    Some(value),
+                    ReviewToolAudit {
+                        status: ReviewToolStatus::Clean,
+                        source: "api-response".into(),
+                        request: pending.request.clone(),
+                        evidence_digest: "a".repeat(64),
+                        tools: vec![],
+                        reason: "complete synthetic protocol".into(),
+                    },
+                    102,
+                )
+                .unwrap();
+            if index < 3 {
+                assert!(ledger.rounds[&id].view().weighted_result.is_none());
+            }
+        }
+        let round = ledger.rounds[&id].clone();
+        assert_eq!(
+            round.phase,
+            if complete {
+                ReviewPhase::AwaitingFunctionalTest
+            } else {
+                ReviewPhase::Rejected
+            }
+        );
+        assert_eq!(round.weighted_result.as_ref().unwrap().passed, complete);
+        assert_eq!(round.view().weighted_result.unwrap().seats.len(), 3);
+        if !complete {
+            assert!(ledger
+                .start_functional(&id, &round.digest, &round.binding, 103, 30)
+                .is_err());
+            ledger.reserve_analysis(&id, 103).unwrap();
+        }
+        let reopened = Ledger::open(fresh.path()).unwrap();
+        assert_eq!(reopened.rounds[&id].weighted_result, round.weighted_result);
+        let mut forged = round;
+        forged
+            .weighted_result
+            .as_mut()
+            .unwrap()
+            .overall_basis_points = 9999;
+        assert!(forged.validate().is_err());
+    }
+}
+#[test]
 fn deputy_ready_is_not_a_vote_and_all_votes_are_sealed() {
     let root = tempfile::tempdir().unwrap();
     let (mut l, id) = fixture(root.path());
@@ -135,6 +245,60 @@ fn analysis() -> FailureAnalysis {
         omissions: vec!["Missing boundary case".into()],
         disputed_criteria: vec![],
         chief_revision_request: "Clarify negative inputs with the user and revise the plan".into(),
+    }
+}
+#[test]
+fn rejected_tool_audit_counts_as_fail_and_keeps_functional_testing_locked() {
+    for status in [
+        ReviewToolStatus::ToolCallObserved,
+        ReviewToolStatus::Unverifiable,
+    ] {
+        let root = tempfile::tempdir().unwrap();
+        let (mut ledger, id) = fixture(root.path());
+        start(&mut ledger, &id);
+        submit(&mut ledger, &id, Vote::Pass);
+        let (pending, seat, _) = ledger.reserve(&id, 101).unwrap().unwrap();
+        let audit = ReviewToolAudit {
+            tools: if status == ReviewToolStatus::ToolCallObserved {
+                vec!["web_search".into()]
+            } else {
+                vec![]
+            },
+            status,
+            source: "codex-history".into(),
+            request: pending.request.clone(),
+            evidence_digest: "f".repeat(64),
+            reason: "Synthetic scoring audit".into(),
+        };
+        ledger
+            .complete_review(
+                &id,
+                &pending,
+                &seat.model,
+                Some(ballot(Vote::Pass)),
+                audit.clone(),
+                102,
+            )
+            .unwrap();
+        assert!(ledger.rounds[&id].view().ballots.is_none());
+        submit(&mut ledger, &id, Vote::Pass);
+        submit(&mut ledger, &id, Vote::Pass);
+        let round = ledger.rounds[&id].clone();
+        assert_eq!(round.phase, ReviewPhase::Rejected);
+        assert_eq!(round.ballots.len(), 3);
+        assert_eq!(round.ballots[&seat.id].ballot.vote, Vote::Fail);
+        assert_eq!(
+            round.ballots[&seat.id].original_ballot,
+            Some(ballot(Vote::Pass))
+        );
+        assert_eq!(round.ballots[&seat.id].tool_audit, Some(audit));
+        assert!(ledger
+            .start_functional(&id, &round.digest, &round.binding, 103, 90)
+            .is_err());
+        drop(ledger);
+        let reopened = Ledger::open(root.path()).unwrap();
+        assert_eq!(reopened.rounds[&id].phase, ReviewPhase::Rejected);
+        assert_eq!(reopened.rounds[&id].ballots, round.ballots);
     }
 }
 #[test]
@@ -257,16 +421,143 @@ fn confirmation_requires_same_delivery_and_round() {
         submit(&mut l, &id, Vote::Pass);
     }
     let r = l.rounds[&id].clone();
-    assert_eq!(r.phase, ReviewPhase::AwaitingUser);
+    assert_eq!(r.phase, ReviewPhase::AwaitingFunctionalTest);
+    assert!(l.confirm("p1", &id, &r.digest, &r.binding).is_err());
+    let (p, seat) = l
+        .start_functional(&id, &r.digest, &r.binding, 103, 60)
+        .unwrap();
+    assert_eq!(seat.role, "chief");
+    l.finish_functional(&id, &p, functional_outcome(&id), 104)
+        .unwrap();
+    let r = l.rounds[&id].clone();
+    let key = r.confirmation_digest().unwrap();
     let mut changed = r.binding.clone();
     changed.delivery = "f".repeat(64);
     assert!(l.confirm("p1", &id, &r.digest, &changed).is_err());
     assert!(l.confirm("other", &id, &r.digest, &r.binding).is_err());
-    l.confirm("p1", &id, &r.digest, &r.binding).unwrap();
+    assert!(l.confirm("p1", &id, &r.digest, &r.binding).is_err());
+    l.confirm("p1", &id, &key, &r.binding).unwrap();
     assert!(l.confirm("p1", &id, &r.digest, &r.binding).is_err());
     drop(l);
     let restored = Ledger::open(root.path()).unwrap();
     assert_eq!(restored.rounds[&id].phase, ReviewPhase::Accepted);
+}
+fn functional_outcome(id: &str) -> FunctionalOutcome {
+    use cerulean_domain::execution::{CheckObservation, SourceSnapshot, VerificationReport};
+    FunctionalOutcome {
+        model: "model-a".into(),
+        authorization: FunctionalDecision {
+            vote: Vote::Pass,
+            reason: "Approved functional suite covers the requirements".into(),
+        },
+        report: Some(VerificationReport {
+            schema_version: 1,
+            verifier_id: "core".into(),
+            observed_at: "2026-11-04T00:00:00Z".into(),
+            manifest_digest: "a".repeat(64),
+            source_snapshot: Some(SourceSnapshot {
+                operation_id: format!("functional-{id}"),
+                manifest_sha256: "b".repeat(64),
+            }),
+            checks: vec![CheckObservation {
+                check_id: "check".into(),
+                command_digest: "c".repeat(64),
+                exit_code: Some(0),
+                timed_out: false,
+                assertions: vec![],
+                assertion_error: None,
+                stdout_sha256: "d".repeat(64),
+                stderr_sha256: "e".repeat(64),
+            }],
+        }),
+        decision: FunctionalDecision {
+            vote: Vote::Pass,
+            reason: "Actual functional checks passed".into(),
+        },
+    }
+}
+#[test]
+fn functional_permission_is_one_shot_chief_only_and_bound_to_the_current_delivery() {
+    let root = tempfile::tempdir().unwrap();
+    let (mut l, id) = fixture(root.path());
+    let r = l.rounds[&id].clone();
+    assert!(l
+        .start_functional(&id, &r.digest, &r.binding, 100, 60)
+        .is_err());
+    start(&mut l, &id);
+    for _ in 0..4 {
+        submit(&mut l, &id, Vote::Pass);
+    }
+    let r = l.rounds[&id].clone();
+    let mut changed = r.binding.clone();
+    changed.delivery = "f".repeat(64);
+    assert!(l
+        .start_functional(&id, &r.digest, &changed, 103, 60)
+        .is_err());
+    let (p, _) = l
+        .start_functional(&id, &r.digest, &r.binding, 103, 60)
+        .unwrap();
+    assert!(l
+        .start_functional(&id, &r.digest, &r.binding, 104, 60)
+        .is_err());
+    let mut wrong = p.clone();
+    wrong.seat = "deputy".into();
+    assert!(l
+        .finish_functional(&id, &wrong, functional_outcome(&id), 104)
+        .is_err());
+    let mut wrong = functional_outcome(&id);
+    wrong.model = "fallback".into();
+    assert!(l.finish_functional(&id, &p, wrong, 104).is_err());
+    let mut missing = functional_outcome(&id);
+    missing.report = None;
+    assert!(l.finish_functional(&id, &p, missing, 104).is_err());
+    assert!(l
+        .finish_functional(&id, &p, functional_outcome(&id), 1000)
+        .is_err());
+    l.finish_functional(&id, &p, functional_outcome(&id), 104)
+        .unwrap();
+    assert!(l
+        .finish_functional(&id, &p, functional_outcome(&id), 105)
+        .is_err());
+}
+#[test]
+fn functional_cancellation_restart_and_failure_never_unlock_user_confirmation() {
+    for mode in ["cancel", "restart", "fail"] {
+        let root = tempfile::tempdir().unwrap();
+        let (mut l, id) = fixture(root.path());
+        start(&mut l, &id);
+        for _ in 0..4 {
+            submit(&mut l, &id, Vote::Pass);
+        }
+        let r = l.rounds[&id].clone();
+        let (p, _) = l
+            .start_functional(&id, &r.digest, &r.binding, 103, 60)
+            .unwrap();
+        match mode {
+            "cancel" => l
+                .end(&id, ReviewPhase::Cancelled, "User cancelled")
+                .unwrap(),
+            "restart" => {
+                drop(l);
+                l = Ledger::open(root.path()).unwrap();
+            }
+            _ => {
+                let mut failed = functional_outcome(&id);
+                failed.decision.vote = Vote::Fail;
+                failed.report.as_mut().unwrap().checks[0].exit_code = Some(1);
+                l.finish_functional(&id, &p, failed, 104).unwrap();
+            }
+        }
+        assert!(l
+            .finish_functional(&id, &p, functional_outcome(&id), 105)
+            .is_err());
+        assert!(l.confirm("p1", &id, &r.digest, &r.binding).is_err());
+        assert!(l
+            .start_functional(&id, &r.digest, &r.binding, 106, 60)
+            .is_err());
+        assert_eq!(l.rounds[&id].view().ballots.unwrap().len(), 3);
+        assert!(l.rounds[&id].confirmation_digest().is_none());
+    }
 }
 #[test]
 fn cancellation_after_reveal_preserves_public_ballots_without_final_acceptance() {

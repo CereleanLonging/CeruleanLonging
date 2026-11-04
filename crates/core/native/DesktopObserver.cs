@@ -177,6 +177,8 @@ public partial class DesktopObserver {
             else if(request.op=="trialsend")result=SendTrial(request.review);
             else if(request.op=="trialread")result=ReadTrial(request.review);
             else if(request.op=="tasksend")result=SendMessage(request.taskReview,true);
+            else if(request.op=="reviewsend"){SendMessage(request.taskReview,true);result=ReadReview(request.taskReview);}
+            else if(request.op=="reviewread")result=ReadReview(request.taskReview);
             else if(request.op=="taskread")result=ReadTask(request.taskReview);
             else if(request.op=="taskprogress")result=ReadTaskProgress(request.taskReview);
             else if(request.op=="taskprepare")result=PrepareTask(request.window,request.taskReview);

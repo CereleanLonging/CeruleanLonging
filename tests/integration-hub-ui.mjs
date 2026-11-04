@@ -1,4 +1,4 @@
-import {openConfiguredConnections,openConnectionMethod} from "./connection-ui-helpers.mjs";
+import {openConfiguredConnections,openConnectionMethod,deferModelChoice} from "./connection-ui-helpers.mjs";
 // Offline UI checks for role grouping, credential boundaries, and path-action layout.
 import { writeFile, mkdtemp } from "node:fs/promises";
 import { resolve, join } from "node:path";
@@ -32,11 +32,13 @@ try {
   cases.push("Three separate role headings; API/Key/CLI/desktop groups start collapsed without requests");
 
   await openConnectionMethod(page,'主指挥','key');
+  await deferModelChoice(page);
   assert.equal(await chief.locator('input[type="password"]').count(),1);
-  assert.equal(await chief.getByRole("button",{name:"检查官方 API 连接",exact:true}).count(),0);
+  assert.equal(await chief.getByRole("button",{name:"测试连通",exact:true}).count(),1);
   await chief.getByLabel("OpenAI API Key",{exact:true}).fill("synthetic-test-value-12345");
   await openConnectionMethod(page,'主指挥','api');
   await openConnectionMethod(page,'主指挥','key');
+  await deferModelChoice(page);
   assert.equal(await chief.getByLabel("OpenAI API Key",{exact:true}).inputValue(),"");
   await openConnectionMethod(page,'主指挥','desktop');
   assert.equal(await chief.locator('input[type="password"]').count(),0);
@@ -47,14 +49,17 @@ try {
   await openConnectionMethod(page,'主指挥','api');
   await chief.getByLabel("API 服务",{exact:true}).selectOption("a6api");
   assert.equal(await chief.getByLabel("中转站地址（须与 Key 来源一致）").inputValue(),"a6ApiVip");
-  await chief.getByRole("button",{name:"读取 A6API 模型列表",exact:true}).click();
+  await chief.getByRole("button",{name:"测试连通",exact:true}).click();
+  await deferModelChoice(page);
   assert.deepEqual(await page.evaluate(()=>window.commands),[{type:"checkProviderModels",target:{kind:"a6ApiVip"}}]);
   assert.equal(await page.evaluate(()=>window.scanCalls.length),0);
   cases.push("Saved relay origin is retained; explicit API check sends only the selected endpoint");
 
   await deputy.locator("summary").filter({hasText:/^API 连接$/}).click();
   await deputy.locator("summary").filter({hasText:/^Key 管理$/}).click();
+  await deferModelChoice(page);
   await worker.locator("summary").filter({hasText:/^Key 管理$/}).click();
+  await deferModelChoice(page);
   const ids=await page.locator("[id]").evaluateAll(elements=>elements.map(e=>e.id));
   assert.equal(new Set(ids).size,ids.length);
   await deputy.getByRole("button",{name:"配置副指挥模型",exact:true}).click();
@@ -65,8 +70,8 @@ try {
   await worker.locator("summary").filter({hasText:/^CLI 接入$/}).click();
   const scan=worker.getByRole("button",{name:"扫描本地 Codex",exact:true});
   assert.equal(await scan.isVisible(),true);
-  const pathBox=await worker.getByLabel("Codex 程序完整路径").boundingBox(),scanBox=await scan.boundingBox(),checkBox=await worker.getByRole("button",{name:"检查现有 Codex 登录",exact:true}).boundingBox();
-  assert.ok(scanBox.x>pathBox.x&&Math.abs(scanBox.y-pathBox.y)<3);assert.ok(checkBox.y>scanBox.y);assert.ok(Math.abs(checkBox.x-pathBox.x)<3);
+  const pathBox=await worker.getByLabel("Codex 程序完整路径").boundingBox(),scanBox=await scan.boundingBox(),checkBox=await worker.getByRole("region",{name:"Codex 连接检查",exact:true}).getByRole("button",{name:"测试连通",exact:true}).boundingBox();
+  assert.ok(scanBox.x>pathBox.x&&Math.abs(scanBox.y-pathBox.y)<3);assert.ok(checkBox.y>scanBox.y);assert.ok(checkBox.x>=pathBox.x&&checkBox.x<=pathBox.x+24);
   await worker.getByLabel("CLI 程序").selectOption("omp");assert.equal(await scan.count(),0);
   await worker.getByLabel("CLI 程序").selectOption("codex");
   await page.screenshot({path:join(dir,"cli-layout.png"),fullPage:true});

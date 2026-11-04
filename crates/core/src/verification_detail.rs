@@ -14,6 +14,14 @@ pub(crate) struct Basis {
     recorded: Option<(VerificationReport, bool)>,
     recheck: Option<recheck::RecheckDetail>,
 }
+impl Basis {
+    pub(crate) fn approved_checks(&self, task: &str) -> Result<&[AcceptanceCheck], String> {
+        Ok(match &self.recheck {
+            Some(recheck) => &recheck.approval.review.replacement_checks,
+            None => &self.plan.task(task)?.checks,
+        })
+    }
+}
 #[cfg(windows)]
 pub(crate) fn recheck_authority(
     basis: &Basis,

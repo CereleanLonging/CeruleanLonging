@@ -18,6 +18,12 @@ fn verifier_sha256() -> Option<&'static str> {
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    #[cfg(windows)]
+    if args.len() == 2 && args[0] == "--desktop-hook" {
+        cerulean_core::desktop_hook::command(std::path::Path::new(&args[1]))
+            .map_err(io::Error::other)?;
+        return Ok(());
+    }
     #[cfg(all(windows, debug_assertions))]
     if args.len() == 2 && args[0] == "--worker-account-setup-probe" {
         let value =

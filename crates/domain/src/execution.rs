@@ -426,8 +426,10 @@ impl PlanRevision {
                     "桌面任务必须明确批准DesktopSend权限",
                 )?;
                 require(
-                    supervision.is_none() && self.policy.budget_usd_cents.is_none(),
-                    "桌面监督及可计量金额预算尚未接入",
+                    self.policy.budget_usd_cents.is_none()
+                        && (supervision.is_none()
+                            || (e.adapter_id == "qoder" && e.worker_directory.is_some())),
+                    "桌面监督需要Qoder独立执行目录，可计量金额预算尚未接入",
                 )?;
             }
             require(

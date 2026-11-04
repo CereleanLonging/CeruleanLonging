@@ -17,6 +17,9 @@ impl RuntimeHost {
     ) -> Result<ClosureProof, String> {
         use crate::management_execution::ApplicationTarget;
         let intent = self.management.intent(operation)?;
+        if super::desktop_supervision::binding(intent)?.is_some() {
+            return self.desktop_advice_closure_proof(operation, sequence, hash);
+        }
         if super::omp_supervision_requests::binding(intent)?.is_some() {
             return self.omp_advice_closure_proof(operation, sequence, hash);
         }
@@ -109,6 +112,10 @@ impl RuntimeHost {
             // The sole worker temporarily owns the verified workflow; startup has no active workers.
             #[cfg(windows)]
             if self.has_codex_activity(&closure.proof.project)
+                || self
+                    .desktop_active
+                    .as_ref()
+                    .is_some_and(|active| active.snapshot.project.id == closure.proof.project)
                 || self.has_api_activity(&closure.proof.project)
                 || self.has_omp_activity(&closure.proof.project)
                 || self.active.contains_key(&closure.proof.project)
@@ -160,6 +167,10 @@ impl RuntimeHost {
         }
         require(
             !self.has_codex_activity(project)
+                && !self
+                    .desktop_active
+                    .as_ref()
+                    .is_some_and(|active| active.snapshot.project.id == *project)
                 && !self.has_api_activity(project)
                 && !self.has_omp_activity(project)
                 && !self.active.contains_key(project),

@@ -292,9 +292,22 @@ pub struct DesktopTaskProgress {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DesktopProgressView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supervision: Option<DesktopSupervisionView>,
     pub latest: Option<DesktopTaskProgress>,
     pub checking: bool,
     pub samples: u32,
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DesktopSupervisionView {
+    pub connected: bool,
+    pub events: u32,
+    pub failures: u32,
+    pub incidents: u32,
+    pub state: String,
     pub error: Option<String>,
 }
 

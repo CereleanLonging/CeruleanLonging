@@ -4,7 +4,7 @@ use crate::management_execution::ApplicationTarget;
 
 pub(super) fn matches_target(entry: &crate::scheduler::Entry, target: &ApplicationTarget) -> bool {
     match target {
-        ApplicationTarget::Wait => false,
+        ApplicationTarget::Wait | ApplicationTarget::DesktopHook { .. } => false,
         ApplicationTarget::Workflow {
             principal,
             command,
@@ -56,6 +56,14 @@ impl RuntimeHost {
         let Some((target, applied, saved_hash)) = self.management.application(operation) else {
             return Ok(());
         };
+        #[cfg(windows)]
+        if matches!(target, ApplicationTarget::DesktopHook { .. }) {
+            let receipt = self.validate_desktop_advice_application(operation)?;
+            return require(
+                !applied || receipt.as_deref() == saved_hash && receipt.is_some(),
+                "桌面监督应用回执缺失或不符",
+            );
+        }
         let project = &self.management.intent(operation)?.project_id;
         let store = self
             .projects
@@ -67,6 +75,7 @@ impl RuntimeHost {
             .iter()
             .find(|e| e.body.operation_id == format!("mgmt-{operation}"));
         match target {
+            ApplicationTarget::DesktopHook { .. } => return Err("桌面监督仅支持Windows".into()),
             ApplicationTarget::Wait => require(
                 event.is_none(),
                 "wait decision has unexpected workflow event",
@@ -113,6 +122,12 @@ impl RuntimeHost {
             return Ok(());
         }
         match target {
+            ApplicationTarget::DesktopHook { .. } => {
+                #[cfg(windows)]
+                if let Some(receipt) = self.validate_desktop_advice_application(operation)? {
+                    self.management.record_applied(operation, Some(receipt))?;
+                }
+            }
             ApplicationTarget::Wait => self.management.record_applied(operation, None)?,
             ApplicationTarget::Workflow { .. } => {
                 let project = &self.management.intent(operation)?.project_id;
@@ -144,6 +159,10 @@ impl RuntimeHost {
         operation: &str,
         target: ApplicationTarget,
     ) -> Result<(), String> {
+        require(
+            !matches!(target, ApplicationTarget::DesktopHook { .. }),
+            "桌面建议仅可由原任务的Hook投送通道应用",
+        )?;
         if let ApplicationTarget::Workflow {
             command: WorkflowCommand::Accept { task, attempt },
             ..
@@ -214,6 +233,7 @@ impl RuntimeHost {
         )?;
         let workflow_hash = match target {
             ApplicationTarget::Wait => None,
+            ApplicationTarget::DesktopHook { .. } => return Err("桌面建议需要原Hook通道".into()),
             ApplicationTarget::Workflow {
                 principal,
                 command,

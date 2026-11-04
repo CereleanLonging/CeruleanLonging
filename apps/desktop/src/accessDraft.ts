@@ -3,15 +3,19 @@ import { setAccessItem } from "./accessStorage";
 
 export function accessSelection(draft: ProjectSetupDraft) {
   const { chiefDirectory, managementSources, chiefModel, deputyModel, workerAdapter, workerModel,
-    codexExecutable, apiWorker, desktopWorker, ompRuntimeParent, profiles, worktree, resourceKeys } = draft;
+    codexExecutable, apiWorker, desktopWorker, ompRuntimeParent, profiles, worktree, resourceKeys, artifactPaths, supervision } = draft;
   return {chiefDirectory,managementSources,chiefModel,deputyModel,workerAdapter,workerModel,
-    codexExecutable,apiWorker,desktopWorker,ompRuntimeParent,profiles,worktree,resourceKeys};
+    codexExecutable,apiWorker,desktopWorker,ompRuntimeParent,profiles,worktree,resourceKeys,artifactPaths,supervision};
 }
 function stable(value: unknown): string {
   return JSON.stringify(value, (_key, item) => item && typeof item === "object" && !Array.isArray(item)
     ? Object.fromEntries(Object.entries(item).sort(([a],[b]) => a.localeCompare(b))) : item);
 }
-export const accessKey = (draft: ProjectSetupDraft) => stable(accessSelection(draft));
+export const accessContents = (draft: ProjectSetupDraft) => stable(accessSelection(draft));
+export const accessKey = (draft: ProjectSetupDraft) => {
+  const {artifactPaths: _artifacts,...selection} = accessSelection(draft);
+  return stable(selection);
+};
 type DesktopReference = {bindingId:string;projectRoot:string;modelLabel:string};
 type StoredProfile = Omit<WorkerProfileDraft,"desktopWorker"> & {desktopWorker?:DesktopReference | null};
 type StoredSelection = Omit<ReturnType<typeof accessSelection>,"desktopWorker"|"profiles"> & {desktopWorker?:DesktopReference | null;profiles?:StoredProfile[]};
@@ -39,12 +43,13 @@ const apiWorker=shape({target:apiTarget,model:str,fileTools:list(oneOf("read-fil
 const desktop=shape({bindingId:str,projectRoot:str,modelLabel:str});
 const stage=shape({id:str,name:str,validatorId:str,args:list(str),timeoutSeconds:num,expectedAssertions:optional(list(str))});
 const acceptance=shape({schemaVersion:oneOf(1),stages:list(stage)});
-const supervision=union(shape({mode:oneOf("disabled")}),shape({mode:oneOf("enabled"),policy:shape({schemaVersion:oneOf(1),repeatedFailureThreshold:num,maxAdvicePerAttempt:num,deliveryEnabled:optional(bool)})}));
+const supervisionPolicy=shape({schemaVersion:oneOf(1),repeatedFailureThreshold:num,maxAdvicePerAttempt:num,deliveryEnabled:optional(bool)});
+const supervision=union(shape({mode:oneOf("disabled")}),shape({mode:oneOf("enabled"),policy:supervisionPolicy}));
 const adapter=oneOf("codex","omp","qoder","workbuddy","openai","anthropic","deepseek","qwen","kimi","grok","a6api");
 const workerFields={workerAdapter:optional(adapter),workerModel:str,codexExecutable:str,apiWorker:optional(apiWorker),desktopWorker:optional(desktop),ompRuntimeParent:optional(str),resourceKeys:optional(list(str))};
 const profile=shape({...workerFields,id:str,description:str,workerAdapter:adapter,artifactPaths:list(str),acceptance,supervisionOverride:optional(supervision)});
 const worktree=shape({baseCommit:str,poolRoot:str,gitExecutable:str,inheritDependencies:optional(bool),integration:optional(shape({taskId:str,artifactPaths:list(str),validatorId:str,args:list(str),timeoutSeconds:num}))});
-const selection=shape({...workerFields,chiefDirectory:optional(str),managementSources:optional(sources),chiefModel:str,deputyModel:str,profiles:optional(list(profile)),worktree:optional(worktree)});
+const selection=shape({...workerFields,chiefDirectory:optional(str),managementSources:optional(sources),chiefModel:str,deputyModel:str,profiles:optional(list(profile)),worktree:optional(worktree),artifactPaths:optional(list(str)),supervision:optional(supervisionPolicy)});
 const record=shape({schema:oneOf(1),projectId:str,projectRoot:str,basedOn:optional(str),savedAt:str,fieldsChecked:bool,selection});
 const maxBytes=256*1024;
 

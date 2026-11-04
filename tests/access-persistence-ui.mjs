@@ -37,7 +37,7 @@ try{
   assert.equal((await stored(draftKey())).fieldsChecked,true);assert.equal(await page.evaluate(()=>window.calls.length),0);
   await browser.close();await open();await load();assert.equal(await page.locator('#planning-chief-source').inputValue(),'codexSession');assert.equal(await page.locator('#planning-chief-session').inputValue(),'session_fixture_1');assert.equal(await page.locator('#planning-worker').inputValue(),'worker-fixture');await page.getByText('已恢复自动保存的接入配置，格式检查已通过；可直接修改。',{exact:true}).waitFor();
   await page.screenshot({path:join(dir,'restored-project-access.png'),fullPage:true});
-  await page.locator('.access-save-actions').screenshot({path:join(dir,'access-save-actions.png')});
+  await page.locator('.planning-actions').screenshot({path:join(dir,'access-save-actions.png')});
   cases.push('Checked Codex session, role models and paths survive browser process restart without commands');
 
   await openConfiguredConnections(page);

@@ -12,6 +12,8 @@ pub(super) struct ActiveReview {
     pending: Pending,
     analysis: bool,
     receiver: std::sync::mpsc::Receiver<Result<ReviewResponse, String>>,
+    cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    progress: std::sync::Arc<std::sync::Mutex<Option<ReviewSessionProgress>>>,
 }
 pub(super) enum ReviewResponse {
     Vote(cerulean_adapters::blind_review::Observation),
@@ -25,7 +27,8 @@ pub(super) type Fixture = fn(
     ReviewMaterial,
     Option<Vec<RevealedBallot>>,
 ) -> Result<ReviewResponse, String>;
-struct Gathered {
+pub(super) struct Gathered {
+    pub check_archive: cerulean_domain::independent_checks::CheckArchive,
     binding: ReviewBinding,
     files: Vec<(String, Vec<u8>)>,
     coverage: ReviewCoverage,
@@ -33,12 +36,15 @@ struct Gathered {
     criteria: Vec<String>,
     checks: u32,
     seats: Vec<ReviewSeat>,
+    pub final_task: String,
+    pub source_digest: String,
 }
 fn seat(id: &str, role: &str, target: ApiTarget, model: &str) -> ReviewSeat {
     ReviewSeat {
         id: id.into(),
         role: role.into(),
-        target,
+        target: Some(target),
+        transport: None,
         model: model.into(),
         allowed_models: vec![model.into()],
     }
@@ -116,7 +122,7 @@ mod tests {
 }
 impl RuntimeHost {
     #[cfg(windows)]
-    fn require_review_environment(&self) -> Result<(), String> {
+    pub(super) fn require_review_environment(&self) -> Result<(), String> {
         require(
             self.active.is_empty()
                 && self.codex_active.is_empty()
@@ -135,18 +141,21 @@ impl RuntimeHost {
                 )?;
             }
         }
+        Ok(())
+    }
+    pub(super) fn require_review_dispatch_idle(&self) -> Result<(), String> {
         require(
-            self.project_setups.values().all(|s| {
-                !s.setup
-                    .management_sources
-                    .as_ref()
-                    .is_some_and(|m| matches!(m.chief, ChiefSource::CodexSession { .. }))
+            !self.blind_reviews.rounds.values().any(|r| {
+                matches!(
+                    r.phase,
+                    ReviewPhase::Collecting | ReviewPhase::FunctionalTesting
+                )
             }),
-            "同一数据目录存在宿主权限外部主指挥聊天，不能启用盲评",
+            "评分或整体功能测试进行中，普通模型派发需等待原操作结束",
         )
     }
     #[cfg(windows)]
-    fn gather_blind_review(&self, project: &str) -> Result<Gathered, String> {
+    pub(super) fn gather_blind_review(&self, project: &str) -> Result<Gathered, String> {
         self.require_available(project)?;
         require(
             self.management_active.is_empty()
@@ -177,16 +186,11 @@ impl RuntimeHost {
         )?;
         let setup = &saved.setup;
         let chief = match setup.management_sources.as_ref().map(|s| &s.chief) {
-            None | Some(ChiefSource::OpenAi {}) => ApiTarget::OpenAi {},
-            Some(ChiefSource::Provider { endpoint }) => ApiTarget::Provider {
-                endpoint: endpoint.clone(),
+            None | Some(ChiefSource::OpenAi {}) => seat("chief","chief",ApiTarget::OpenAi {},&setup.chief_model),
+            Some(ChiefSource::Provider { endpoint }) => seat("chief","chief",ApiTarget::Provider {endpoint:endpoint.clone()},&setup.chief_model),
+            Some(ChiefSource::CodexSession { session_id }) => {
+                self.blind_reviews.latest(project).filter(|r|r.binding.setup == saved.digest).and_then(|r|r.seats.iter().find(|s|matches!(&s.transport,Some(ReviewTransport::CodexSession {session_id:bound,..}) if bound == session_id))).cloned().unwrap_or(ReviewSeat {id:"chief".into(),role:"chief".into(),target:None,transport:Some(ReviewTransport::CodexSession {session_id:session_id.clone(),provider:"pending".into()}),model:setup.chief_model.clone(),allowed_models:vec![setup.chief_model.clone()]})
             },
-            Some(ChiefSource::CodexSession { .. }) => {
-                return Err(
-                    "外部主指挥聊天尚不能证明受限盲评隔离；整轮未发送，不会换模型或省略主指挥"
-                        .into(),
-                )
-            }
         };
         let deputy = match setup.management_sources.as_ref().map(|s| &s.deputy) {
             None | Some(DeputySource::OpenAi {}) => ApiTarget::OpenAi {},
@@ -197,22 +201,47 @@ impl RuntimeHost {
                 endpoint: endpoint.clone(),
             },
         };
-        let mut seats = vec![
-            seat("chief", "chief", chief, &setup.chief_model),
-            seat("deputy", "deputy", deputy, &setup.deputy_model),
-        ];
+        let mut seats = vec![chief, seat("deputy", "deputy", deputy, &setup.deputy_model)];
         let mut identities = std::collections::BTreeSet::new();
         for task in &plan.execution {
-            let api = task.api_worker.as_ref().ok_or(
-                "本方案包含尚不具备受限盲评协议的CLI或桌面执行端；整轮未发送，不会跳过该席",
-            )?;
-            if identities.insert(digest(&(&api.target, &api.model))?) {
-                seats.push(seat(
-                    &format!("worker-{}", identities.len()),
-                    "worker",
-                    api.target.clone(),
-                    &api.model,
-                ));
+            let mut reviewer = if let Some(api) = &task.api_worker {
+                seat("pending", "worker", api.target.clone(), &api.model)
+            } else if let Some(worker) = &task.worker {
+                ReviewSeat {
+                    id: "pending".into(),
+                    role: "worker".into(),
+                    target: None,
+                    transport: Some(ReviewTransport::Cli {
+                        adapter: task.adapter_id.clone(),
+                        task_id: task.task_id.clone(),
+                    }),
+                    model: worker.model.clone(),
+                    allowed_models: vec![worker.model.clone()],
+                }
+            } else if let Some(desktop) = &task.desktop_worker {
+                ReviewSeat {
+                    id: "pending".into(),
+                    role: "worker".into(),
+                    target: None,
+                    transport: Some(ReviewTransport::Desktop {
+                        task_id: task.task_id.clone(),
+                        session_id: desktop
+                            .binding
+                            .observation
+                            .session_id
+                            .clone()
+                            .ok_or("桌面评审会话ID缺失")?,
+                    }),
+                    model: desktop.model_label.clone(),
+                    allowed_models: vec![desktop.model_label.clone()],
+                }
+            } else {
+                return Err("执行模型缺少可关联的评审接入".into());
+            };
+            reviewer.validate_source()?;
+            if identities.insert(reviewer.identity()?) {
+                reviewer.id = format!("worker-{}", identities.len());
+                seats.push(reviewer);
             }
         }
         require(seats.len() <= MAX_SEATS, "执行评审身份超过五个")?;
@@ -222,6 +251,7 @@ impl RuntimeHost {
             .join(project)
             .join("verification");
         let mut evidence = vec![];
+        let mut check_records = vec![];
         let mut deliveries = vec![];
         let mut checks = 0u32;
         let mut remaining_files = 512usize;
@@ -284,6 +314,13 @@ impl RuntimeHost {
                 .checked_add(report.checks.len() as u32)
                 .ok_or("检查数量溢出")?;
             evidence.push(digest(&(job, &report, &detail.evidence_digest, &proof))?);
+            check_records.push(cerulean_domain::independent_checks::inspect(
+                project,
+                &job.operation_id,
+                &basis.manifest,
+                basis.approved_checks(task_id)?,
+                &report,
+            )?);
             let seal = report
                 .source_snapshot
                 .as_ref()
@@ -322,7 +359,8 @@ impl RuntimeHost {
                 .map(|(i, _)| i)
                 .ok_or("最终交付缺失")?
         };
-        let (_, root, _, mut frozen) = deliveries.swap_remove(final_index);
+        let (final_task, root, _, mut frozen) = deliveries.swap_remove(final_index);
+        let source_digest = digest(frozen.manifest())?;
         require(
             frozen.manifest().tree.files.len() <= 128
                 && frozen
@@ -351,13 +389,38 @@ impl RuntimeHost {
             let bytes = frozen.read_file(&name)?;
             files.push((name, bytes));
         }
-        let criteria = plan.workflow.tasks.iter().map(|t| t.goal.clone()).collect();
+        let mut criteria = plan
+            .workflow
+            .tasks
+            .iter()
+            .map(|t| t.goal.clone())
+            .collect::<Vec<_>>();
+        for (index, check) in plan.task(&final_task)?.checks.iter().enumerate() {
+            criteria.push(format!(
+                "整体功能检查 {} · {} · 断言 {}",
+                index + 1,
+                check.name.as_deref().unwrap_or(&check.id),
+                check.expected_assertions.join("、")
+            ));
+        }
         let coverage = ReviewCoverage {
             files: files.iter().map(|(name, _)| name.clone()).collect(),
             excluded: policy.exclude.clone(),
             integration_task: plan.integration().map(|i| i.task_id.clone()),
         };
+        let check_archive = cerulean_domain::independent_checks::CheckArchive {
+            schema_version: 1,
+            project_id: project.into(),
+            revision: plan.approval_digest()?,
+            final_task: final_task.clone(),
+            final_source: source_digest.clone(),
+            records: check_records,
+        };
+        check_archive.validate()?;
         Ok(Gathered {
+            check_archive,
+            final_task,
+            source_digest,
             coverage,
             binding: ReviewBinding {
                 project_id: project.into(),
@@ -376,13 +439,26 @@ impl RuntimeHost {
         })
     }
     #[cfg(windows)]
-    fn current_blind_binding(&self, id: &str) -> Result<ReviewBinding, String> {
+    pub(super) fn current_blind_binding(&self, id: &str) -> Result<ReviewBinding, String> {
         let original = self.blind_reviews.rounds.get(id).ok_or("盲评轮次缺失")?;
         let mut gathered = self.gather_blind_review(&original.binding.project_id)?;
+        if let Some(archive) = &original.check_archive {
+            require(
+                archive == &gathered.check_archive,
+                "检查报告已变化，需要重新准备盲评",
+            )?;
+            crate::independent_checks::require_archived(&self.root, archive)?;
+        } else {
+            return Err("旧轮次未绑定统一检查和权重判据，请重新准备盲评".into());
+        }
         require(
             gathered.seats.len() == original.seats.len()
                 && gathered.seats.iter().zip(&original.seats).all(|(a, b)| {
-                    a.id == b.id && a.role == b.role && a.target == b.target && a.model == b.model
+                    a.id == b.id
+                        && a.role == b.role
+                        && a.target == b.target
+                        && a.transport == b.transport
+                        && a.model == b.model
                 }),
             "当前评审名册与原批准不同",
         )?;
@@ -402,7 +478,19 @@ impl RuntimeHost {
         }
         #[cfg(windows)]
         {
+            require(
+                self.functional_active.is_none()
+                    || matches!(action, BlindReviewAction::Cancel { .. }),
+                "主指挥功能测试仍在进行，请等待或取消原操作",
+            )?;
             match action {
+                BlindReviewAction::StartFunctionalTest {
+                    project_id,
+                    round_id,
+                    digest,
+                } => {
+                    self.start_functional_test(&project_id, &round_id, &digest)?;
+                }
                 BlindReviewAction::Prepare {
                     project_id,
                     redactions,
@@ -411,6 +499,19 @@ impl RuntimeHost {
                     require(self.blind_active.is_none(), "原盲评网络请求尚未结束")?;
                     let mut g = self.gather_blind_review(&project_id)?;
                     self.require_review_environment()?;
+                    if let Some(chief) = g.seats.iter_mut().find(|s| s.role == "chief") {
+                        if let Some(ReviewTransport::CodexSession {
+                            session_id,
+                            provider,
+                        }) = &mut chief.transport
+                        {
+                            let (model, current_provider) =
+                                self.inspect_chief_review_model(session_id)?;
+                            chief.allowed_models = vec![model.clone()];
+                            chief.model = model;
+                            *provider = current_provider;
+                        }
+                    }
                     require(model_aliases.len() <= MAX_SEATS, "模型版本规则过多")?;
                     for (id, aliases) in model_aliases {
                         let s = g
@@ -448,10 +549,19 @@ impl RuntimeHost {
                         &g.coverage,
                         FRAGMENT_BYTES,
                         MAX_MATERIAL_BYTES,
+                        &g.check_archive,
+                        cerulean_domain::review_weights::WeightPolicy::default(),
                     ))?;
                     crate::blind_review_guard::enable(&self.root)?;
-                    self.blind_reviews
-                        .prepare(g.binding, material, g.seats, g.coverage)?;
+                    crate::review_checks_guard::enable(&self.root)?;
+                    crate::independent_checks::archive(&self.root, &g.check_archive)?;
+                    self.blind_reviews.prepare_with_checks(
+                        g.binding,
+                        material,
+                        g.seats,
+                        g.coverage,
+                        Some(g.check_archive),
+                    )?;
                 }
                 BlindReviewAction::Start {
                     project_id,
@@ -465,16 +575,28 @@ impl RuntimeHost {
                         "批准前材料已变化",
                     )?;
                     for s in &r.seats {
-                        require(
-                            crate::credential_vault::exists_for(&self.root, s.target.provider())?,
-                            "评审所需凭证未配置；没有发送请求",
-                        )?;
-                        cerulean_adapters::blind_review::body(
-                            s,
-                            "request-preflight",
-                            false,
-                            &r.material,
-                        )?;
+                        if s.transport.is_some() {
+                            self.prepare_local_review(&project_id, s)?;
+                            cerulean_adapters::blind_review::local_packets(
+                                "request-preflight",
+                                false,
+                                &r.material,
+                            )?;
+                        } else {
+                            require(
+                                crate::credential_vault::exists_for(
+                                    &self.root,
+                                    s.api_target()?.provider(),
+                                )?,
+                                "评审所需凭证未配置；没有发送请求",
+                            )?;
+                            cerulean_adapters::blind_review::body(
+                                s,
+                                "request-preflight",
+                                false,
+                                &r.material,
+                            )?;
+                        }
                     }
                     self.blind_reviews.start(
                         &project_id,
@@ -489,6 +611,19 @@ impl RuntimeHost {
                     round_id,
                 } => {
                     self.blind_reviews.checked(&project_id, &round_id)?;
+                    if let Some(active) = &self.blind_active {
+                        if active.id == round_id {
+                            active
+                                .cancel
+                                .store(true, std::sync::atomic::Ordering::Release);
+                        }
+                    }
+                    if let Some(active) = &self.functional_active {
+                        require(active.id == round_id, "不能取消其他功能测试轮次")?;
+                        active
+                            .cancel
+                            .store(true, std::sync::atomic::Ordering::Release);
+                    }
                     self.blind_reviews.end(
                         &round_id,
                         ReviewPhase::Cancelled,
@@ -501,6 +636,7 @@ impl RuntimeHost {
                     digest: key,
                 } => {
                     let binding = self.current_blind_binding(&round_id)?;
+                    self.require_functional_evidence(&round_id)?;
                     self.blind_reviews
                         .confirm(&project_id, &round_id, &key, &binding)?;
                 }
@@ -515,6 +651,8 @@ impl RuntimeHost {
                         matches!(
                             original.phase,
                             ReviewPhase::Rejected
+                                | ReviewPhase::AwaitingFunctionalTest
+                                | ReviewPhase::FunctionalTestFailed
                                 | ReviewPhase::AwaitingUser
                                 | ReviewPhase::Accepted
                         ),
@@ -557,6 +695,14 @@ impl RuntimeHost {
             .values()
             .map(|r| {
                 let mut view = r.view();
+                #[cfg(windows)]
+                if let Some(active) = self.blind_active.as_ref().filter(|a| a.id == r.id) {
+                    view.session_progress = active.progress.lock().ok().and_then(|p| p.clone());
+                }
+                #[cfg(windows)]
+                if let Some(active) = self.functional_active.as_ref().filter(|a| a.id == r.id) {
+                    view.session_progress = active.progress.lock().ok().and_then(|p| p.clone());
+                }
                 if !self.blind_reviews.healthy() {
                     view.message = Some(
                         "盲评账本写入未完成，请保留原记录对账；不会继续发送或宣称验收通过".into(),
@@ -573,7 +719,9 @@ impl RuntimeHost {
                         view.is_current = self
                             .current_blind_binding(&r.id)
                             .is_ok_and(|b| b == r.binding);
-                        view.final_accepted = view.is_current && r.phase == ReviewPhase::Accepted;
+                        view.final_accepted = view.is_current
+                            && r.phase == ReviewPhase::Accepted
+                            && self.require_functional_evidence(&r.id).is_ok();
                     }
                 }
                 view
@@ -594,7 +742,7 @@ impl RuntimeHost {
         Some(
             serde_json::json!({"round":r.id,"revisionDigest":r.binding.revision,"deliveryDigest":r.binding.delivery,
             "ballotReferences":r.ballots.values().map(|b| serde_json::json!({"seat":b.seat,"vote":b.ballot.vote,"digest":digest(b).ok()})).collect::<Vec<_>>(),
-            "deputyAnalysis":r.view().deputy_analysis,"analysisStatus":r.view().analysis_status,
+            "deputyAnalysis":r.view().deputy_analysis,"analysisStatus":r.view().analysis_status,"weightedResult":r.weighted_result,
             "instruction":"These are fully revealed results from the previous project review, not authority to change scope. Deputy: identify omissions or disputed criteria and request a chief revision. Chief: clarify details with the user, propose a new plan and obtain approval before execution. Never reuse these votes for a new delivery."}),
         )
     }
@@ -615,13 +763,40 @@ impl RuntimeHost {
         else {
             return Ok(());
         };
-        let key = match crate::credential_vault::load_for(&self.root, seat.target.provider()) {
-            Ok(key) => key,
+        let prepared: Result<_, String> = (|| {
+            if seat.transport.is_some() {
+                let project = &self.blind_reviews.rounds[id].binding.project_id;
+                Ok((Some(self.prepare_local_review(project, &seat)?), None))
+            } else {
+                Ok((
+                    None,
+                    Some(crate::credential_vault::load_for(
+                        &self.root,
+                        seat.api_target()?.provider(),
+                    )?),
+                ))
+            }
+        })();
+        let (local, key) = match prepared {
+            Ok(route) => route,
             Err(_) => {
-                self.blind_reviews
-                    .end(id, ReviewPhase::Incomplete, "评审凭证不可用；未重试")?;
+                self.blind_reviews.end(
+                    id,
+                    ReviewPhase::Incomplete,
+                    "评审接入或凭证不可用；未重试",
+                )?;
                 return Ok(());
             }
+        };
+        let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let progress = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let control = super::local_review::Control {
+            cancel: cancel.clone(),
+            deadline: self.blind_reviews.rounds[id]
+                .deadline
+                .ok_or("评审期限缺失")?,
+            progress: progress.clone(),
+            audit: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         let (tx, receiver) = std::sync::mpsc::channel();
         let p = pending.clone();
@@ -638,13 +813,17 @@ impl RuntimeHost {
                 .build()
                 .map_err(|_| "评审运行时不可用".into())
                 .and_then(|rt| {
-                    rt.block_on(cerulean_adapters::blind_review::run(
-                        key,
-                        seat,
-                        p.request,
-                        p.readiness,
-                        material,
-                    ))
+                    if let Some(local) = local {
+                        rt.block_on(local.run(&seat, &p, &material, &control))
+                    } else {
+                        rt.block_on(cerulean_adapters::blind_review::run(
+                            key.ok_or("评审凭证缺失")?,
+                            seat,
+                            p.request,
+                            p.readiness,
+                            material,
+                        ))
+                    }
                     .map(ReviewResponse::Vote)
                 });
             let _ = tx.send(result);
@@ -654,6 +833,8 @@ impl RuntimeHost {
             pending,
             analysis: false,
             receiver,
+            cancel,
+            progress,
         });
         Ok(())
     }
@@ -671,7 +852,8 @@ impl RuntimeHost {
         let (pending, seat, material, ballots) = self
             .blind_reviews
             .reserve_analysis(id, chrono::Utc::now().timestamp())?;
-        let key = crate::credential_vault::load_for(&self.root, seat.target.provider())
+        let weights = self.blind_reviews.rounds[id].weighted_result.clone();
+        let key = crate::credential_vault::load_for(&self.root, seat.api_target()?.provider())
             .map_err(|_| "副指挥分析凭证不可用；未重试")?;
         let (tx, receiver) = std::sync::mpsc::channel();
         let p = pending.clone();
@@ -689,7 +871,7 @@ impl RuntimeHost {
                 .map_err(|_| "分析运行时不可用".into())
                 .and_then(|rt| {
                     rt.block_on(cerulean_adapters::blind_review::run_analysis(
-                        key, seat, p.request, material, ballots,
+                        key, seat, p.request, material, ballots, weights,
                     ))
                     .map(ReviewResponse::Analysis)
                 });
@@ -700,6 +882,8 @@ impl RuntimeHost {
             pending,
             analysis: true,
             receiver,
+            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            progress: std::sync::Arc::new(std::sync::Mutex::new(None)),
         });
         Ok(())
     }
@@ -751,14 +935,70 @@ impl RuntimeHost {
                 self.blind_reviews.rounds[&active.id].binding == binding,
                 "评审期间材料或方案变化",
             )?;
-            let ReviewResponse::Vote(observed) = result? else {
-                return Err("评审请求回包类型不符".into());
+            let observed = match result {
+                Ok(ReviewResponse::Vote(observed)) => observed,
+                Ok(_) => return Err("评审请求回包类型不符".into()),
+                Err(error) => {
+                    let seat = self.blind_reviews.rounds[&active.id]
+                        .seats
+                        .iter()
+                        .find(|s| s.id == active.pending.seat)
+                        .ok_or("原评审席位缺失")?;
+                    let tool = error.strip_prefix("review_tool_observed:").filter(|t| {
+                        matches!(
+                            *t,
+                            "commandExecution"
+                                | "fileChange"
+                                | "mcpToolCall"
+                                | "webSearch"
+                                | "imageView"
+                                | "dynamicToolCall"
+                                | "collabAgentToolCall"
+                                | "host_tool_call"
+                                | "tool_call"
+                                | "tool_execution"
+                        )
+                    });
+                    cerulean_adapters::blind_review::Observation {
+                        model: seat.model.clone(),
+                        ballot: Ballot {
+                            assessments: vec![],
+                            vote: Vote::Fail,
+                            citations: vec![],
+                            reason: "原评分过程未通过独立核验".into(),
+                        },
+                        audit: ReviewToolAudit {
+                            status: if tool.is_some() {
+                                ReviewToolStatus::ToolCallObserved
+                            } else {
+                                ReviewToolStatus::Unverifiable
+                            },
+                            source: "transport-failure".into(),
+                            request: active.pending.request.clone(),
+                            evidence_digest: digest(&(&active.pending, &error))?,
+                            tools: tool.map(|t| vec![t.into()]).unwrap_or_default(),
+                            reason: if tool.is_some() {
+                                "本地协议观察到评分过程的工具调用".into()
+                            } else if error.len() <= 2048 {
+                                error
+                            } else {
+                                "原调用未形成完整可核验记录，保留原错误摘要".into()
+                            },
+                        },
+                    }
+                }
             };
-            self.blind_reviews.complete(
+            let original = observed
+                .ballot
+                .validate(&self.blind_reviews.rounds[&active.id].material)
+                .is_ok()
+                .then_some(observed.ballot);
+            self.blind_reviews.complete_review(
                 &active.id,
                 &active.pending,
                 &observed.model,
-                observed.ballot,
+                original,
+                observed.audit,
                 chrono::Utc::now().timestamp(),
             )
         })();

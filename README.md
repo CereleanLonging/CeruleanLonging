@@ -37,7 +37,7 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 **角色与工作目录隔离。** 主指挥需求单独保存，副指挥通过核心提供的只读入口核对。副指挥与执行端共用的总目录内，最多保留五个执行身份的固定子目录；模型可替换，已登记身份复用自己的目录。API 文件工具限定访问范围，CLI、桌面执行及新隔离任务的客观检查使用绑定的普通 Windows 账户。
 
-**项目盲评，各席独立作出判断。** 任务客观检查和主指挥接受之后，用户审阅脱敏、分片后的完整交付材料与参评名单。副指挥确认就绪，主副指挥及各执行身份每席投一票；收齐后统一揭晓，全票通过仍须用户确认。首版仅支持无工具 API 评审，会话不提供文件工具、总分或他人投票。脱敏和分片不能保证消除任意暗号；盲评也不替代客观检查。
+**项目盲评，各席独立作出判断。** 统一独立检查核对各执行端的稳定提交和完整集成交付，报告归档后，用户审阅脱敏分片、名册与判据。副指挥确认就绪，主副指挥及各执行身份每席投一票，收齐后统一揭晓。除全票通过外，还核对单票和整体证据分；达标后由主指挥开展整体功能测试，最后由用户确认交付。API、CLI 和绑定桌面会话各自核验过程记录，缺失证据或工具违规不能按通过计票。脱敏和分片不能保证消除任意暗号；盲评不替代客观检查。详细边界见[独立检查与加权验收](docs/INDEPENDENT-CHECKS-WEIGHTS.md)。
 
 **实验有独立的工作空间。** 实验工作台使用单独的窗口和数据目录，方便试用配置或验证流程。凭证按工作台分别配置，创建实验本身不会派发模型任务。
 
@@ -109,6 +109,14 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.45 · 2026-11-05 · 开发候选
+
+增加统一独立检查报告与单向持久归档；盲评保留全票要求，并采用指令遵循、独立检查各 50%，单票 80%、整体 90% 的初始门槛。评分过程工具违规或证据不足计零分。完善模型搜索选择、Key 保存反馈、CLI 会话进度与桌面会话评分通道，修复过期监督建议及任务结束 Hook 收尾。缓存列表仅显示有占用的区域，调整相关按钮布局。
+
+真实 Codex/Qoder 评分、同会话恢复与跨接入完整业务联调仍需专用环境验证；证据分尚未校准。此前发布的安装包保持其原版本，当前代码更新不代表这些场景已正式验收。
+
+[本轮说明](docs/releases/0.1.45.md)
 
 #### 0.1.44 · 2026-11-04 · 公开预览
 
@@ -232,7 +240,7 @@ The aim is to make AI collaboration reviewable and resumable. Whether you are im
 
 **Separate role and worker directories.** Lead-planner requirements are stored separately and exposed to the coordinator through a core-controlled read-only interface. The shared coordinator/worker root holds up to five fixed worker-identity directories. Models can be replaced, while registered identities reuse their directories. API file tools enforce scope; CLI and desktop execution and objective checks for new isolated tasks use bound standard Windows accounts.
 
-**Independent votes for project review.** After objective checks and lead acceptance, you review the redacted, fragmented delivery material and full reviewer roster. The coordinator confirms readiness, then the lead, coordinator, and each worker identity cast one vote. Results are revealed together; unanimous approval still requires your confirmation. This first version supports tool-free API review only, without file tools, totals, or other reviewers' votes. Redaction and fragmentation cannot guarantee removal of arbitrary covert signals, and voting does not replace objective checks.
+**Independent votes for project review.** Unified independent checks validate stable task submissions and the complete integrated delivery before archival. You review sanitized fragments, the roster and evidence policy; the coordinator confirms readiness, and every role votes independently. Results stay sealed until complete. Unanimity and per-seat/overall evidence gates unlock the lead’s whole-project functional test, followed by your delivery confirmation. API, CLI and bound desktop sessions validate their own process evidence; missing traces and tool violations cannot pass. Redaction cannot guarantee removal of covert signals, and voting does not replace objective checks. See [Independent checks and weighted review](docs/INDEPENDENT-CHECKS-WEIGHTS.md).
 
 **Separate spaces for experiments.** Experiment workbenches use their own windows and data directories for trying configurations or validating workflows. Credentials are configured separately for each workbench, and creating an experiment does not dispatch a model task.
 
@@ -304,6 +312,14 @@ Download the installer and source package from the [0.1.44 release](https://gith
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.45 · 2026-11-05 · Development candidate
+
+Adds unified check reports and one-way durable archival. Blind review retains unanimity and uses an initial 50/50 split between criterion-specific instruction evidence and independent checks, with 80% per seat and 90% overall gates. Tool violations or unverifiable scoring traces receive zero weight. Also improves model search/selection, credential-save feedback, CLI progress and bound desktop review routes, expired supervision advice, hook teardown, occupied-cache filtering and action layouts.
+
+Real Codex/Qoder scoring, same-session restoration and full cross-transport workflows still require dedicated validation. Evidence scores are uncalibrated. Previously published installers retain their original version; this source update does not imply those scenarios have passed formal acceptance.
+
+[Update notes](docs/releases/0.1.45.md)
 
 #### 0.1.44 · 2026-11-04 · Public Preview
 

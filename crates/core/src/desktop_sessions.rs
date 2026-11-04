@@ -11,6 +11,16 @@ use std::{
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "op", rename_all = "lowercase")]
 pub(super) enum ReadRequest {
+    ReviewSend {
+        version: u32,
+        #[serde(rename = "taskReview")]
+        review: ReviewMessage,
+    },
+    ReviewRead {
+        version: u32,
+        #[serde(rename = "taskReview")]
+        review: ReviewMessage,
+    },
     Discover {
         version: u32,
     },
@@ -74,6 +84,9 @@ pub(super) enum ReadRequest {
 impl ReadRequest {
     fn require_available(&self) -> Result<(), String> {
         let window = match self {
+            Self::ReviewSend { review, .. } | Self::ReviewRead { review, .. } => {
+                &review.observation.window
+            }
             Self::Discover { .. } => return Ok(()),
             Self::Inspect { window, .. }
             | Self::TrialPrepare { window, .. }
@@ -94,6 +107,8 @@ impl ReadRequest {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct ReadReply {
+    #[serde(rename = "reviewText")]
+    pub review_text: Option<String>,
     #[serde(rename = "taskProgress")]
     pub task_progress: Option<DesktopTaskProgress>,
     #[serde(rename = "stopObservation")]
@@ -110,10 +125,27 @@ pub(super) struct ReadReply {
     #[serde(rename = "taskProof")]
     pub task_proof: Option<crate::desktop_execution::TaskProof>,
 }
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ReviewMessage {
+    pub id: String,
+    pub binding_id: String,
+    pub marker: String,
+    pub prompt: String,
+    pub prompt_sha256: String,
+    pub bridge_sha256: String,
+    pub observation: DesktopObservation,
+    pub baseline: Vec<String>,
+    pub max_wait_seconds: u32,
+}
 #[cfg(test)]
 pub(super) type Fixture = fn(&ReadRequest) -> Result<ReadReply, String>;
 enum Action {
     Discover,
+    BindSession {
+        project: String,
+        session_id: String,
+    },
     Inspect(DesktopWindow),
     Bind {
         project: String,
@@ -160,6 +192,19 @@ fn validate_window(window: &DesktopWindow) -> Result<(), String> {
         "窗口程序身份无效",
     )
 }
+fn validate_qoder_session_id(id: &str) -> Result<(), String> {
+    require(
+        id.len() == 36
+            && id.bytes().enumerate().all(|(i, b)| {
+                if [8, 13, 18, 23].contains(&i) {
+                    b == b'-'
+                } else {
+                    b.is_ascii_hexdigit()
+                }
+            }),
+        "请填写完整的 Qoder 会话 ID（UUID）",
+    )
+}
 fn validate_observation(observation: &DesktopObservation) -> Result<(), String> {
     if let Some(model) = &observation.model_label {
         require(
@@ -187,19 +232,9 @@ fn validate_observation(observation: &DesktopObservation) -> Result<(), String> 
         )?;
     }
     match observation.window.app {
-        DesktopApp::Qoder => require(
-            observation.session_id.as_ref().is_some_and(|s| {
-                s.len() == 36
-                    && s.bytes().enumerate().all(|(i, b)| {
-                        if [8, 13, 18, 23].contains(&i) {
-                            b == b'-'
-                        } else {
-                            b.is_ascii_hexdigit()
-                        }
-                    })
-            }),
-            "Qoder会话ID缺失",
-        )?,
+        DesktopApp::Qoder => {
+            validate_qoder_session_id(observation.session_id.as_deref().ok_or("Qoder会话ID缺失")?)?
+        }
         DesktopApp::Workbuddy => require(
             observation.session_id.is_none(),
             "WorkBuddy不可伪造供应商会话ID",
@@ -211,6 +246,90 @@ fn same_view(a: &DesktopObservation, b: &DesktopObservation) -> bool {
     let mut a = a.clone();
     a.captured_at = b.captured_at.clone();
     a == *b
+}
+fn observe_session(
+    session_id: &str,
+    mut read: impl FnMut(&ReadRequest) -> Result<ReadReply, String>,
+) -> Result<ReadReply, String> {
+    validate_qoder_session_id(session_id)?;
+    let discovery = read(&ReadRequest::Discover { version: 1 })?;
+    require(
+        discovery.observation.is_none() && discovery.windows.len() <= 32,
+        "窗口列表格式错误",
+    )?;
+    let windows: Vec<_> = discovery
+        .windows
+        .into_iter()
+        .filter(|w| w.app == DesktopApp::Qoder)
+        .collect();
+    require(!windows.is_empty(), "请打开 Qoder 并进入所填 ID 对应的聊天")?;
+    require(
+        windows.len() <= 8,
+        "Qoder 窗口超过8个，请缩小待核对范围后重试",
+    )?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
+    let mut matched = None;
+    let mut read_error = None;
+    for window in windows {
+        require(
+            std::time::Instant::now() < deadline,
+            "会话查找超时，请保持目标聊天空闲后重试",
+        )?;
+        validate_window(&window)?;
+        let result = read(&ReadRequest::Inspect {
+            version: 1,
+            window: window.clone(),
+        });
+        let reply = match result {
+            Ok(reply) => reply,
+            Err(error) => {
+                read_error = Some(error);
+                continue;
+            }
+        };
+        let observed = reply
+            .observation
+            .ok_or("窗口未返回聊天信息，请打开目标聊天后重试")?;
+        validate_observation(&observed)?;
+        require(
+            observed.window == window,
+            "查找过程中窗口身份已变化，请重新绑定",
+        )?;
+        if observed
+            .session_id
+            .as_deref()
+            .is_some_and(|id| id.eq_ignore_ascii_case(session_id))
+        {
+            require(
+                matched.is_none(),
+                "多个 Qoder 窗口显示同一会话，请只保留一个目标窗口后重试",
+            )?;
+            require(
+                observed.model_label.is_some(),
+                "未读取到当前模型，请在 Qoder 中选择模型后重试",
+            )?;
+            matched = Some(observed);
+        }
+    }
+    let previous = matched.ok_or_else(|| match read_error {
+        Some(error) => format!("未找到可读取的目标会话，请打开对应聊天并保持空闲。{error}"),
+        None => "未找到所填会话 ID，请在 Qoder 中打开对应聊天并核对 ID".into(),
+    })?;
+    require(
+        std::time::Instant::now() < deadline,
+        "会话查找超时，请重新绑定",
+    )?;
+    let confirmed = read(&ReadRequest::Inspect {
+        version: 1,
+        window: previous.window.clone(),
+    })?;
+    let current = confirmed.observation.as_ref().ok_or("确认观察缺失")?;
+    validate_observation(current)?;
+    require(
+        same_view(&previous, current),
+        "会话内容、模型或窗口已变化，请保持目标聊天空闲后重新绑定",
+    )?;
+    Ok(confirmed)
 }
 fn binding_digest(b: &DesktopBinding) -> Result<String, String> {
     digest(&(
@@ -317,8 +436,36 @@ fn persist(root: &Path, binding: &DesktopBinding) -> Result<(), String> {
     fs::hard_link(&pending, target).map_err(|_| "桌面关联发布失败，保留原记录待核对")?;
     fs::remove_file(pending).map_err(|_| "桌面关联临时记录保留，需重新读取".into())
 }
-fn observe(root: &Path, request: &ReadRequest) -> Result<ReadReply, String> {
+pub(super) fn observe(root: &Path, request: &ReadRequest) -> Result<ReadReply, String> {
     observe_cancellable(root, request, &std::sync::atomic::AtomicBool::new(false))
+}
+pub(crate) fn test_connection(
+    root: &Path,
+    expected: &DesktopObservation,
+) -> Result<String, String> {
+    validate_observation(expected)?;
+    let current = observe(
+        root,
+        &ReadRequest::Inspect {
+            version: 1,
+            window: expected.window.clone(),
+        },
+    )?
+    .observation
+    .ok_or("未读取到桌面会话，请打开目标聊天后重试")?;
+    validate_observation(&current)?;
+    require(
+        current.window.app == expected.window.app
+            && current.window.hwnd == expected.window.hwnd
+            && current.window.pid == expected.window.pid
+            && current.window.start_ticks == expected.window.start_ticks
+            && current.window.exe == expected.window.exe
+            && current.window.version == expected.window.version
+            && current.session_id == expected.session_id
+            && current.model_label == expected.model_label,
+        "桌面会话、模型或应用版本已变化，请重新读取并关联目标聊天",
+    )?;
+    Ok("Qoder 窗口、会话和模型核对通过，当前聊天可读取且处于空闲状态。".into())
 }
 #[cfg(test)]
 pub(crate) fn discover_for_account_probe(root: &Path) -> Result<Vec<DesktopWindow>, String> {
@@ -512,17 +659,24 @@ impl RuntimeHost {
         let (tx, rx) = mpsc::channel();
         #[cfg(test)]
         let fixture = self.desktop_fixture;
+        let session_id = match &action {
+            Action::BindSession { session_id, .. } => Some(session_id.clone()),
+            _ => None,
+        };
         std::thread::Builder::new()
             .name("desktop-observer".into())
             .spawn(move || {
-                #[cfg(test)]
-                let result = if let Some(f) = fixture {
-                    f(&request)
-                } else {
-                    observe(&root, &request)
+                let read = |request: &ReadRequest| {
+                    #[cfg(test)]
+                    if let Some(fixture) = fixture {
+                        return fixture(request);
+                    }
+                    observe(&root, request)
                 };
-                #[cfg(not(test))]
-                let result = observe(&root, &request);
+                let result = match session_id {
+                    Some(id) => observe_session(&id, read),
+                    None => read(&request),
+                };
                 let _ = tx.send(result);
             })
             .map_err(|_| "桌面观察后台无法启动")?;
@@ -543,6 +697,44 @@ impl RuntimeHost {
         self.desktop_access.observation = None;
         self.desktop_access.observation_digest = None;
         self.launch_desktop(ReadRequest::Discover { version: 1 }, Action::Discover)
+    }
+    pub(super) fn bind_desktop_session(
+        &mut self,
+        project: &str,
+        session_id: &str,
+    ) -> Result<(), String> {
+        require(self.projects.contains_key(project), "关联项目不存在")?;
+        let session_id = session_id.trim().to_ascii_lowercase();
+        validate_qoder_session_id(&session_id)?;
+        self.launch_desktop(
+            ReadRequest::Discover { version: 1 },
+            Action::BindSession {
+                project: project.into(),
+                session_id,
+            },
+        )
+    }
+    fn save_desktop_binding(
+        &mut self,
+        project: String,
+        label: String,
+        observation: DesktopObservation,
+    ) -> Result<(), String> {
+        require(self.projects.contains_key(&project), "关联项目不存在")?;
+        let mut binding = DesktopBinding {
+            id: String::new(),
+            project_id: project,
+            label,
+            observation,
+            confirmed_at: chrono::Utc::now().to_rfc3339(),
+            bridge_sha256: fingerprint(),
+        };
+        binding.id = binding_digest(&binding)?;
+        persist(&self.root, &binding)?;
+        self.desktop_access.bindings = load(&self.root)?;
+        self.desktop_access.observation = None;
+        self.desktop_access.observation_digest = None;
+        Ok(())
     }
     pub(super) fn inspect_desktop(&mut self, window: DesktopWindow) -> Result<(), String> {
         window.app.require_available()?;
@@ -621,6 +813,48 @@ impl RuntimeHost {
         let applied = (|| {
             let reply = result?;
             match action {
+                Action::BindSession {
+                    project,
+                    session_id,
+                } => {
+                    let observation = reply.observation.ok_or("会话绑定结果缺失")?;
+                    validate_observation(&observation)?;
+                    require(
+                        observation.window.app == DesktopApp::Qoder
+                            && observation
+                                .session_id
+                                .as_deref()
+                                .is_some_and(|id| id.eq_ignore_ascii_case(&session_id)),
+                        "绑定结果与所填会话 ID 不一致",
+                    )?;
+                    let bridge = fingerprint();
+                    let existing = self
+                        .desktop_access
+                        .bindings
+                        .iter()
+                        .rev()
+                        .find(|binding| {
+                            binding.project_id == project
+                                && binding
+                                    .observation
+                                    .session_id
+                                    .as_deref()
+                                    .is_some_and(|id| id.eq_ignore_ascii_case(&session_id))
+                        })
+                        .is_some_and(|binding| {
+                            binding.bridge_sha256 == bridge
+                                && same_view(&binding.observation, &observation)
+                        });
+                    if !existing {
+                        self.save_desktop_binding(
+                            project,
+                            format!("Qoder {session_id}"),
+                            observation,
+                        )?;
+                    }
+                    self.desktop_access.observation = None;
+                    self.desktop_access.observation_digest = None;
+                }
                 Action::PrepareTask {
                     project,
                     task,
@@ -672,19 +906,7 @@ impl RuntimeHost {
                         same_view(&previous, &observation),
                         "会话内容、窗口或布局已变化；未保存关联，请重新读取",
                     )?;
-                    let mut binding = DesktopBinding {
-                        id: String::new(),
-                        project_id: project,
-                        label,
-                        observation,
-                        confirmed_at: chrono::Utc::now().to_rfc3339(),
-                        bridge_sha256: fingerprint(),
-                    };
-                    binding.id = binding_digest(&binding)?;
-                    persist(&self.root, &binding)?;
-                    self.desktop_access.bindings = load(&self.root)?;
-                    self.desktop_access.observation = None;
-                    self.desktop_access.observation_digest = None;
+                    self.save_desktop_binding(project, label, observation)?;
                 }
             }
             Ok::<_, String>(())

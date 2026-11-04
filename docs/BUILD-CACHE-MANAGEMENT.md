@@ -12,10 +12,13 @@
 - 构建主任务结束后，超时未退出的所属子进程由本次任务进程组收尾，确认退出后再删除缓存，并保留主任务退出结果。
 - 直接运行Cargo时，默认编译目录为 `.temp/build-cache/manual/cargo`，可在维护页清理。需要任务结束自动收尾时，使用上述受管入口。
 - 最终程序保存在 `target/debug`、`target/release`，打包流程将安装器和配套载荷复制到这些输出目录后再清理临时编译文件。
+- `scripts/check.ps1` 先构建集成测试使用的独立验收程序，再串行执行 Rust 测试。进程类用例包含真实期限和进程树检查，避免并发构建或大量并行文件摘要计算占用这些期限；测试断言与产品期限不因此放宽。
 
 ### 维护界面
 
 “维护与升级”底部的“累计缓存监控”显示当前缓存、可清理体积、累计清理量和扫描次数。源码目录可手动指定。面板打开时及每30秒读取当前状态，点击“扫描全项目临时缓存”会写入体积记录。
+
+“缓存区域”只列出实际占用大于0字节的目录。清理后对应条目自动移出列表，目录产生新缓存后在下次扫描时重新显示。全部清空时显示空状态提示，累计统计和操作回执可单独查看。
 
 “清理剩余缓存”处理受管临时目录及已识别的旧Rust缓存子目录。使用中的作业通过跨进程文件锁保护。扫描到链接、占用文件或不完整清理记录时，界面显示对应问题，累计清理量按实际完成回执统计。
 
@@ -32,6 +35,8 @@ This feature manages compiler and build caches belonging to the CeruleanLonging 
 - After the main task exits, its private process group reaps lingering descendants after a grace period. Cache deletion waits for their exit, preserving the main task result.
 - Direct Cargo commands use `.temp/build-cache/manual/cargo`. Use the managed entry points for automatic end-of-task cleanup.
 - Final program files and installer outputs are staged outside disposable compiler-cache subdirectories before cleanup.
+- `scripts/check.ps1` builds the independent verifier before integration tests, then runs Rust tests serially. Native fixtures enforce real deadlines and process-tree checks; serialization avoids competing hashing/launch work without relaxing assertions or product limits.
 - The bottom Maintenance panel shows current, reclaimable and cumulatively reclaimed bytes, scan counts, active jobs and recent operations. Explicit scans save measurements.
+- Cache-region rows contain only directories with a positive byte count. Cleared entries disappear and return on a later scan when files occupy space again. Empty-state text accompanies the cumulative metrics and operation history.
 - Cross-process leases protect active jobs. Links, locked files and incomplete receipts produce visible diagnostics.
 - Distilled Markdown logs live under `docs/build-cache/cleanup-logs`, with a persisted intent before deletion and a separate completion receipt afterward.

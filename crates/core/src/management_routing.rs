@@ -123,6 +123,7 @@ impl RuntimeHost {
         &mut self,
         intent: crate::management_execution::DecisionIntent,
     ) -> Result<(), String> {
+        self.require_review_dispatch_idle()?;
         if self
             .selected_management_provider(&intent.project_id, intent.purpose)
             .is_some()

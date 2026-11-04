@@ -36,7 +36,7 @@ try{
   const encrypted=await readFile(join(data,`credentials/${p}.dpapi`));
   await save(entry,'invalid whitespace key');assert.deepEqual(await readFile(join(data,`credentials/${p}.dpapi`)),encrypted);
  }
- const qwen=page.getByRole('region',{name:'Qwen / 百炼 API',exact:true});const check=qwen.getByRole('button',{name:'读取 Qwen 模型列表',exact:true});assert.equal(await check.isDisabled(),true);
+ const qwen=page.getByRole('region',{name:'Qwen / 百炼 API',exact:true});const check=qwen.getByRole('button',{name:'测试连通',exact:true});assert.equal(await check.isDisabled(),true);
  await page.locator('#qwen-workspace').fill('workspace-fixture');assert.equal(await check.isDisabled(),false);await qwen.screenshot({path:join(report,'qwen-region.png')});
  const bad=await page.evaluate(async()=>{try{await window.__TAURI_INTERNALS__.invoke('core_request',{command:{type:'checkProviderModels',target:{kind:'qwenBeijing',workspaceId:'x@evil.test'}}});return false;}catch{return true;}});assert.equal(bad,true);
  await page.locator('#qwen-region').selectOption('qwenSingapore');assert.equal(await check.isDisabled(),false);assert.equal((await snapshot()).providerConnections.find(s=>s.provider==='qwen').state,'unchecked');
@@ -45,8 +45,8 @@ try{
  // Corrupt only this isolated synthetic credential. The real probe thread stops
  // at DPAPI decryption, before any HTTP client or request is constructed.
  await writeFile(join(data,'credentials/grok.dpapi'),'invalid encrypted test fixture');
- await page.getByRole('button',{name:'读取 Grok 模型列表',exact:true}).click();
- const grok=page.getByRole('region',{name:'xAI Grok API',exact:true});await grok.getByText('检查未通过',{exact:true}).waitFor();await grok.getByRole('alert').filter({hasText:'Windows 凭证加解密失败'}).waitFor();
+ await page.getByRole('region',{name:'xAI Grok API',exact:true}).getByRole('button',{name:'测试连通',exact:true}).click();
+ const grok=page.getByRole('region',{name:'xAI Grok API',exact:true});await grok.getByText('检查未通过',{exact:true}).waitFor();await grok.getByRole('alert').filter({hasText:'本机凭证加解密失败'}).waitFor();
  await grok.screenshot({path:join(report,'grok-local-failure.png')});let checked=await snapshot();assert.equal(checked.providerConnections.find(s=>s.provider==='grok').endpoint,'https://api.x.ai/v1/models');safe(checked);
  await save(providers[4],markers[4]);assert.equal((await snapshot()).providerConnections.find(s=>s.provider==='grok').checkedAt,null);
  await page.getByRole('button',{name:'删除本机 Kimi Key',exact:true}).click();await settle('kimi');

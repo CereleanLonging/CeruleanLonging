@@ -177,7 +177,29 @@ fn endpoint_details(directory: &Path, facts: &mut ConnectionFailure) -> io::Resu
     Ok(name)
 }
 fn listener(name: &str, sid: &str, first: bool) -> io::Result<NamedPipeServer> {
-    let sddl: Vec<u16> = format!("D:P(A;;GA;;;{sid})\0").encode_utf16().collect();
+    restricted_listener(name, &[sid], first)
+}
+pub(crate) fn restricted_listener(
+    name: &str,
+    sids: &[&str],
+    first: bool,
+) -> io::Result<NamedPipeServer> {
+    if sids.is_empty()
+        || sids.len() > 2
+        || sids.iter().any(|sid| {
+            !sid.starts_with("S-1-")
+                || !sid
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || b == b'S' || b == b'-')
+        })
+    {
+        return Err(io::Error::other("invalid listener identity"));
+    }
+    let grants = sids
+        .iter()
+        .map(|sid| format!("(A;;GA;;;{sid})"))
+        .collect::<String>();
+    let sddl: Vec<u16> = format!("D:P{grants}\0").encode_utf16().collect();
     unsafe {
         let mut descriptor = ptr::null_mut();
         check(ConvertStringSecurityDescriptorToSecurityDescriptorW(

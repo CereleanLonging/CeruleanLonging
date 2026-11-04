@@ -1,5 +1,13 @@
 const labels = {api:'API 连接', key:'Key 管理', desktop:'桌面端接入', cli:'CLI 接入'};
 
+// Routing/layout regressions can defer model choice; the picker suite verifies it.
+export async function deferModelChoice(page) {
+  const modal = page.getByRole('dialog', {name:'选择具体模型', exact:true});
+  await modal.waitFor();
+  await modal.getByRole('button', {name:'稍后选择', exact:true}).click();
+  await modal.waitFor({state:'hidden'});
+}
+
 export async function openConnectionMethod(page, role, method) {
   const region = page.getByRole('region', {name:role, exact:true});
   const summaries = region.locator(':scope > details > summary');

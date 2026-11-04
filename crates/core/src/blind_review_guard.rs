@@ -15,19 +15,20 @@ pub(crate) fn require_isolated_execution(root: &Path, bound: bool) -> Result<(),
     )
 }
 pub(crate) fn require_management_source(
-    root: &Path,
+    _root: &Path,
     sources: Option<&cerulean_domain::project_setup::ManagementSources>,
 ) -> Result<(), String> {
-    require(
-        !root.join("events").join(FILE_NAME).exists()
-            || !sources.is_some_and(|s| {
-                matches!(
-                    s.chief,
-                    cerulean_domain::project_setup::ChiefSource::CodexSession { .. }
-                )
-            }),
-        "此数据目录已启用盲评，不能接入具有宿主权限的外部主指挥聊天",
-    )
+    if let Some(cerulean_domain::project_setup::ManagementSources {
+        chief: cerulean_domain::project_setup::ChiefSource::CodexSession { session_id },
+        ..
+    }) = sources
+    {
+        cerulean_domain::execution::identifier(session_id)?;
+        require(session_id.len() <= 80, "主指挥会话标识超限")?;
+    }
+    // Actual scoring uses the tool-restricted session route. The host blocks
+    // ordinary management dispatch throughout collection and functional tests.
+    Ok(())
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -123,7 +124,7 @@ mod tests {
         enable(root).unwrap();
         assert!(require_isolated_execution(root, false).is_err());
         assert!(require_isolated_execution(root, true).is_ok());
-        assert!(require_management_source(root, Some(&external)).is_err());
+        assert!(require_management_source(root, Some(&external)).is_ok());
         assert!(require_management_source(root, None).is_ok());
         assert_eq!(
             crate::data_format::status(root)

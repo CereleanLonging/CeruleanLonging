@@ -63,6 +63,8 @@ export function BuildCacheMonitor({ desktop }: { desktop: boolean }) {
     return () => { mounted.current = false; window.clearInterval(timer); };
   }, [desktop]);
 
+  const occupiedEntries = snapshot?.entries.filter(entry => entry.bytes > 0) ?? [];
+
   return <section className="panel build-cache-monitor" aria-label="累计缓存监控">
     <HelpHeading as="h2" topic="Maintenance">累计缓存监控</HelpHeading>
     <p>管理工作台源码工程的编译与构建临时缓存。构建、测试结束后自动清理，空目录保留。</p>
@@ -87,13 +89,13 @@ export function BuildCacheMonitor({ desktop }: { desktop: boolean }) {
       <p className="secondary">任务临时目录 <code>{snapshot.temporaryRoot}</code></p>
       <p className="secondary">提炼日志目录 <code>{snapshot.logDirectory}</code></p>
       {snapshot.pendingOperations > 0 && <p role="alert">有 {snapshot.pendingOperations} 条清理尚缺完成回执，请核对提炼日志和当前扫描结果。</p>}
-      <div className="build-cache-table-wrap"><table>
+      {occupiedEntries.length > 0 ? <div className="build-cache-table-wrap"><table>
         <thead><tr><th>缓存区域</th><th>体积</th><th>文件数</th><th>状态</th></tr></thead>
-        <tbody>{snapshot.entries.map(entry => <tr key={entry.path}>
+        <tbody>{occupiedEntries.map(entry => <tr key={entry.path}>
           <td>{entry.kind}<small>{entry.path}</small></td><td>{bytes(entry.bytes)}</td>
           <td>{entry.files}</td><td>{entry.active ? "使用中，清理时跳过" : "可清理"}</td>
         </tr>)}</tbody>
-      </table></div>
+      </table></div> : <p className="secondary">当前没有占用空间的缓存。</p>}
       <details><summary>最近扫描与清理记录</summary><ul>{snapshot.recent.map(record =>
         <li key={record.id}>{new Date(record.at).toLocaleString()} · {record.kind} · 已清理 {bytes(record.bytesRemoved)}
           {record.errors.length > 0 && <span> · {record.errors.length} 项待处理</span>}

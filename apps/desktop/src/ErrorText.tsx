@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 const translations: [string, string][] = [
+  ["Windows 凭证加解密失败", "本机凭证加解密失败"],
+  ["Codex 返回的会话标识与所填标识不一致", "返回的 Codex 会话标识与所填标识不一致，请核对目标聊天。"],
   ["linked or invalid host path", "路径类型不正确或使用了链接。请选择实际文件；需要程序路径时，请填写完整的 .exe 路径。"],
   ["reparse host path", "该路径是链接、应用执行别名或重解析点，请选择实际文件路径。"],
   ["Codex process launch failed", "无法启动 Codex。请确认所选文件是 Codex 命令行程序，并检查当前账户的运行权限。"],

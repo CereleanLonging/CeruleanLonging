@@ -10,7 +10,10 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
 };
+mod functional;
 pub(crate) mod material;
+pub(crate) use functional::FunctionalOutcome;
+use functional::FunctionalRun;
 #[cfg(test)]
 pub(crate) mod tests;
 
@@ -39,6 +42,12 @@ pub(crate) enum AnalysisState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct Round {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check_archive: Option<cerulean_domain::independent_checks::CheckArchive>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight_policy: Option<cerulean_domain::review_weights::WeightPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weighted_result: Option<cerulean_domain::review_weights::WeightedResult>,
     pub id: String,
     pub binding: ReviewBinding,
     pub material: ReviewMaterial,
@@ -52,9 +61,43 @@ pub(crate) struct Round {
     pub ballots: BTreeMap<String, RevealedBallot>,
     pub message: Option<String>,
     pub analysis: Option<AnalysisState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub functional: Option<FunctionalRun>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_audit_required: Option<bool>,
 }
 impl Round {
     fn validate(&self) -> Result<(), String> {
+        require(
+            self.check_archive.is_some() == self.weight_policy.is_some(),
+            "检查归档与权重判据必须同时绑定",
+        )?;
+        if let Some(archive) = &self.check_archive {
+            archive.validate()?;
+            require(
+                archive.project_id == self.binding.project_id
+                    && archive.revision == self.binding.revision,
+                "检查归档不属于本轮项目方案",
+            )?;
+            self.weight_policy
+                .as_ref()
+                .ok_or("权重判据缺失")?
+                .validate()?;
+        }
+        if let Some(result) = &self.weighted_result {
+            let computed = cerulean_domain::review_weights::evaluate(
+                self.weight_policy.as_ref().ok_or("权重判据缺失")?,
+                self.check_archive.as_ref().ok_or("检查归档缺失")?,
+                &self.material,
+                &self.seats,
+                &self.ballots.values().cloned().collect::<Vec<_>>(),
+            )?;
+            require(result == &computed, "加权验收结果与证据不符")?;
+        }
+        require(
+            self.tool_audit_required != Some(false),
+            "评分过程核验不能关闭",
+        )?;
         identifier(&self.id)?;
         self.binding.validate()?;
         self.material.validate()?;
@@ -79,7 +122,7 @@ impl Round {
         let mut workers = std::collections::BTreeSet::new();
         for seat in &self.seats {
             identifier(&seat.id)?;
-            seat.target.url()?;
+            seat.validate_source()?;
             require(
                 ids.insert(&seat.id) && !seat.model.is_empty() && seat.model.len() <= 200,
                 "盲评席位重复或模型无效",
@@ -98,10 +141,7 @@ impl Round {
                 "评审角色无效",
             )?;
             if seat.role == "worker" {
-                require(
-                    workers.insert(digest(&(&seat.target, &seat.model))?),
-                    "执行评审身份重复",
-                )?;
+                require(workers.insert(seat.identity()?), "执行评审身份重复")?;
             }
         }
         for role in ["chief", "deputy"] {
@@ -127,20 +167,42 @@ impl Round {
             "盲评缺少整轮期限",
         )?;
         for (id, ballot) in &self.ballots {
+            require(
+                self.tool_audit_required != Some(true) || ballot.tool_audit.is_some(),
+                "当前轮次缺少评分过程工具核验",
+            )?;
             let seat = self
                 .seats
                 .iter()
                 .find(|s| &s.id == id)
                 .ok_or("票据席位缺失")?;
             require(
-                ballot.seat == *id && seat.allowed_models.contains(&ballot.model),
+                ballot.seat == *id
+                    && (seat.allowed_models.contains(&ballot.model)
+                        || ballot
+                            .tool_audit
+                            .as_ref()
+                            .is_some_and(|a| a.status != ReviewToolStatus::Clean)),
                 "票据模型身份不符",
             )?;
-            ballot.ballot.validate(&self.material)?;
+            if let Some(audit) = &ballot.tool_audit {
+                require(
+                    audit.effective_ballot(ballot.original_ballot.as_ref(), &self.material)?
+                        == ballot.ballot,
+                    "评分过程核验与封票不符",
+                )?;
+            } else {
+                ballot.ballot.validate(&self.material)?;
+            }
         }
         if matches!(
             self.phase,
-            ReviewPhase::AwaitingUser | ReviewPhase::Accepted | ReviewPhase::Rejected
+            ReviewPhase::AwaitingUser
+                | ReviewPhase::Accepted
+                | ReviewPhase::Rejected
+                | ReviewPhase::AwaitingFunctionalTest
+                | ReviewPhase::FunctionalTesting
+                | ReviewPhase::FunctionalTestFailed
         ) {
             require(
                 self.deputy_ready
@@ -148,12 +210,29 @@ impl Round {
                     && self.pending.is_none(),
                 "完整票集缺失",
             )?;
-            let all_pass = self.ballots.values().all(|b| b.ballot.vote == Vote::Pass);
+            require(
+                self.weight_policy.is_none() || self.weighted_result.is_some(),
+                "完整评审缺少加权核验结果",
+            )?;
+            let all_pass = self.ballots.values().all(|b| b.ballot.vote == Vote::Pass)
+                && self.weighted_result.as_ref().is_none_or(|r| r.passed);
             require(
                 all_pass == (self.phase != ReviewPhase::Rejected),
                 "盲评结果与全票门槛不符",
             )?;
         }
+        if let Some(functional) = &self.functional {
+            functional.validate(self)?;
+        }
+        require(
+            !matches!(
+                self.phase,
+                ReviewPhase::AwaitingFunctionalTest
+                    | ReviewPhase::FunctionalTesting
+                    | ReviewPhase::FunctionalTestFailed
+            ) || self.functional.is_some(),
+            "功能测试阶段缺少持久记录",
+        )?;
         if let Some(analysis) = &self.analysis {
             require(
                 matches!(
@@ -164,7 +243,8 @@ impl Round {
             )?;
             require(
                 self.ballots.len() == self.seats.len()
-                    && self.ballots.values().any(|b| b.ballot.vote == Vote::Fail),
+                    && (self.ballots.values().any(|b| b.ballot.vote == Vote::Fail)
+                        || self.weighted_result.as_ref().is_some_and(|r| !r.passed)),
                 "副指挥不能分析部分票集",
             )?;
             match analysis {
@@ -203,6 +283,10 @@ impl Round {
         // the final vote. Later cancellation must not hide that public history.
         let revealed = self.deputy_ready && self.ballots.len() == self.seats.len();
         BlindReviewView {
+            check_archive_digest: self.check_archive.as_ref().and_then(|a| digest(a).ok()),
+            weight_policy: self.weight_policy.clone(),
+            weighted_result: revealed.then(|| self.weighted_result.clone()).flatten(),
+            session_progress: None,
             project_id: self.binding.project_id.clone(),
             round_id: self.id.clone(),
             digest: self.digest.clone(),
@@ -217,7 +301,17 @@ impl Round {
                 .len() as u32,
             fragment_count: self.material.fragments.len() as u32,
             material_bytes: serde_json::to_vec(&self.material).map_or(0, |b| b.len() as u32),
-            max_requests: self.seats.len() as u32 + 2,
+            max_requests: self
+                .seats
+                .iter()
+                .map(|s| match &s.transport {
+                    Some(ReviewTransport::Cli { adapter, .. }) if adapter == "omp" => 1,
+                    Some(_) => serde_json::to_vec(&self.material)
+                        .map_or(0, |b| b.len().div_ceil(5997) as u32 + 1),
+                    None => 1,
+                })
+                .sum::<u32>()
+                + 2,
             max_output_tokens: 4096,
             timeout_seconds: 90,
             deadline: self
@@ -230,6 +324,8 @@ impl Round {
             coverage: self.coverage.clone(),
             is_current: false,
             final_accepted: false,
+            functional_test: self.functional.as_ref().map(FunctionalRun::view),
+            confirmation_digest: self.confirmation_digest(),
             deputy_analysis: match &self.analysis {
                 Some(AnalysisState::Completed { analysis, .. }) => Some(analysis.clone()),
                 _ => None,
@@ -321,6 +417,34 @@ impl Ledger {
             this.previous = entry.hash;
             this.rounds.insert(entry.round.id.clone(), entry.round);
         }
+        let legacy = this
+            .rounds
+            .values()
+            .filter(|r| {
+                matches!(
+                    r.phase,
+                    ReviewPhase::AwaitingUser | ReviewPhase::AwaitingFunctionalTest
+                ) && r.tool_audit_required != Some(true)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for mut r in legacy {
+            r.phase = ReviewPhase::Superseded;
+            r.message = Some("原轮次缺少评分过程工具核验，请按当前规则重新准备盲评".into());
+            this.commit(r)?;
+        }
+        let interrupted_tests = this
+            .rounds
+            .values()
+            .filter(|r| r.phase == ReviewPhase::FunctionalTesting)
+            .map(|r| r.id.clone())
+            .collect::<Vec<_>>();
+        for id in interrupted_tests {
+            this.interrupt_functional(
+                &id,
+                "核心重启或恢复，原功能测试许可已撤销；保留原证据，不自动重发",
+            )?;
+        }
         let pending = this
             .rounds
             .values()
@@ -402,6 +526,7 @@ impl Ledger {
             .filter(|r| r.binding.project_id == project)
             .max_by(|a, b| a.id.cmp(&b.id))
     }
+    #[cfg(test)]
     pub fn prepare(
         &mut self,
         binding: ReviewBinding,
@@ -409,6 +534,18 @@ impl Ledger {
         seats: Vec<ReviewSeat>,
         coverage: ReviewCoverage,
     ) -> Result<String, String> {
+        self.prepare_with_checks(binding, material, seats, coverage, None)
+    }
+    pub fn prepare_with_checks(
+        &mut self,
+        binding: ReviewBinding,
+        material: ReviewMaterial,
+        seats: Vec<ReviewSeat>,
+        coverage: ReviewCoverage,
+        check_archive: Option<cerulean_domain::independent_checks::CheckArchive>,
+    ) -> Result<String, String> {
+        #[cfg(not(test))]
+        require(check_archive.is_some(), "当前验收必须绑定统一独立检查归档")?;
         require(
             self.latest(&binding.project_id)
                 .is_none_or(|r| !r.phase.active()),
@@ -422,6 +559,9 @@ impl Ledger {
         let id = format!("review-{:08}", self.sequence + 1);
         let key = review_digest(&binding, &seats)?;
         self.commit(Round {
+            weight_policy: check_archive.as_ref().map(|_| Default::default()),
+            check_archive,
+            weighted_result: None,
             id: id.clone(),
             binding,
             material,
@@ -435,6 +575,8 @@ impl Ledger {
             ballots: BTreeMap::new(),
             message: None,
             analysis: None,
+            functional: Some(FunctionalRun::locked()),
+            tool_audit_required: Some(true),
         })?;
         Ok(id)
     }
@@ -454,6 +596,10 @@ impl Ledger {
             "盲评批准已失效",
         )?;
         r.phase = ReviewPhase::Collecting;
+        r.tool_audit_required = Some(true);
+        if r.functional.is_none() {
+            r.functional = Some(FunctionalRun::locked());
+        }
         r.deadline = Some(now + 900);
         self.commit(r)
     }
@@ -481,7 +627,7 @@ impl Ledger {
         .clone();
         let pending = Pending {
             epoch: self.epoch.clone(),
-            request: format!("request-{:08}", self.sequence + 1),
+            request: format!("request-{:08}-{}", self.sequence + 1, &self.epoch[..16]),
             seat: seat.id.clone(),
             readiness,
         };
@@ -490,12 +636,72 @@ impl Ledger {
         self.commit(r)?;
         Ok(Some((pending, seat, material)))
     }
+    #[cfg(test)]
     pub fn complete(
         &mut self,
         id: &str,
         pending: &Pending,
         model: &str,
         ballot: Ballot,
+        now: i64,
+    ) -> Result<(), String> {
+        let audit = ReviewToolAudit {
+            status: ReviewToolStatus::Clean,
+            source: "api-response".into(),
+            request: pending.request.clone(),
+            evidence_digest: digest(&(model, &ballot))?,
+            tools: vec![],
+            reason: "Synthetic complete response for ledger regression".into(),
+        };
+        self.complete_review(id, pending, model, Some(ballot), audit, now)
+    }
+    pub fn complete_review(
+        &mut self,
+        id: &str,
+        pending: &Pending,
+        model: &str,
+        original: Option<Ballot>,
+        audit: ReviewToolAudit,
+        now: i64,
+    ) -> Result<(), String> {
+        let round = self.rounds.get(id).ok_or("盲评轮次不存在")?;
+        require(audit.request == pending.request, "评分过程核验不属于原请求")?;
+        let seat = round
+            .seats
+            .iter()
+            .find(|s| s.id == pending.seat)
+            .ok_or("评分席位缺失")?;
+        #[cfg(windows)]
+        let ballot = crate::independent_verifier::audit_ballot(
+            &round.material,
+            seat,
+            model,
+            original.clone(),
+            audit.clone(),
+        )?;
+        #[cfg(not(windows))]
+        let ballot = {
+            let _ = (seat, model);
+            audit.effective_ballot(original.as_ref(), &round.material)?
+        };
+        self.complete_checked(
+            id,
+            pending,
+            RevealedBallot {
+                seat: pending.seat.clone(),
+                model: model.into(),
+                ballot,
+                tool_audit: Some(audit),
+                original_ballot: original,
+            },
+            now,
+        )
+    }
+    fn complete_checked(
+        &mut self,
+        id: &str,
+        pending: &Pending,
+        observed: RevealedBallot,
         now: i64,
     ) -> Result<(), String> {
         let mut r = self.rounds.get(id).ok_or("盲评轮次不存在")?.clone();
@@ -512,48 +718,79 @@ impl Ledger {
             .find(|s| s.id == pending.seat)
             .ok_or("评审席位缺失")?;
         require(
-            seat.allowed_models.iter().any(|m| m == model),
+            seat.allowed_models.iter().any(|m| m == &observed.model)
+                || observed
+                    .tool_audit
+                    .as_ref()
+                    .is_some_and(|a| a.status != ReviewToolStatus::Clean),
             "实际评审模型不符合批准规则",
         )?;
-        ballot.validate(&r.material)?;
+        if observed.tool_audit.is_none() {
+            observed.ballot.validate(&r.material)?;
+        }
         #[cfg(windows)]
-        crate::independent_verifier::check_ballot(&r.material, seat, model, &ballot)?;
+        if observed.tool_audit.is_none() {
+            crate::independent_verifier::check_ballot(
+                &r.material,
+                seat,
+                &observed.model,
+                &observed.ballot,
+            )?;
+        }
         r.pending = None;
         if pending.readiness {
             require(
                 seat.role == "deputy" && !r.deputy_ready && r.ballots.is_empty(),
                 "副指挥就绪确认重复",
             )?;
-            if ballot.vote == Vote::Pass {
+            if observed.ballot.vote == Vote::Pass {
                 r.deputy_ready = true;
             } else {
                 r.phase = ReviewPhase::Incomplete;
-                r.message = Some("副指挥未确认具备整体验收条件；需核对材料与方案".into());
+                r.message = Some(format!(
+                    "副指挥未确认具备整体验收条件。{}",
+                    observed.ballot.reason
+                ));
             }
         } else {
             require(
                 r.deputy_ready && !r.ballots.contains_key(&seat.id),
                 "评审票重复或副指挥尚未确认",
             )?;
-            r.ballots.insert(
-                seat.id.clone(),
-                RevealedBallot {
-                    seat: seat.id.clone(),
-                    model: model.into(),
-                    ballot,
-                },
-            );
+            r.ballots.insert(seat.id.clone(), observed);
             if r.ballots.len() == r.seats.len() {
                 #[cfg(windows)]
-                let passed = crate::independent_verifier::tally(
+                let mut passed = crate::independent_verifier::tally(
                     &r.material,
                     &r.seats,
                     &r.ballots.values().cloned().collect::<Vec<_>>(),
                 )?;
                 #[cfg(not(windows))]
-                let passed = r.ballots.values().all(|b| b.ballot.vote == Vote::Pass);
+                let mut passed = r.ballots.values().all(|b| b.ballot.vote == Vote::Pass);
+                if let (Some(policy), Some(archive)) = (&r.weight_policy, &r.check_archive) {
+                    let operation =
+                        cerulean_domain::independent_verifier::Operation::WeightedTally {
+                            policy: policy.clone(),
+                            archive: archive.clone(),
+                            material: r.material.clone(),
+                            seats: r.seats.clone(),
+                            ballots: r.ballots.values().cloned().collect(),
+                        };
+                    #[cfg(windows)]
+                    let result = crate::independent_verifier::call(operation)?;
+                    #[cfg(not(windows))]
+                    let result = cerulean_domain::independent_verifier::evaluate(&operation)?;
+                    let cerulean_domain::independent_verifier::Output::Weighted { result } = result
+                    else {
+                        return Err("加权计票响应无效".into());
+                    };
+                    passed = passed && result.passed;
+                    r.weighted_result = Some(result);
+                }
                 r.phase = if passed {
-                    ReviewPhase::AwaitingUser
+                    let run = r.functional.as_mut().ok_or("功能测试门禁缺失")?;
+                    run.status = FunctionalTestStatus::Ready;
+                    ReviewPhase::AwaitingFunctionalTest
                 } else {
                     ReviewPhase::Rejected
                 };
@@ -580,11 +817,25 @@ impl Ledger {
         require(
             r.phase.active()
                 || (phase == ReviewPhase::ChangesRequested
-                    && matches!(r.phase, ReviewPhase::Rejected | ReviewPhase::Accepted)),
+                    && matches!(
+                        r.phase,
+                        ReviewPhase::Rejected
+                            | ReviewPhase::Accepted
+                            | ReviewPhase::FunctionalTestFailed
+                    )),
             "盲评轮次已经结束",
         )?;
         require(message.len() <= 4096, "盲评说明超限")?;
         r.phase = phase;
+        if let Some(run) = r
+            .functional
+            .as_mut()
+            .filter(|f| f.status == FunctionalTestStatus::Running)
+        {
+            run.status = FunctionalTestStatus::Cancelled;
+            run.pending = None;
+            run.message = Some(message.into());
+        }
         r.pending = None;
         r.message = Some(message.into());
         self.commit(r)
@@ -609,7 +860,7 @@ impl Ledger {
             .clone();
         let p = Pending {
             epoch: self.epoch.clone(),
-            request: format!("analysis-{:08}", self.sequence + 1),
+            request: format!("analysis-{:08}-{}", self.sequence + 1, &self.epoch[..16]),
             seat: seat.id.clone(),
             readiness: false,
         };
@@ -666,7 +917,9 @@ impl Ledger {
     ) -> Result<(), String> {
         let mut r = self.checked(project, id)?;
         require(
-            r.phase == ReviewPhase::AwaitingUser && r.digest == key && r.binding == *current,
+            r.phase == ReviewPhase::AwaitingUser
+                && r.confirmation_digest().as_deref() == Some(key)
+                && r.binding == *current,
             "盲评材料或状态已变化，不能确认旧结果",
         )?;
         #[cfg(windows)]
@@ -704,6 +957,23 @@ fn transition(old: Option<&Round>, new: &Round) -> Result<(), String> {
         "盲评轮次内不能替换材料、名册或政策",
     )?;
     require(
+        old.check_archive == new.check_archive
+            && old.weight_policy == new.weight_policy
+            && old
+                .weighted_result
+                .as_ref()
+                .is_none_or(|r| new.weighted_result.as_ref() == Some(r)),
+        "检查归档、判据及已揭晓权重不可替换",
+    )?;
+    functional::transition(old, new)?;
+    require(
+        old.tool_audit_required == new.tool_audit_required
+            || (old.tool_audit_required.is_none()
+                && new.tool_audit_required == Some(true)
+                && old.phase == ReviewPhase::Prepared),
+        "评分过程核验门禁不可移除或回滚",
+    )?;
+    require(
         match (&old.analysis, &new.analysis) {
             (None, _) => true,
             (
@@ -735,6 +1005,7 @@ fn transition(old: Option<&Round>, new: &Round) -> Result<(), String> {
             new.phase,
             ReviewPhase::Collecting
                 | ReviewPhase::AwaitingUser
+                | ReviewPhase::AwaitingFunctionalTest
                 | ReviewPhase::Rejected
                 | ReviewPhase::Incomplete
                 | ReviewPhase::Cancelled
@@ -744,11 +1015,29 @@ fn transition(old: Option<&Round>, new: &Round) -> Result<(), String> {
         ReviewPhase::AwaitingUser => matches!(
             new.phase,
             ReviewPhase::Accepted
+                | ReviewPhase::AwaitingFunctionalTest
                 | ReviewPhase::Cancelled
                 | ReviewPhase::Incomplete
                 | ReviewPhase::Superseded
                 | ReviewPhase::ChangesRequested
         ),
+        ReviewPhase::AwaitingFunctionalTest => matches!(
+            new.phase,
+            ReviewPhase::FunctionalTesting
+                | ReviewPhase::Cancelled
+                | ReviewPhase::Incomplete
+                | ReviewPhase::Superseded
+                | ReviewPhase::ChangesRequested
+        ),
+        ReviewPhase::FunctionalTesting => matches!(
+            new.phase,
+            ReviewPhase::AwaitingUser
+                | ReviewPhase::FunctionalTestFailed
+                | ReviewPhase::Cancelled
+                | ReviewPhase::Incomplete
+                | ReviewPhase::Superseded
+        ),
+        ReviewPhase::FunctionalTestFailed => new.phase == ReviewPhase::ChangesRequested,
         ReviewPhase::Rejected => {
             new.phase == ReviewPhase::ChangesRequested
                 || (new.phase == ReviewPhase::Rejected && old.analysis != new.analysis)

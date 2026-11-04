@@ -21,6 +21,7 @@ const cases = [];
 const failed = spawnSync(manager, ["run", root, process.execPath, "-e", `require('fs').writeFileSync(require('path').join(process.env.CERULEAN_CACHE_SESSION,'failed.tmp'),'failure data');process.exit(7)`], { encoding: "utf8", windowsHide: true });
 assert.equal(failed.status, 7, failed.stderr);
 assert.equal(query("status").totalBytes, 0);
+assert.deepEqual(query("status").entries, []);
 assert.equal(query("status").cumulativeCleanedBytes, 12);
 cases.push("failed child retains its exit code and automatically clears its cache");
 
@@ -31,6 +32,8 @@ await once(task.stdout, "data");
 const active = query("scan");
 assert.equal(active.totalBytes, 11);
 assert.equal(active.availableBytes, 0);
+assert.equal(active.entries.length, 1);
+assert.equal(active.entries[0].bytes, 11);
 assert(active.entries.some(entry => entry.active));
 assert.equal(query("clean").totalBytes, 11);
 assert.equal((await exited)[0], 0);
@@ -53,6 +56,7 @@ assert.equal(jobs.length, 3);
 for (const job of jobs) assert((await readdir(join(root, ".temp/build-cache/jobs", job))).includes("scratch"));
 assert.equal(query("status").cumulativeCleanedBytes, 29);
 assert.equal(query("status").pendingOperations, 0);
+assert.deepEqual(query("status").entries, []);
 cases.push("empty job directories and final output remain, persisted totals do not double count");
 
 if (process.platform === "win32") {

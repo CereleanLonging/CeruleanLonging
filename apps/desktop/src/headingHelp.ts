@@ -78,6 +78,7 @@ const topics: Record<string, string> = {
   CurrencyBudgetFields: "核对该模型的计价配置及项目累计限额，修改后需随新版方案重新审阅。",
   CurrencyAccounts: "显示当前项目累计费用与预留，历史开销不会因重开或重新配置清零。",
   DesktopSessions: "核对当前读取的桌面聊天身份与模型。关联已有聊天不等于已经发送任务。",
+  DesktopWorkerFields: "填写 Qoder 聊天的会话 ID，自动查找并核对已打开窗口、模型和空闲状态，然后绑定到当前项目。执行前仍需确认目录和工具权限。",
   DesktopTasks: "查看这次桌面任务的原提交与结果，实际发送、停止与收口分别确认。",
   ExecutionAuthorization: "审阅该任务执行所需的项目范围和权限，确认只覆盖当前方案。",
   ExperimentWorkbenches: "查看独立实验工作台的目录和可用状态，打开实验不会替换正常工作台数据。",

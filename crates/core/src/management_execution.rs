@@ -188,6 +188,16 @@ pub(crate) struct StartupResolution {
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 pub enum ApplicationTarget {
     Wait,
+    DesktopHook {
+        #[serde(rename = "taskId")]
+        task_id: String,
+        #[serde(rename = "attemptId")]
+        attempt_id: String,
+        #[serde(rename = "reviewDigest")]
+        review_digest: String,
+        #[serde(rename = "suggestionDigest")]
+        suggestion_digest: String,
+    },
     Workflow {
         principal: String,
         command: WorkflowCommand,
@@ -202,6 +212,36 @@ impl ApplicationTarget {
     ) -> Result<(), String> {
         use ManagementDecision as D;
         use WorkflowCommand as C;
+        if let Self::DesktopHook {
+            task_id,
+            attempt_id,
+            review_digest,
+            suggestion_digest,
+        } = self
+        {
+            let D::Advise {
+                task_id: proposed,
+                suggestion,
+                ..
+            } = &observation.decision
+            else {
+                return Err("桌面Hook需要副指挥建议".into());
+            };
+            identifier(attempt_id)?;
+            sha256(review_digest)?;
+            sha256(suggestion_digest)?;
+            return require(
+                intent.purpose == Purpose::Advise
+                    && intent.context["supervision"]["version"] == 5
+                    && intent.context["supervision"]["kind"] == "desktop"
+                    && intent.context["supervision"]["taskId"] == *task_id
+                    && intent.context["supervision"]["attemptId"] == *attempt_id
+                    && intent.context["supervision"]["reviewDigest"] == *review_digest
+                    && task_id == proposed
+                    && *suggestion_digest == digest(suggestion)?,
+                "桌面Hook投送与原建议不符",
+            );
+        }
         let Self::Workflow {
             principal,
             command,
@@ -1627,7 +1667,7 @@ impl DecisionJournal {
             ApplicationTarget::Wait => {
                 require(workflow_hash.is_none(), "wait has no workflow event")
             }
-            ApplicationTarget::Workflow { .. } => sha256(
+            ApplicationTarget::Workflow { .. } | ApplicationTarget::DesktopHook { .. } => sha256(
                 workflow_hash
                     .as_deref()
                     .ok_or("workflow event hash required")?,

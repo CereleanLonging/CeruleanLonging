@@ -50,11 +50,18 @@ fn validate(directory: &Path, key: &str, value: &str) -> Result<(), String> {
             let name = parts[3].as_str().unwrap_or_default();
             let known = matches!(
                 name,
-                "planning-project" | "worker-cli" | "chief-method" | "codex-executable"
+                "planning-project"
+                    | "worker-cli"
+                    | "chief-method"
+                    | "codex-executable"
+                    | "omp-test-executable"
+                    | "omp-test-model"
+                    | "omp-test-runtime"
             ) || ["chief", "deputy", "worker"].iter().any(|role| {
-                ["api", "key"]
-                    .iter()
-                    .any(|view| name == format!("provider:{role}:{view}"))
+                name == format!("model-default:{role}")
+                    || ["api", "key"]
+                        .iter()
+                        .any(|view| name == format!("provider:{role}:{view}"))
             }) || ["deepseek", "anthropic", "qwen", "kimi", "a6api", "grok"]
                 .iter()
                 .any(|p| name == format!("endpoint:{p}") || name == format!("workspace:{p}"));
@@ -290,6 +297,17 @@ mod tests {
         )
         .is_err());
         assert!(validate(dir, &key(dir, "password"), "\"secret\"").is_err());
+        for role in ["chief", "deputy", "worker"] {
+            let model = serde_json::to_string(
+                &serde_json::json!({
+                    "target": {"kind": "openAi"}, "model": "fixture-model"
+                })
+                .to_string(),
+            )
+            .unwrap();
+            assert!(validate(dir, &key(dir, &format!("model-default:{role}")), &model).is_ok());
+        }
+        assert!(validate(dir, &key(dir, "model-default:unknown"), "\"fixture-model\"").is_err());
         let draft = serde_json::json!(["cerulean-access-draft", 1, dir, "project"]).to_string();
         assert!(validate(
             dir,

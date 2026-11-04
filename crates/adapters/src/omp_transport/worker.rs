@@ -122,6 +122,7 @@ pub struct WorkerTransport<R, W> {
     rpc: Transport<R, W>,
     consumed: bool,
     host_tools: Option<Vec<host_tools::HostToolDefinition>>,
+    review_reply: Option<(String, Option<String>)>,
 }
 impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> WorkerTransport<R, W> {
     pub fn new(reader: R, writer: W) -> Self {
@@ -129,6 +130,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> WorkerTransport<R, W> {
             rpc: Transport::new(reader, writer),
             consumed: false,
             host_tools: None,
+            review_reply: None,
         }
     }
     pub async fn connect(&mut self, timeout: Duration) -> Result<Value, String> {
@@ -155,6 +157,36 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> WorkerTransport<R, W> {
     ) -> Result<PromptOutcome, String> {
         self.execute_inner(intent, prompt, timeout, cancellation, persist, None)
             .await
+    }
+    pub async fn execute_review(
+        &mut self,
+        intent: DispatchIntent,
+        prompt: &str,
+        timeout: Duration,
+        cancellation: &mut oneshot::Receiver<()>,
+        persist: impl FnMut(&WorkerEvent) -> Result<(), String>,
+    ) -> Result<(PromptReceipt, String), String> {
+        require(
+            self.review_reply.is_none() && self.host_tools.is_none(),
+            "OMP评审只能使用无工具的新连接",
+        )?;
+        self.review_reply = Some((intent.model.clone(), None));
+        let outcome = self
+            .execute(intent, prompt, timeout, cancellation, persist)
+            .await?;
+        let PromptOutcome::Finished(receipt) = outcome else {
+            return Err("OMP评审未开始".into());
+        };
+        require(
+            receipt.status == crate::omp_protocol::PromptStatus::Completed,
+            "OMP评审未正常完成",
+        )?;
+        let text = self
+            .review_reply
+            .take()
+            .and_then(|(_, reply)| reply)
+            .ok_or("OMP缺少完整评审回复")?;
+        Ok((receipt, text))
     }
     /// Explicit tool-capable entry; a trusted host must provide durable records
     /// and approved, cancellation-safe implementations for the registered catalog.
@@ -487,6 +519,9 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> WorkerTransport<R, W> {
                     next_state = Instant::now() + Duration::from_millis(50);
                 }
                 Some("host_tool_call" | "host_tool_cancel") => {
+                    if self.review_reply.is_some() {
+                        return Err("review_tool_observed:host_tool_call".into());
+                    }
                     require(
                         !(value["type"] == "host_tool_cancel"
                             && held_result
@@ -516,10 +551,49 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> WorkerTransport<R, W> {
                     }
                 }
                 Some("message_start" | "message_end") => {
+                    if value["type"] == "message_end" && value["message"]["role"] == "assistant" {
+                        if let Some((model, reply)) = &mut self.review_reply {
+                            require(
+                                reply.is_none()
+                                    && value["message"]["model"].as_str() == Some(model.as_str()),
+                                "OMP评审实际模型或回复数量不符",
+                            )?;
+                            let parts = value["message"]["content"]
+                                .as_array()
+                                .ok_or("OMP评审正文缺失")?;
+                            let mut text = String::new();
+                            for part in parts {
+                                match part["type"].as_str() {
+                                    Some("thinking") => {}
+                                    Some("text") => text
+                                        .push_str(part["text"].as_str().ok_or("OMP评审文本无效")?),
+                                    Some("toolCall" | "tool_call") => {
+                                        return Err("review_tool_observed:tool_call".into())
+                                    }
+                                    _ => return Err("OMP评审正文包含无法核验的类型".into()),
+                                }
+                                require(text.len() <= 16 * 1024, "OMP评审回复超限")?;
+                            }
+                            require(!text.is_empty(), "OMP评审正文为空")?;
+                            *reply = Some(text);
+                        }
+                    }
                     if !tracker.terminal_observed() {
                         if let Some(advice) = &mut active_advice {
                             advice.message(&value)?;
                         }
+                    }
+                }
+                Some("message_update") if self.review_reply.is_some() => {
+                    match value["assistantMessageEvent"]["type"].as_str() {
+                        Some(
+                            "start" | "text_start" | "text_delta" | "text_end" | "thinking_start"
+                            | "thinking_delta" | "thinking_end" | "done",
+                        ) => {}
+                        Some(kind) if kind.starts_with("toolcall_") => {
+                            return Err("review_tool_observed:tool_call".into());
+                        }
+                        _ => return Err("OMP评分增量事件无法完整核验".into()),
                     }
                 }
                 Some(
@@ -532,6 +606,11 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> WorkerTransport<R, W> {
                 Some("queue_update") => {}
                 Some("tool_execution_start" | "tool_execution_update" | "tool_execution_end")
                     if calls.is_some() => {}
+                Some("tool_execution_start" | "tool_execution_update" | "tool_execution_end")
+                    if self.review_reply.is_some() =>
+                {
+                    return Err("review_tool_observed:tool_execution".into())
+                }
                 _ if Transport::<R, W>::display_only(&value) => {}
                 _ => {
                     return Err(

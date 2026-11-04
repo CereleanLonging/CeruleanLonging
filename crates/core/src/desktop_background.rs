@@ -26,6 +26,7 @@ struct Done {
     outcome: Result<(), String>,
 }
 pub(in crate::host) struct Active {
+    pub(in crate::host) supervision: Option<crate::host::desktop_supervision::Live>,
     progress: super::desktop_progress::Tracker,
     pub snapshot: ExecutionSnapshot,
     pub status: DesktopTaskStatus,
@@ -35,6 +36,11 @@ pub(in crate::host) struct Active {
     fault: bool,
     cancel: Arc<AtomicBool>,
     pending_stop: Option<ReservedRequest>,
+}
+impl Active {
+    pub(in crate::host) fn has_pending_stop(&self) -> bool {
+        self.pending_stop.is_some() || self.fault
+    }
 }
 impl RuntimeHost {
     pub(in crate::host) fn refresh_desktop_tasks(&mut self) -> Result<(), String> {
@@ -70,13 +76,17 @@ impl RuntimeHost {
                 .and_then(|t| t.error.clone());
             let retired = execution::is_retired(store, &attempt);
             let error = if retired { None } else { error };
+            let mut progress = self
+                .desktop_access
+                .tasks
+                .iter()
+                .find(|t| t.review.id == review.id)
+                .and_then(|t| t.progress.clone());
+            if let Some(view) = super::desktop_supervision::recovered_view(&self.root, &review)? {
+                progress.get_or_insert_with(Default::default).supervision = Some(view);
+            }
             tasks.push(DesktopTaskStatus {
-                progress: self
-                    .desktop_access
-                    .tasks
-                    .iter()
-                    .find(|t| t.review.id == review.id)
-                    .and_then(|t| t.progress.clone()),
+                progress,
                 reviewed_stop_record: cancellation::review::reviewed(&self.root, store, &review)?,
                 cancellation: cancellation::inspect(&self.root, store, &review)?,
                 stopping: false,
@@ -300,6 +310,28 @@ impl RuntimeHost {
             self.projects.get(&project).ok_or("项目账本暂不可用")?,
             &review,
         )?;
+        let supervision = if matches!(&operation, Operation::Task(Some(_))) {
+            let plan = self
+                .projects
+                .get(&project)
+                .and_then(|store| store.revision())
+                .ok_or("桌面方案缺失")?;
+            match plan.supervision_for(&review.attempt.task_id)? {
+                Some(policy) => Some(crate::host::desktop_supervision::Live::start(
+                    &self.root,
+                    &review,
+                    policy.clone(),
+                    &account
+                        .as_ref()
+                        .ok_or("桌面监督需要独立执行账户")?
+                        .record
+                        .sid,
+                )?),
+                None => None,
+            }
+        } else {
+            None
+        };
         let mut store = self.projects.remove(&project).ok_or("项目账本暂不可用")?;
         let snapshot = crate::async_verification::snapshot(&store);
         let config = store.configuration().clone();
@@ -395,6 +427,7 @@ impl RuntimeHost {
             .err()
             .map(|_| "后台线程未启动；保留原意图，请回读核对".to_string());
         self.desktop_active = Some(Active {
+            supervision,
             progress: Default::default(),
             snapshot,
             config,
@@ -429,6 +462,14 @@ impl RuntimeHost {
         let Some(active) = &mut self.desktop_active else {
             return;
         };
+        if let Some(supervision) = active.supervision.as_mut() {
+            supervision.poll(&self.root);
+            active
+                .status
+                .progress
+                .get_or_insert_with(Default::default)
+                .supervision = Some(supervision.view.clone());
+        }
         let finished = active
             .thread
             .as_ref()
@@ -452,6 +493,18 @@ impl RuntimeHost {
         }
         if let Some(thread) = active.thread.take() {
             let _ = thread.join();
+        }
+        if let Some(supervision) = active.supervision.as_mut() {
+            if let Err(error) = supervision.finish(&self.root) {
+                active.status.error = Some(error.clone());
+                self.desktop_access.error = Some(error);
+                return;
+            }
+            active
+                .status
+                .progress
+                .get_or_insert_with(Default::default)
+                .supervision = Some(supervision.view.clone());
         }
         let project = active.status.review.project_id.clone();
         let done = active.receiver.try_recv().unwrap_or_else(|_| Done {
@@ -516,6 +569,7 @@ mod reader_tests {
         assert_eq!(host.projects["project"].history(), history);
         let (_, receiver) = mpsc::channel();
         host.desktop_active = Some(Active {
+            supervision: None,
             progress: Default::default(),
             snapshot: crate::async_verification::snapshot(&host.projects["project"]),
             config: host.projects["project"].configuration().clone(),

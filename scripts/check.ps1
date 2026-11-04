@@ -10,9 +10,13 @@ if (-not $CacheSession) {
 if (-not $env:CERULEAN_CACHE_SESSION -or -not $env:CARGO_TARGET_DIR) { throw 'Managed cache session required' }
 cargo fmt --all -- --check
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
-cargo test --workspace --exclude cerulean-desktop --locked
-if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo build -p cerulean-domain --bin cerulean-verifier --locked
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
+# Process fixtures enforce wall-clock and process-tree boundaries. Serialize
+# them so concurrent hashing and native launches do not consume each other's budgets.
+cargo test --workspace --exclude cerulean-desktop --locked -- --test-threads=1
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
+node tests/independent-checks-native.mjs (Join-Path $env:CARGO_TARGET_DIR 'debug/cerulean-verifier.exe')
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo build -p cerulean-core --locked
 if ($LASTEXITCODE) { exit $LASTEXITCODE }

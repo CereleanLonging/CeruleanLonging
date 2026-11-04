@@ -29,7 +29,7 @@ try {
   await page.getByRole("button", { name: "扫描本地 Codex", exact: true }).click();
   assert.equal(await page.getByRole("button", { name: "正在扫描…", exact: true }).isDisabled(), true);
   assert.equal(await page.getByLabel("Codex 程序完整路径").isDisabled(), true);
-  assert.equal(await page.getByRole("button", { name: "检查现有 Codex 登录", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "测试连通", exact: true }).isDisabled(), true);
   assert.deepEqual(await page.evaluate(() => window.scans), [{ hint: "E:\\WindowsApps" }]);
   await page.evaluate(candidate => window.completeScan({ candidates: [candidate], warnings: [], limited: false }), candidate);
   await page.getByText("找到 1 个候选程序", { exact: false }).waitFor();
@@ -40,7 +40,7 @@ try {
   assert.equal(await page.getByLabel("Codex 程序完整路径").inputValue(), candidate.executable);
   assert.equal(await page.evaluate(() => window.commands.length), 0);
   await page.screenshot({ path: join(dir, "scan-results.png"), fullPage: true });
-  await page.getByRole("button", { name: "检查现有 Codex 登录", exact: true }).click();
+  await page.getByRole("button", { name: "测试连通", exact: true }).click();
   assert.deepEqual(await page.evaluate(() => window.commands), [{ type: "checkCodex", executable: candidate.executable }]);
   cases.push("Candidate selection is separate from the single explicit login check");
   await page.getByRole("button", { name: "扫描本地 Codex", exact: true }).click();

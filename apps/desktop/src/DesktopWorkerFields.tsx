@@ -1,49 +1,137 @@
 import { HelpHeading } from "./HelpHeading";
-import { useEffect, useRef, useState } from 'react';
-import type { Command, DesktopWorkerSelection, Snapshot } from './contracts';
-import { DesktopSessions } from './DesktopSessions';
+import { ErrorText } from "./ErrorText";
+import { useEffect, useRef, useState } from "react";
+import type { Command, DesktopWorkerSelection, Snapshot } from "./contracts";
 
-export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix="planning-desktop",isolationEnabled=false,send,busy=false}:{busy?:boolean;send?:(command:Command)=>Promise<boolean>;isolationEnabled?:boolean;idPrefix?:string;data:Snapshot;projectId:string;app:'qoder';worker:DesktopWorkerSelection|undefined|null;onChange:(worker:DesktopWorkerSelection|undefined)=>void}) {
-  const [connecting, setConnecting] = useState(false);
-  const bindingSelect = useRef<HTMLSelectElement>(null);
-  useEffect(() => setConnecting(false), [projectId]);
-  const project=data.workflows.find(w=>w.project.id===projectId)?.project;
-  useEffect(()=>{
-    if(!worker||!project)return;
-    let active=true;
-    async function resolve(){
-      let root=project!.root;
-      if(isolationEnabled){
-        const bytes=new TextEncoder().encode(JSON.stringify([app,null,null,[app,worker!.modelLabel]]));
-        const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');
-        root=root.replace(/[\\/]+$/,'')+'\\executors\\'+hash;
+type Props = {
+  data: Snapshot;
+  projectId: string;
+  app: "qoder";
+  worker: DesktopWorkerSelection | undefined | null;
+  onChange: (worker: DesktopWorkerSelection | undefined) => void;
+  idPrefix?: string;
+  selectionKey?: string;
+  isolationEnabled?: boolean;
+  send?: (command: Command, onError?: (message: string) => void) => Promise<boolean>;
+  busy?: boolean;
+};
+const normalize = (id: string) => id.trim().toLowerCase();
+const sessionPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function DesktopWorkerFields(props: Props) {
+  return <DesktopSessionFields key={JSON.stringify([props.data.dataDirectory, props.projectId, props.idPrefix, props.selectionKey, props.app])} {...props}/>;
+}
+
+function DesktopSessionFields({ data, projectId, app, worker, onChange, idPrefix = "planning-desktop", isolationEnabled = false, send, busy = false }: Props) {
+  const [sessionId, setSessionId] = useState(worker?.binding.observation.sessionId ?? "");
+  const [phase, setPhase] = useState<"idle" | "submitting" | "waiting">("idle");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const requestedId = useRef("");
+  const sessionField = useRef<HTMLInputElement>(null);
+  const lock = useRef(false);
+  const project = data.workflows.find(w => w.project.id === projectId)?.project;
+  const disabled = busy || phase !== "idle" || !!data.desktopAccess?.checking;
+  const valid = sessionPattern.test(normalize(sessionId));
+
+  useEffect(() => {
+    sessionField.current?.setCustomValidity(!valid ? "请填写完整的 Qoder 会话 ID（UUID）"
+      : !worker || normalize(worker.binding.observation.sessionId ?? "") !== normalize(sessionId)
+        ? "请先测试并绑定此会话" : "");
+  }, [valid, sessionId, worker?.binding.id]);
+
+  useEffect(() => {
+    if (worker?.binding.observation.sessionId) setSessionId(worker.binding.observation.sessionId);
+  }, [worker?.binding.id]);
+
+  useEffect(() => {
+    if (!worker || !project) return;
+    let active = true;
+    async function resolve() {
+      let root = project!.root;
+      if (isolationEnabled) {
+        const bytes = new TextEncoder().encode(JSON.stringify([app, null, null, [app, worker!.modelLabel]]));
+        const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
+          .map(b => b.toString(16).padStart(2, "0")).join("");
+        root = root.replace(/[\\/]+$/, "") + "\\executors\\" + hash;
       }
-      if(active&&root!==worker!.projectRoot)onChange({...worker!,projectRoot:root,workspaceConfirmed:false});
+      if (active && root !== worker!.projectRoot) onChange({ ...worker!, projectRoot: root, workspaceConfirmed: false });
     }
-    void resolve();return()=>{active=false;};
-  },[project?.root,worker?.binding.id,worker?.modelLabel,worker?.projectRoot,isolationEnabled,app]);
-  const bindings=data.desktopAccess?.bindings.filter(b=>b.projectId===projectId&&b.observation.window.app===app&&b.observation.modelLabel)??[];
-  return <section className="panel" aria-label="桌面编程会话配置">
-    <HelpHeading as="h3" topic="DesktopWorkerFields">已有聊天与执行范围</HelpHeading>
-    <p>选择当前项目已关联的 Qoder 聊天。首次使用时，打开并登录 Qoder，选择模型与聊天，再点击下方按钮读取并关联。</p>
-    {isolationEnabled&&<p className="secondary">项目配置保存后，在 Windows 执行账户中准备独立账户，登录该账户的 Qoder 并重新关联聊天，核对分配的执行目录。</p>}
-    {send && <button type="button" className="secondary-button" disabled={busy||!!data.desktopAccess?.checking} aria-expanded={connecting} aria-controls={`${idPrefix}-connection`} onClick={() => setConnecting(value => !value)}>
-      {connecting ? "收起 Qoder 会话关联" : "关联 Qoder 会话"}
-    </button>}
-    {connecting && send && <div id={`${idPrefix}-connection`} className="desktop-inline-connection">
-      <DesktopSessions data={data} busy={busy} send={send} projectId={projectId} idPrefix={`${idPrefix}-session`}
-        onBound={() => { setConnecting(false); requestAnimationFrame(() => bindingSelect.current?.focus()); }}/>
-    </div>}
-    <label htmlFor={`${idPrefix}-binding`}>选择已保存会话</label>
-    <select ref={bindingSelect} id={`${idPrefix}-binding`} required value={worker?.binding.id??''} onChange={e=>{const binding=bindings.find(b=>b.id===e.target.value);onChange(binding&&project?{binding,projectRoot:project.root,modelLabel:binding.observation.modelLabel!,workspaceConfirmed:false,externalToolsAcknowledged:false}:undefined);}}>
-      <option value="">选择已观察模型的会话关联</option>
-      {bindings.map(b=><option key={b.id} value={b.id}>{b.label} · {b.observation.modelLabel} · {b.observation.window.version}</option>)}
-    </select>
-    {!bindings.length&&<p role="status">当前项目还没有包含模型名称的 Qoder 会话关联。请{send ? "点击“关联 Qoder 会话”" : "在接入管理中"}发现窗口、读取当前聊天，并确认保存项目关联。</p>}
-    {worker&&<>
-      <DesktopExecutionReview worker={worker}/>
-      <label className="checkbox-label"><input type="checkbox" required checked={worker.workspaceConfirmed} onChange={e=>onChange({...worker,workspaceConfirmed:e.target.checked})}/>我已在外部应用核对工作目录与模型，确认该聊天用于上面的项目</label>
-      <label className="checkbox-label"><input type="checkbox" required checked={worker.externalToolsAcknowledged} onChange={e=>onChange({...worker,externalToolsAcknowledged:e.target.checked})}/>我知悉外部应用沿用自身工具权限，工作台不能拦截其全部文件、命令或网络操作</label>
+    void resolve();
+    return () => { active = false; };
+  }, [project?.root, worker?.binding.id, worker?.modelLabel, worker?.projectRoot, isolationEnabled, app]);
+
+  useEffect(() => {
+    if (phase !== "waiting" || busy || data.desktopAccess?.checking) return;
+    lock.current = false;
+    setPhase("idle");
+    if (data.desktopAccess?.error) { setError(data.desktopAccess.error); return; }
+    const binding = [...(data.desktopAccess?.bindings ?? [])].reverse().find(binding =>
+      binding.projectId === projectId && binding.observation.window.app === app
+      && normalize(binding.observation.sessionId ?? "") === requestedId.current);
+    if (!binding?.observation.modelLabel || !project) {
+      setError("会话绑定结果尚未确认，请核对会话 ID 与当前项目后重新读取。");
+      return;
+    }
+    onChange(worker?.binding.id === binding.id ? worker : {
+      binding, projectRoot: project.root, modelLabel: binding.observation.modelLabel,
+      workspaceConfirmed: false, externalToolsAcknowledged: false,
+    });
+    setNotice("会话已核对并绑定，模型已自动读取。");
+  }, [phase, busy, data.desktopAccess, projectId, project?.root, app, onChange]);
+
+  async function bind() {
+    if (disabled || lock.current || !send || !project || !valid) return;
+    lock.current = true;
+    requestedId.current = normalize(sessionId);
+    setError("");
+    setNotice("");
+    setPhase("submitting");
+    try {
+      let submissionError = "";
+      const accepted = await send({ type: "bindDesktopSession", projectId, sessionId: requestedId.current }, message => {
+        submissionError = message;
+        setError(message);
+      });
+      if (accepted && !submissionError) { setPhase("waiting"); return; }
+      setError(message => message || "会话绑定未完成，请核对当前窗口后重试。");
+    } catch (error) {
+      setError(String(error));
+    }
+    lock.current = false;
+    setPhase("idle");
+  }
+
+  return <section className="panel desktop-session-binding" aria-label="桌面编程会话配置">
+    <HelpHeading as="h3" topic="DesktopWorkerFields">绑定 Qoder 会话</HelpHeading>
+    <label htmlFor={`${idPrefix}-session-id`}>绑定的 Qoder 会话 ID</label>
+    <input ref={sessionField} id={`${idPrefix}-session-id`} value={sessionId} disabled={disabled} required maxLength={80}
+      placeholder="粘贴目标聊天的完整会话 ID（UUID）" autoComplete="off" spellCheck={false}
+      onChange={event => {
+        const next = event.target.value;
+        setSessionId(next); setError(""); setNotice("");
+        if (worker && normalize(next) !== normalize(worker.binding.observation.sessionId ?? "")) onChange(undefined);
+      }}/>
+    <div className="connection-test" data-connection-actions>
+      <button type="button" className="primary" disabled={disabled || !valid || !project || !send} onClick={() => void bind()}>
+        {phase !== "idle" ? "正在核对并绑定…" : "测试并绑定会话"}
+      </button>
+      <div className="connection-test-feedback">
+        <p className="secondary">在 Qoder 中打开对应聊天并保持空闲，选择模型后填写会话 ID。绑定时自动核对窗口、会话与模型。</p>
+        {!!sessionId && !valid && <p>请填写完整的 UUID 格式会话 ID。</p>}
+        {notice && <p role="status">{notice}</p>}
+        {error && <p role="alert"><ErrorText error={error}/></p>}
+      </div>
+    </div>
+    {worker && <>
+      <p>已绑定模型 · {worker.modelLabel}</p>
+      <p className="secondary desktop-bound-directory">执行目录 · {worker.projectRoot}</p>
+      {isolationEnabled && <p className="secondary">执行时使用本项目的独立 Windows 账户及已分配目录。登录执行账户后，在该账户的 Qoder 中重新绑定会话。</p>}
+      <label className="checkbox-label"><input type="checkbox" required disabled={disabled}
+        checked={worker.workspaceConfirmed && worker.externalToolsAcknowledged}
+        onChange={event => onChange({ ...worker, workspaceConfirmed: event.target.checked, externalToolsAcknowledged: event.target.checked })}/>
+        我已核对 Qoder 的工作目录与模型，并确认使用该应用的现有工具权限</label>
+      <details><summary>执行范围与绑定详情</summary><DesktopExecutionReview worker={worker}/></details>
     </>}
   </section>;
 }

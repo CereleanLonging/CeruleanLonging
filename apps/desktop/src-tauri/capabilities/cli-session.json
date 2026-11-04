@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "cli-session",
+  "description": "Read-only project and CLI session progress. Native scope pins the owning workbench and project.",
+  "windows": ["cli-session-*"],
+  "permissions": ["core:default", "core:window:allow-close"]
+}

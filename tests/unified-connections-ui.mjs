@@ -1,4 +1,4 @@
-import {openConfiguredConnections,openConnectionMethod} from "./connection-ui-helpers.mjs";
+import {openConfiguredConnections,openConnectionMethod,deferModelChoice} from "./connection-ui-helpers.mjs";
 // Production UI, isolated snapshots and recording IPC. Never contacts a provider.
 import {mkdtemp,readFile,writeFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
@@ -63,7 +63,7 @@ try {
         return {candidates:[{executable:'D:/synthetic/scanned/codex.exe',directory:'D:/synthetic/scanned',source:'fixture'}],warnings:[],limited:false};
       }
       const command = args?.command;
-      if (name !== 'core_submit' || !['discoverDesktop','inspectDesktop','bindDesktop','checkProviderModels','setProviderKey','checkCodex'].includes(command.type)) {
+      if (name !== 'core_submit' || !['discoverDesktop','inspectDesktop','bindDesktop','bindDesktopSession','checkProviderModels','setProviderKey','checkCodex'].includes(command.type)) {
         return originalInvoke(name,args);
       }
       window.calls.push({name,args});
@@ -75,9 +75,10 @@ try {
         access.observation = {window:command.window,modelLabel:'fixture-model',sessionId:'fixture-session',capturedAt:'2026-11-04T01:00:00Z',documentRuntimeId:'fixture-runtime',contentDigest:'b'.repeat(64),layoutDigest:'c'.repeat(64),nodeCount:1,draftEmpty:true,busy:false};
         access.observationDigest = 'd'.repeat(64);
       }
-      if (command.type === 'bindDesktop') {
+      if (command.type === 'bindDesktopSession') {
         const id = access.bindings.length ? `binding-second-${access.bindings.length+1}` : 'binding-second';
-        access.bindings.push({id,label:command.label,projectId:command.projectId,observation:access.observation,bridgeSha256:access.bridgeSha256,confirmedAt:'2026-11-04T01:00:00Z'});
+        const observation={window:{app:'qoder',title:'Synthetic Qoder',version:'0.4.3.0',hwnd:'100',pid:123,startTicks:'456',exe:'D:/synthetic/Qoder.exe'},modelLabel:'fixture-model',sessionId:command.sessionId,capturedAt:'2026-11-04T01:00:00Z',documentRuntimeId:'fixture-runtime',contentDigest:'b'.repeat(64),layoutDigest:'c'.repeat(64),nodeCount:1,draftEmpty:true,busy:false};
+        access.bindings.push({id,label:'Qoder '+command.sessionId,projectId:command.projectId,observation,bridgeSha256:access.bridgeSha256,confirmedAt:'2026-11-04T01:00:00Z'});
       }
       return {type:'receipt',value:{requestId:'fixture-'+window.calls.length}};
     };
@@ -104,13 +105,15 @@ try {
   await openConfiguredConnections(page);
   await page.locator('#planning-deputy').fill('relay-model');
   await openConnectionMethod(page,'副指挥','api');
-  await deputy.getByRole('button',{name:'读取 A6API 模型列表',exact:true}).click();
+  await deputy.getByRole('button',{name:'测试连通',exact:true}).click();
+  await deferModelChoice(page);
   await page.waitForFunction(() => window.calls.some(call => call.args?.command?.type === 'checkProviderModels'));
   assert.deepEqual((await commands()).filter(command=>command.type==='checkProviderModels'),[{type:'checkProviderModels',target:{kind:'a6ApiVip'}}]);
   assert.equal(await deputy.locator('select[id$="-origin"]').count(),0);
   await deputy.locator('summary').filter({hasText:/^Key 管理$/}).click();
   await deputy.getByLabel('A6API API Key',{exact:true}).fill('synthetic-offline-credential-only');
   await deputy.getByRole('button',{name:'加密保存 A6API Key',exact:true}).click();
+  await deferModelChoice(page);
   await page.waitForFunction(() => window.calls.some(call => call.args?.command?.type === 'setProviderKey'));
   assert.equal((await commands()).some(command=>command.type==='configureProject'),false);
   assert.equal(await deputy.getByLabel('A6API API Key',{exact:true}).inputValue(),'');
@@ -123,7 +126,7 @@ try {
   assert.equal(await page.locator('#planning-executable').inputValue(),'D:/synthetic/scanned/codex.exe');
   await openConfiguredConnections(page);
   await page.locator('#planning-worker').fill('fixture-codex-model');
-  await worker.getByRole('button',{name:'检查现有 Codex 登录',exact:true}).click();
+  await worker.getByRole('region',{name:'Codex 连接检查',exact:true}).getByRole('button',{name:'测试连通',exact:true}).click();
   await page.waitForFunction(() => window.calls.some(call => call.args?.command?.type === 'checkCodex'));
   assert.equal((await commands()).find(command=>command.type==='checkCodex').executable,'D:/synthetic/scanned/codex.exe');
   await next.click();
@@ -139,26 +142,20 @@ try {
   await page.locator('#planning-deputy').fill('second-deputy');
   await openConnectionMethod(page,'执行端','desktop');
   await worker.getByRole('button',{name:'将桌面端接入设为默认执行端',exact:true}).click();
-  const binding = page.locator('#planning-desktop-binding');
-  assert.equal(await binding.locator('option').count(),1);
+  const session = page.locator('#planning-desktop-session-id');
   await next.click();
-  assert.equal(await binding.evaluate(element=>element.validity.valueMissing),true);
+  assert.equal(await session.evaluate(element=>element.validity.valueMissing),true);
   assert.equal(await nav('接入管理').getAttribute('aria-current'),'page');
-  await worker.getByRole('button',{name:'关联 Qoder 会话',exact:true}).click();
-  await worker.getByRole('button',{name:'发现已打开窗口',exact:true}).click();
-  await worker.getByRole('button',{name:'读取当前会话',exact:true}).click();
-  await worker.getByRole('button',{name:'审阅项目关联',exact:true}).click();
-  const review = page.getByRole('dialog',{name:'确认已有会话关联',exact:true});
-  assert.equal(await review.getByLabel('工作台项目',{exact:true}).inputValue(),'second');
-  await review.getByLabel('关联名称',{exact:true}).fill('Second Qoder');
-  await review.getByRole('checkbox').check();
-  await review.getByRole('button',{name:'重新核对并保存关联',exact:true}).click();
-  await review.waitFor({state:'detached'});
-  assert.equal((await commands()).find(command=>command.type==='bindDesktop').projectId,'second');
-  await binding.selectOption('binding-second');
-  await worker.getByText('fixture-model',{exact:true}).waitFor();
+  await session.fill('12345678-1234-1234-1234-123456789abc');
+  assert.equal(await session.evaluate(element=>element.checkValidity()),false);
+  await worker.getByRole('button',{name:'测试并绑定会话',exact:true}).click();
+  await worker.getByRole('status').filter({hasText:'会话已核对并绑定'}).waitFor();
+  assert.equal((await commands()).find(command=>command.type==='bindDesktopSession').projectId,'second');
+  await worker.getByText('已绑定模型 · fixture-model',{exact:true}).waitFor();
+  assert.equal(await session.evaluate(element=>element.checkValidity()),true);
+  assert.equal(await worker.getByRole('button',{name:'发现已打开窗口',exact:true}).count(),0);
   assert.equal((await commands()).some(command=>/Trial|sendDesktop|start|requestChief/i.test(command.type)),false);
-  cases.push('Empty Qoder selection blocks Next; inline discovery/read/confirmed binding defaults to the actual second project and enables selection without messages');
+  cases.push('Qoder requires a verified session ID; one binding command uses the actual second project and fills the model without messages');
   await page.screenshot({path:join(dir,'unified-qoder.png'),fullPage:true});
 
   const scopedDirectory = () => page.waitForFunction(() => {
@@ -166,14 +163,9 @@ try {
     return /executors\\[a-f0-9]{64}$/.test(label?.nextElementSibling?.textContent??'');
   });
   await scopedDirectory();
-  await worker.getByRole('button',{name:'关联 Qoder 会话',exact:true}).click();
-  await worker.getByRole('button',{name:'读取当前会话',exact:true}).click();
-  await worker.getByRole('button',{name:'审阅项目关联',exact:true}).click();
-  await review.getByLabel('关联名称',{exact:true}).fill('Refreshed same model');
-  await review.getByRole('checkbox').check();
-  await review.getByRole('button',{name:'重新核对并保存关联',exact:true}).click();
-  await review.waitFor({state:'detached'});
-  await binding.selectOption('binding-second-2');
+  await session.fill('12345678-1234-1234-1234-123456789def');
+  await worker.getByRole('button',{name:'测试并绑定会话',exact:true}).click();
+  await worker.getByRole('status').filter({hasText:'会话已核对并绑定'}).waitFor();
   await scopedDirectory();
   cases.push('Rebinding another chat for the same model retains its assigned executor directory');
 

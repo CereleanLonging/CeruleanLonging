@@ -14,6 +14,8 @@ const runtime = resolve(process.env.CERULEAN_NATIVE_RUNTIME || "target/debug/cer
 const source = join(run, "source");
 const payload = join(source, ".temp/build-cache/jobs/123/nested");
 await mkdir(payload, { recursive: true });
+await mkdir(join(source, '.temp/build-cache/jobs/124'), { recursive: true });
+await mkdir(join(source, 'target/release/deps'), { recursive: true });
 await writeFile(join(source, "Cargo.toml"), "[workspace]\n");
 await writeFile(join(source, "package.json"), '{"name":"cerulean-longing"}');
 await writeFile(join(source, "source.rs"), "source sentinel");
@@ -64,6 +66,8 @@ try {
   await panel.getByRole("button", { name: "扫描全项目临时缓存" }).click();
   await panel.getByText("扫描体积已记录到提炼日志。").waitFor();
   assert.equal((await invoke("status")).totalBytes, 2048);
+  assert.equal((await invoke("status")).entries.length, 1);
+  assert.equal(await panel.locator('tbody tr').count(), 1);
   cases.push("Real maintenance panel scans the selected source fixture and records its size");
   await panel.screenshot({ path: join(run, "native-cache-before.png") });
   await panel.getByRole("button", { name: "清理剩余缓存" }).click();
@@ -74,6 +78,9 @@ try {
   cases.push("Native cleanup removes only cache files and preserves empty folders and source");
   const after = await invoke("status");
   assert.equal(after.totalBytes, 0);
+  assert.deepEqual(after.entries, []);
+  await panel.getByText('当前没有占用空间的缓存。', { exact: true }).waitFor();
+  assert.equal(await panel.getByRole('table').count(), 0);
   assert.equal(after.cumulativeCleanedBytes, 2048);
   const logs = await readdir(join(source, "docs/build-cache/cleanup-logs"));
   assert(logs.some(name => name.endsWith("-completed.md")));

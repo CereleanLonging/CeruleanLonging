@@ -489,13 +489,15 @@ impl Project {
                     if !active {
                         result.available_bytes = result.available_bytes.saturating_add(bytes);
                     }
-                    result.entries.push(Entry {
-                        path: candidate.path,
-                        kind: candidate.kind.into(),
-                        bytes,
-                        files,
-                        active,
-                    });
+                    if bytes > 0 {
+                        result.entries.push(Entry {
+                            path: candidate.path,
+                            kind: candidate.kind.into(),
+                            bytes,
+                            files,
+                            active,
+                        });
+                    }
                 }
                 Err(e) => result.warnings.push(e),
             }
@@ -627,6 +629,48 @@ impl Project {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cache_entries_track_occupied_bytes_and_hide_retained_empty_directories() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("package.json"),
+            r#"{"name":"cerulean-longing"}"#,
+        )
+        .unwrap();
+        fs::write(root.path().join("Cargo.toml"), "[workspace]\n").unwrap();
+        let project = Project::open(root.path()).unwrap();
+        let session = project.begin().unwrap();
+        let directory = session.directory.clone();
+        let nested = directory.join("nested");
+        fs::create_dir(&nested).unwrap();
+        fs::write(nested.join("empty.tmp"), b"").unwrap();
+        fs::create_dir_all(root.path().join("target/release/deps")).unwrap();
+        assert!(project.snapshot(true).unwrap().entries.is_empty());
+
+        fs::write(nested.join("compiled.tmp"), b"abc").unwrap();
+        let occupied = project.snapshot(false).unwrap();
+        assert_eq!(occupied.entries.len(), 1);
+        assert_eq!(occupied.entries[0].bytes, 3);
+        assert!(occupied.entries[0].active);
+        assert_eq!(occupied.total_bytes, 3);
+        assert_eq!(occupied.available_bytes, 0);
+        project.finish(session, true).unwrap();
+
+        let empty = project.snapshot(false).unwrap();
+        assert!(empty.entries.is_empty());
+        assert_eq!(empty.total_bytes, 0);
+        assert_eq!(empty.cumulative_cleaned_bytes, 3);
+        assert_eq!(empty.pending_operations, 0);
+        assert!(nested.is_dir());
+        fs::write(nested.join("new.tmp"), b"x").unwrap();
+        let reused = project.snapshot(true).unwrap();
+        assert_eq!(reused.entries.len(), 1);
+        assert_eq!(reused.entries[0].path, directory);
+        assert_eq!(reused.entries[0].bytes, 1);
+        assert!(!reused.entries[0].active);
+        assert_eq!(reused.available_bytes, 1);
+    }
 
     #[test]
     fn cargo_profile_mutex_protects_direct_builds() {

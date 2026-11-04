@@ -442,6 +442,16 @@ public partial class DesktopObserver {
         var rounds=TaskRounds(view);
         return TaskResult(review,view,rounds);
     }
+    static object ReadReview(TaskReview review) {
+        ReviewTask(review);
+        var view=ReadView(review.observation.window,false);
+        var rounds=TaskRounds(view);
+        TaskResult(review,view,rounds);
+        string text=rounds.Last().reply;
+        text=text.Substring(0,text.Length-review.marker.Length).Trim();
+        if(text.Length==0||System.Text.Encoding.UTF8.GetByteCount(text)>16384)throw new InvalidOperationException("review_reply_invalid");
+        return new{reviewText=text};
+    }
     static object TaskResult(TaskReview review,View view,Round[] rounds) {
         Continuity(view,review);
         if(!Same(view.observation.window,review.observation.window))throw new InvalidOperationException("trial_view_changed");

@@ -2,7 +2,7 @@
 //! revalidate the same task's evidence before publishing the existing Verify.
 use super::*;
 use crate::verifier::{verify_with_retirements, PinnedCheck, VerificationInput};
-use cerulean_domain::execution::{digest, ExecutionReceipt};
+use cerulean_domain::execution::{digest, identifier, ExecutionReceipt};
 use std::sync::atomic::AtomicBool;
 
 #[derive(Serialize)]
@@ -20,6 +20,40 @@ pub(crate) struct PreparedVerification {
     retired_rechecks: Vec<String>,
 }
 impl PreparedVerification {
+    pub(crate) fn checks(&self) -> Result<&[cerulean_domain::execution::AcceptanceCheck], String> {
+        Ok(&self.plan.task(&self.attempt.task_id)?.checks)
+    }
+    pub(crate) fn functional_run(
+        &self,
+        pins: &[PinnedCheck],
+        cancel: &AtomicBool,
+        source: &str,
+    ) -> Result<VerificationReport, String> {
+        fs::create_dir_all(&self.evidence).map_err(|e| e.to_string())?;
+        crate::verifier::verify_functional(
+            VerificationInput {
+                plan: &self.plan,
+                approval: &self.approval,
+                authenticated_user: &self.user,
+                policy_version: self.policy_version,
+                attempt: &self.attempt,
+                receipt: &self.receipt,
+                manifest: &self.manifest,
+                verifier_id: &self.core,
+            },
+            pins,
+            &self.evidence,
+            &self.operation,
+            cancel,
+            source,
+        )
+    }
+    pub(crate) fn require_functional_pass(
+        &self,
+        report: &VerificationReport,
+    ) -> Result<(), String> {
+        report.require_pass(&self.plan, &self.manifest, &self.core)
+    }
     pub(crate) fn require_scope(
         &self,
         project: &str,
@@ -95,6 +129,51 @@ impl DurableWorkflow {
                 && !run.verified,
             "submitted unverified attempt required",
         )?;
+        self.capture_verification(operation, task, attempt)
+    }
+    pub(crate) fn prepare_functional_verification(
+        &self,
+        round: &crate::blind_review::Round,
+        operation: &str,
+        task: &str,
+        attempt: &str,
+    ) -> Result<PreparedVerification, String> {
+        require(
+            !self.poisoned
+                && self.unresolved_verification_recheck().is_none()
+                && self.state().revision_requested.is_none(),
+            "整体功能测试的原方案不可用",
+        )?;
+        require(
+            round.phase == cerulean_domain::blind_review::ReviewPhase::AwaitingFunctionalTest
+                && self.revision().ok_or("原方案缺失")?.approval_digest()?
+                    == round.binding.revision
+                && self.state().approved
+                && !self.state().tasks.is_empty()
+                && self
+                    .state()
+                    .tasks
+                    .values()
+                    .all(|t| t.state == TaskState::Accepted && t.verified)
+                && self
+                    .state()
+                    .tasks
+                    .get(task)
+                    .is_some_and(|t| t.attempt.as_deref() == Some(attempt)),
+            "尚未通过当前项目盲评，不能准备整体功能测试",
+        )?;
+        identifier(operation)?;
+        let mut prepared = self.capture_verification(operation, task, attempt)?;
+        prepared.evidence = self.root.join("functional-verification");
+        prepared.retired_rechecks.clear();
+        Ok(prepared)
+    }
+    fn capture_verification(
+        &self,
+        operation: &str,
+        task: &str,
+        attempt: &str,
+    ) -> Result<PreparedVerification, String> {
         let scope = self
             .config
             .execution_scope

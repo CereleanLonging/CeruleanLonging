@@ -201,9 +201,13 @@ pub(crate) fn inventory(root: &Path, cold: bool) -> io::Result<Tree> {
     Ok(tree)
 }
 fn has_private_review(tree: &Tree) -> bool {
-    tree.nodes
-        .iter()
-        .any(|n| n.entry.path == "blind-review" || n.entry.path.starts_with("blind-review/"))
+    tree.nodes.iter().any(|n| {
+        ["blind-review", "independent-check-archive"]
+            .iter()
+            .any(|folder| {
+                n.entry.path == *folder || n.entry.path.starts_with(&format!("{folder}/"))
+            })
+    })
 }
 fn create_copy_directory(path: &Path, private: bool) -> io::Result<()> {
     if private {

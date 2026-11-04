@@ -70,6 +70,184 @@ fn fixture(root: &Path) -> RuntimeHost {
     host.desktop_fixture = Some(reply);
     host
 }
+
+#[test]
+fn session_id_command_binds_and_reuses_verified_evidence_without_sending() {
+    let root = tempfile::tempdir().unwrap();
+    let mut host = fixture(root.path());
+    let session_id = "12345678-1234-1234-1234-123456789ABC";
+    let response = host.handle_command(cerulean_domain::Request {
+        id: "session-binding".into(),
+        protocol_version: cerulean_domain::PROTOCOL_VERSION,
+        command: cerulean_domain::Command::BindDesktopSession {
+            project_id: "project".into(),
+            session_id: session_id.into(),
+        },
+    });
+    assert!(response.error.is_none());
+    spin(&mut host);
+    assert!(host.desktop_access.error.is_none());
+    let original = host.desktop_access.bindings.clone();
+    assert_eq!(original.len(), 1);
+    assert_eq!(original[0].project_id, "project");
+    assert!(original[0]
+        .observation
+        .session_id
+        .as_ref()
+        .unwrap()
+        .eq_ignore_ascii_case(session_id));
+    host.bind_desktop_session("project", session_id).unwrap();
+    spin(&mut host);
+    assert_eq!(host.desktop_access.bindings, original);
+    assert!(host.desktop_access.trials.is_empty() && host.desktop_access.tasks.is_empty());
+    drop(host);
+    assert_eq!(
+        RuntimeHost::open(&root.path().join("data"))
+            .unwrap()
+            .desktop_access
+            .bindings,
+        original
+    );
+}
+
+#[test]
+fn session_id_rebinding_to_an_earlier_model_publishes_current_evidence_last() {
+    let root = tempfile::tempdir().unwrap();
+    let mut host = fixture(root.path());
+    let id = "12345678-1234-1234-1234-123456789abc";
+    host.bind_desktop_session("project", id).unwrap();
+    spin(&mut host);
+    host.desktop_fixture = Some(|request| {
+        let mut result = reply(request)?;
+        if let Some(observation) = &mut result.observation {
+            observation.model_label = Some("another-model".into());
+        }
+        Ok(result)
+    });
+    host.bind_desktop_session("project", id).unwrap();
+    spin(&mut host);
+    host.desktop_fixture = Some(reply);
+    host.bind_desktop_session("project", id).unwrap();
+    spin(&mut host);
+    assert_eq!(host.desktop_access.bindings.len(), 3);
+    assert_eq!(
+        host.desktop_access
+            .bindings
+            .last()
+            .unwrap()
+            .observation
+            .model_label
+            .as_deref(),
+        Some("fixture-model")
+    );
+}
+
+#[test]
+fn session_id_rejects_invalid_missing_and_ambiguous_targets() {
+    let root = tempfile::tempdir().unwrap();
+    let mut host = fixture(root.path());
+    assert!(host
+        .bind_desktop_session("project", "not-a-session")
+        .is_err());
+    assert!(host
+        .bind_desktop_session("missing", "12345678-1234-1234-1234-123456789abc")
+        .is_err());
+    assert!(host.desktop_probe.is_none());
+    host.bind_desktop_session("project", "12345678-1234-1234-1234-123456789def")
+        .unwrap();
+    spin(&mut host);
+    assert!(host
+        .desktop_access
+        .error
+        .as_deref()
+        .unwrap()
+        .contains("未找到"));
+    assert!(host.desktop_access.bindings.is_empty());
+    let result = observe_session("12345678-1234-1234-1234-123456789abc", |request| {
+        let mut result = reply(request)?;
+        if matches!(request, ReadRequest::Discover { .. }) {
+            let first = window(DesktopApp::Qoder);
+            let mut second = first.clone();
+            second.hwnd = "123457".into();
+            result.windows = vec![first, second];
+        }
+        Ok(result)
+    });
+    assert!(result.err().unwrap().contains("多个 Qoder 窗口"));
+}
+
+#[test]
+fn session_id_requires_a_stable_model_and_idle_matching_window() {
+    let id = "12345678-1234-1234-1234-123456789abc";
+    for mode in ["missing-model", "changed", "busy", "window-changed"] {
+        let mut observations = 0;
+        let result = observe_session(id, |request| {
+            let mut result = reply(request)?;
+            if let Some(observed) = &mut result.observation {
+                observations += 1;
+                match mode {
+                    "missing-model" => observed.model_label = None,
+                    "changed" if observations == 2 => observed.content_digest = "d".repeat(64),
+                    "busy" => observed.busy = true,
+                    "window-changed" => observed.window.pid += 1,
+                    _ => (),
+                }
+            }
+            Ok(result)
+        });
+        assert!(result.is_err(), "{mode}");
+    }
+}
+
+#[test]
+fn session_id_selects_the_exact_id_and_bounds_discovery() {
+    let id = "12345678-1234-1234-1234-123456789abc";
+    let result = observe_session(id, |request| {
+        let mut result = reply(request)?;
+        if matches!(request, ReadRequest::Discover { .. }) {
+            let first = window(DesktopApp::Qoder);
+            let mut second = first.clone();
+            second.hwnd = "123457".into();
+            result.windows = vec![second, first];
+        }
+        if let Some(observed) = &mut result.observation {
+            if observed.window.hwnd == "123457" {
+                observed.session_id = Some("12345678-1234-1234-1234-123456789def".into());
+            }
+        }
+        Ok(result)
+    })
+    .unwrap();
+    assert_eq!(result.observation.unwrap().window.hwnd, "123456");
+    let result = observe_session(id, |request| {
+        let mut result = reply(request)?;
+        if matches!(request, ReadRequest::Discover { .. }) {
+            let first = window(DesktopApp::Qoder);
+            let mut other = first.clone();
+            other.hwnd = "123457".into();
+            result.windows = vec![other, first];
+        }
+        if result
+            .observation
+            .as_ref()
+            .is_some_and(|o| o.window.hwnd == "123457")
+        {
+            return Err("unrelated window is busy".into());
+        }
+        Ok(result)
+    })
+    .unwrap();
+    assert_eq!(result.observation.unwrap().window.hwnd, "123456");
+    for count in [0, 9, 33] {
+        let result = observe_session(id, |_| {
+            Ok(ReadReply {
+                windows: vec![window(DesktopApp::Qoder); count],
+                ..Default::default()
+            })
+        });
+        assert!(result.is_err());
+    }
+}
 fn inspect(host: &mut RuntimeHost, app: DesktopApp) {
     host.discover_desktop().unwrap();
     spin(host);

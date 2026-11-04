@@ -57,6 +57,7 @@ impl RuntimeHost {
         setup_digest: &str,
         session: &str,
     ) -> Result<ManagementHandoff, String> {
+        self.require_review_dispatch_idle()?;
         identifier(session)?;
         crate::management_source_guard::require_protected(&self.root, true)?;
         self.require_currency_execution_available(project)?;
@@ -106,6 +107,7 @@ impl RuntimeHost {
         session: &str,
         response: ExternalChiefDecision,
     ) -> Result<(), String> {
+        self.require_review_dispatch_idle()?;
         self.poll_verifications();
         let request = self.management.external_request(operation)?.clone();
         self.require_currency_execution_available(&request.project_id)?;

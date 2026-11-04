@@ -48,7 +48,8 @@ pub fn effective_policy<'a>(
         adapter == "codex"
             || policy.is_none()
             || crate::api_worker::is_api_adapter(adapter)
-            || adapter == "omp",
+            || adapter == "omp"
+            || adapter == "qoder",
         "此执行器尚不支持当前监督模式",
     )?;
     if let Some(policy) = policy {
@@ -192,7 +193,15 @@ mod tests {
             max_advice_per_attempt: 1,
             delivery_enabled: false,
         };
-        for adapter in ["openai", "deepseek", "anthropic", "qwen", "kimi", "grok"] {
+        for adapter in [
+            "openai",
+            "deepseek",
+            "anthropic",
+            "qwen",
+            "kimi",
+            "grok",
+            "qoder",
+        ] {
             assert_eq!(
                 effective_policy(Some(&policy), None, adapter).unwrap(),
                 Some(&policy)
@@ -211,7 +220,7 @@ mod tests {
         policy.delivery_enabled = true;
         assert!(effective_policy(Some(&policy), None, "omp").is_ok());
         policy.delivery_enabled = false;
-        for adapter in ["qoder", "workbuddy"] {
+        for adapter in ["workbuddy", "unknown"] {
             assert!(effective_policy(Some(&policy), None, adapter).is_err());
         }
     }
@@ -247,7 +256,15 @@ mod tests {
             r#"{"mode":"disabled"}"#
         );
         assert_eq!(serde_json::to_value(&enabled).unwrap()["mode"], "enabled");
-        for adapter in ["deepseek", "openai", "anthropic", "qwen", "kimi", "grok"] {
+        for adapter in [
+            "deepseek",
+            "openai",
+            "anthropic",
+            "qwen",
+            "kimi",
+            "grok",
+            "qoder",
+        ] {
             assert_eq!(
                 effective_policy(Some(&inherited), None, adapter).unwrap(),
                 Some(&inherited)
@@ -260,7 +277,7 @@ mod tests {
                 .unwrap()
                 .is_none());
         }
-        for adapter in ["qoder", "workbuddy"] {
+        for adapter in ["workbuddy", "unknown"] {
             assert!(effective_policy(Some(&inherited), None, adapter).is_err());
             assert!(effective_policy(None, Some(&enabled), adapter).is_err());
             assert!(effective_policy(Some(&inherited), Some(&disabled), adapter)

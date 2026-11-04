@@ -19,6 +19,23 @@ pub const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
     deny_unknown_fields
 )]
 pub enum Operation {
+    InspectChecks {
+        project: String,
+        operation: String,
+        manifest: crate::execution::ArtifactManifest,
+        approved: Vec<crate::execution::AcceptanceCheck>,
+        report: crate::execution::VerificationReport,
+    },
+    ArchiveChecks {
+        archive: crate::independent_checks::CheckArchive,
+    },
+    WeightedTally {
+        policy: crate::review_weights::WeightPolicy,
+        archive: crate::independent_checks::CheckArchive,
+        material: ReviewMaterial,
+        seats: Vec<ReviewSeat>,
+        ballots: Vec<RevealedBallot>,
+    },
     Prepare {
         requirement: String,
         criteria: Vec<String>,
@@ -31,6 +48,13 @@ pub enum Operation {
         seat: ReviewSeat,
         model: String,
         ballot: Ballot,
+    },
+    AuditBallot {
+        material: ReviewMaterial,
+        seat: ReviewSeat,
+        model: String,
+        ballot: Option<Ballot>,
+        audit: ReviewToolAudit,
     },
     Tally {
         material: ReviewMaterial,
@@ -52,9 +76,27 @@ pub struct Request {
     deny_unknown_fields
 )]
 pub enum Output {
-    Prepared { material: ReviewMaterial },
+    ChecksInspected {
+        record: crate::independent_checks::CheckRecord,
+    },
+    CheckArchiveValidated {
+        digest: String,
+        basis_points: u32,
+    },
+    Weighted {
+        result: crate::review_weights::WeightedResult,
+    },
+    Prepared {
+        material: ReviewMaterial,
+    },
     BallotChecked {},
-    Tallied { passed: bool, votes: u32 },
+    BallotAudited {
+        ballot: Ballot,
+    },
+    Tallied {
+        passed: bool,
+        votes: u32,
+    },
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -68,7 +110,7 @@ pub struct Response {
 
 fn validate_seat(s: &ReviewSeat) -> Result<(), String> {
     identifier(&s.id)?;
-    s.target.url()?;
+    s.validate_source()?;
     require(
         matches!(s.role.as_str(), "chief" | "deputy" | "worker"),
         "独立验收席位角色无效",
@@ -102,6 +144,51 @@ fn check_ballot(
 }
 pub fn evaluate(operation: &Operation) -> Result<Output, String> {
     match operation {
+        Operation::InspectChecks {
+            project,
+            operation,
+            manifest,
+            approved,
+            report,
+        } => Ok(Output::ChecksInspected {
+            record: crate::independent_checks::inspect(
+                project, operation, manifest, approved, report,
+            )?,
+        }),
+        Operation::ArchiveChecks { archive } => Ok(Output::CheckArchiveValidated {
+            digest: digest(archive)?,
+            basis_points: archive.basis_points()?,
+        }),
+        Operation::WeightedTally {
+            policy,
+            archive,
+            material,
+            seats,
+            ballots,
+        } => Ok(Output::Weighted {
+            result: crate::review_weights::evaluate(policy, archive, material, seats, ballots)?,
+        }),
+        Operation::AuditBallot {
+            material,
+            seat,
+            model,
+            ballot,
+            audit,
+        } => {
+            material.validate()?;
+            validate_seat(seat)?;
+            if audit.status == ReviewToolStatus::Clean {
+                check_ballot(
+                    material,
+                    seat,
+                    model,
+                    ballot.as_ref().ok_or("缺少模型评分")?,
+                )?;
+            }
+            Ok(Output::BallotAudited {
+                ballot: audit.effective_ballot(ballot.as_ref(), material)?,
+            })
+        }
         Operation::Prepare {
             requirement,
             criteria,
@@ -153,10 +240,7 @@ pub fn evaluate(operation: &Operation) -> Result<Output, String> {
                 validate_seat(s)?;
                 require(ids.insert(&s.id), "独立验收席位重复")?;
                 if s.role == "worker" {
-                    require(
-                        workers.insert(digest(&(&s.target, &s.model))?),
-                        "执行评审身份重复",
-                    )?;
+                    require(workers.insert(s.identity()?), "执行评审身份重复")?;
                 }
             }
             for role in ["chief", "deputy"] {
@@ -172,7 +256,17 @@ pub fn evaluate(operation: &Operation) -> Result<Output, String> {
                     .iter()
                     .find(|s| s.id == b.seat)
                     .ok_or("票据席位不属于本轮名册")?;
-                check_ballot(material, seat, &b.model, &b.ballot)?;
+                if let Some(audit) = &b.tool_audit {
+                    require(
+                        audit.effective_ballot(b.original_ballot.as_ref(), material)? == b.ballot,
+                        "工具核验结果与计票不符",
+                    )?;
+                    if audit.status == ReviewToolStatus::Clean {
+                        check_ballot(material, seat, &b.model, &b.ballot)?;
+                    }
+                } else {
+                    check_ballot(material, seat, &b.model, &b.ballot)?;
+                }
             }
             Ok(Output::Tallied {
                 passed: ballots.iter().all(|b| b.ballot.vote == Vote::Pass),
@@ -219,7 +313,8 @@ mod tests {
             .map(|r| ReviewSeat {
                 id: r.into(),
                 role: r.into(),
-                target: crate::api_worker::ApiTarget::OpenAi {},
+                target: Some(crate::api_worker::ApiTarget::OpenAi {}),
+                transport: None,
                 model: r.into(),
                 allowed_models: vec![r.into()],
             })
@@ -229,9 +324,12 @@ mod tests {
         seats()
             .into_iter()
             .map(|s| RevealedBallot {
+                tool_audit: None,
+                original_ballot: None,
                 seat: s.id,
                 model: s.model,
                 ballot: Ballot {
+                    assessments: vec![],
                     vote: Vote::Pass,
                     citations: vec!["fragment-0001".into()],
                     reason: "Matches the approved criterion".into(),
@@ -339,5 +437,72 @@ mod tests {
         json["path"] = "C:\\secret".into();
         assert!(handle(&serde_json::to_vec(&json).unwrap()).is_err());
         assert!(handle(&vec![b' '; MAX_MESSAGE_BYTES + 1]).is_err());
+    }
+    #[test]
+    fn tool_calls_and_missing_audit_override_a_pass_vote() {
+        let material = material();
+        let seat = seats().remove(0);
+        let original = Ballot {
+            assessments: vec![],
+            vote: Vote::Pass,
+            citations: vec![material.fragments[0].id.clone()],
+            reason: "Model says pass".into(),
+        };
+        for status in [
+            ReviewToolStatus::ToolCallObserved,
+            ReviewToolStatus::Unverifiable,
+        ] {
+            let audit = ReviewToolAudit {
+                tools: if status == ReviewToolStatus::ToolCallObserved {
+                    vec!["web_search".into()]
+                } else {
+                    vec![]
+                },
+                status,
+                source: "api-response".into(),
+                request: "request-1".into(),
+                evidence_digest: "a".repeat(64),
+                reason: "Captured scoring trace".into(),
+            };
+            let Output::BallotAudited { ballot } = evaluate(&Operation::AuditBallot {
+                material: material.clone(),
+                seat: seat.clone(),
+                model: seat.model.clone(),
+                ballot: Some(original.clone()),
+                audit: audit.clone(),
+            })
+            .unwrap() else {
+                panic!("audit output")
+            };
+            assert_eq!(ballot.vote, Vote::Fail);
+            assert_eq!(original.vote, Vote::Pass);
+            let mut votes = ballots();
+            votes[0] = RevealedBallot {
+                seat: seat.id.clone(),
+                model: seat.model.clone(),
+                ballot,
+                tool_audit: Some(audit),
+                original_ballot: Some(original.clone()),
+            };
+            assert_eq!(
+                evaluate(&Operation::Tally {
+                    material: material.clone(),
+                    seats: seats(),
+                    ballots: votes.clone()
+                })
+                .unwrap(),
+                Output::Tallied {
+                    passed: false,
+                    votes: 3
+                }
+            );
+            votes[0].ballot.vote = Vote::Pass;
+            assert!(evaluate(&Operation::Tally {
+                material: material.clone(),
+                seats: seats(),
+                ballots: votes
+            })
+            .is_err());
+        }
     }
 }

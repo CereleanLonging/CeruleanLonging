@@ -15,6 +15,11 @@ try{
   await page.evaluate(()=>{
     window.calls=[];window.pending=null;window.fail=false;window.cacheHold=false;
     window.cacheData={projectRoot:'D:\\source',temporaryRoot:'D:\\source\\.temp\\build-cache',logDirectory:'D:\\source\\docs\\build-cache\\cleanup-logs',totalBytes:4096,availableBytes:1024,cumulativeCleanedBytes:8192,scanCount:1,pendingOperations:0,entries:[{path:'D:\\source\\.temp\\build-cache\\jobs\\123',kind:'任务临时缓存',bytes:3072,files:2,active:true},{path:'D:\\source\\target\\release\\deps',kind:'旧编译缓存',bytes:1024,files:1,active:false}],recent:[],warnings:[]};
+    window.cacheData.entries.push(
+      {path:'D:\\source\\empty-job',kind:'任务临时缓存',bytes:0,files:0,active:false},
+      {path:'D:\\source\\active-empty-job',kind:'任务临时缓存',bytes:0,files:0,active:true},
+      {path:'D:\\source\\zero-byte-file',kind:'工具临时缓存',bytes:0,files:1,active:false},
+    );
     window.__TAURI_INTERNALS__={invoke:async(name,args)=>{
       window.calls.push({name,args});
       if(name==='maintenance_info')return {version:'0.1.3',installationDirectory:'D:\\test install',dataDirectory:'D:\\test data',holdPresent:true,bundleSchema:1};
@@ -54,6 +59,9 @@ try{
   const cache=page.getByRole('region',{name:'累计缓存监控'});
   assert.equal(await page.locator('.maintenance-page > section').last().getAttribute('aria-label'),'累计缓存监控');
   await cache.getByText('使用中，清理时跳过').waitFor();
+  assert.equal(await cache.locator('tbody tr').count(),2);
+  assert.equal(await cache.getByText('D:\\source\\empty-job',{exact:true}).count(),0);
+  cases.push('zero-byte-cache-regions-are-hidden-including-legacy-active-and-empty-file-entries');
   assert.match(await cache.innerText(),/累计已清理/);cases.push('cache-panel-last-and-usage-visible');
   await cache.screenshot({path:join(run,'cache-monitor.png')});
   await page.evaluate(()=>{window.cacheHold=true;});
@@ -71,6 +79,21 @@ try{
   await scan.click();await page.evaluate(()=>window.cachePending.no(Error('缓存目录身份发生变化')));
   await cache.getByRole('alert').waitFor();
   assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='build_cache_monitor'&&x.args.action==='scan').length),2);cases.push('cache-scan-failure-not-retried');
+  await scan.click();
+  await page.evaluate(()=>{
+    window.cacheData.entries.forEach(entry=>{entry.bytes=0;entry.files=0;});
+    window.cacheData.totalBytes=0;
+    window.cacheData.pendingOperations=1;
+    window.cacheData.warnings=['合成缓存检查提示'];
+    window.cachePending.ok(window.cacheData);
+  });
+  await cache.getByText('当前没有占用空间的缓存。',{exact:true}).waitFor();
+  assert.equal(await cache.getByRole('table').count(),0);
+  assert.equal(await cache.getByRole('button',{name:'清理剩余缓存'}).isDisabled(),true);
+  await cache.getByText('合成缓存检查提示',{exact:true}).waitFor();
+  await cache.getByText('有 1 条清理尚缺完成回执，请核对提炼日志和当前扫描结果。',{exact:true}).waitFor();
+  await cache.screenshot({path:join(run,'cache-empty.png')});
+  cases.push('empty-cache-summary-keeps-counters-and-diagnostic-receipts-visible');
   await page.getByLabel('工作台源码目录').fill('D:\\another-source');
   assert.equal(await cache.getByRole('button',{name:'清理剩余缓存'}).isDisabled(),true);cases.push('cache-root-change-invalidates-old-scan');
   await page.setViewportSize({width:940,height:700});

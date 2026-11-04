@@ -63,6 +63,7 @@ impl Command {
             | Self::SendDesktopTrial { .. }
             | Self::ReadDesktopTrial { .. }
             | Self::DiscoverDesktop
+            | Self::BindDesktopSession { .. }
             | Self::InspectDesktop { .. }
             | Self::BindDesktop { .. }
             | Self::ReviewManagementRecord { .. }

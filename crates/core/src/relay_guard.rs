@@ -329,20 +329,26 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn relay_vault_separates_official_credentials_and_rejects_unprotected_save() {
+    fn relay_vault_separates_credentials_before_project_data_upgrade() {
         use cerulean_domain::{credentials::CredentialProvider as P, secret::SecretInput};
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("data");
         drop(Store::open(&root).unwrap());
         let relay = SecretInput::new("synthetic-a6api-vault-sentinel".into()).unwrap();
         let official = SecretInput::new("synthetic-official-vault-sentinel".into()).unwrap();
-        let before = snapshot(&root);
-        assert!(crate::credential_vault::save_for(&root, P::A6Api, &relay)
+        let before = snapshot(&root.join("events"));
+        crate::credential_vault::save_for(&root, P::A6Api, &relay).unwrap();
+        assert_eq!(snapshot(&root.join("events")), before);
+        assert_eq!(
+            crate::data_format::status(&root)
+                .unwrap()
+                .minimum_reader_generation,
+            1
+        );
+        drop(Store::open(&root).unwrap());
+        assert!(require_protected(&root, true)
             .unwrap_err()
             .contains("reader16"));
-        assert_eq!(snapshot(&root), before);
-        promote_fixture(&root, &temp.path().join("cold"));
-        crate::credential_vault::save_for(&root, P::A6Api, &relay).unwrap();
         crate::credential_vault::save_for(&root, P::OpenAi, &official).unwrap();
         assert_eq!(
             crate::credential_vault::load_for(&root, P::A6Api)

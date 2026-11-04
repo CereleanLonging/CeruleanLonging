@@ -312,12 +312,21 @@ fn complete_native_blind_review_and_boundaries(root: &Path, mut host: RuntimeHos
             .collect::<Vec<_>>();
     assert_eq!(packets.len(), 2);
     assert!(packets.iter().any(|p| p.contains("\"content\":\"alpha\"")));
-    host.blind_fixture = Some(|seat, _, _, material, analysis| {
+    host.blind_fixture = Some(|seat, request, _, material, analysis| {
         assert!(analysis.is_none());
         Ok(blind_review_host::ReviewResponse::Vote(
             cerulean_adapters::blind_review::Observation {
+                audit: cerulean_domain::blind_review::ReviewToolAudit {
+                    status: cerulean_domain::blind_review::ReviewToolStatus::Clean,
+                    source: "api-response".into(),
+                    request,
+                    evidence_digest: "a".repeat(64),
+                    tools: vec![],
+                    reason: "Synthetic complete no-tool response".into(),
+                },
                 model: seat.model,
                 ballot: cerulean_domain::blind_review::Ballot {
+                    assessments: vec![],
                     vote: cerulean_domain::blind_review::Vote::Pass,
                     citations: vec![material.fragments[0].id.clone()],
                     reason: "Synthetic transport confirms the fixed alpha beta fixture".into(),

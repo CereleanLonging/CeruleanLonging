@@ -23,6 +23,9 @@ pub(super) struct Binding {
     pub(super) observation_digest: String,
 }
 pub(super) fn binding(intent: &DecisionIntent) -> Result<Option<Binding>, String> {
+    if super::desktop_supervision::binding(intent)?.is_some() {
+        return Ok(None);
+    }
     #[cfg(windows)]
     if super::omp_supervision_requests::binding(intent)?.is_some() {
         return Ok(None);
@@ -62,6 +65,9 @@ pub(super) fn binding(intent: &DecisionIntent) -> Result<Option<Binding>, String
 pub(super) fn request_policy(
     intent: &DecisionIntent,
 ) -> Result<cerulean_domain::supervision::SupervisionPolicy, String> {
+    if let Some(bound) = super::desktop_supervision::binding(intent)? {
+        return request_policy_for_task(intent, &bound.task_id);
+    }
     let task = match super::api_supervision_requests::binding(intent)? {
         Some(bound) => bound.task_id,
         None => {
@@ -103,6 +109,9 @@ impl RuntimeHost {
         &self,
         intent: &DecisionIntent,
     ) -> Result<(), String> {
+        if super::desktop_supervision::binding(intent)?.is_some() {
+            return self.revalidate_desktop_supervision(intent);
+        }
         #[cfg(windows)]
         if super::omp_supervision_requests::binding(intent)?.is_some() {
             return self.revalidate_omp_supervision(intent);
@@ -553,6 +562,9 @@ impl RuntimeHost {
         operation: &str,
     ) -> Result<Option<SupervisionAdviceView>, String> {
         let intent = self.management.intent(operation)?;
+        if super::desktop_supervision::binding(intent)?.is_some() {
+            return self.desktop_supervision_advice_view(intent).map(Some);
+        }
         #[cfg(windows)]
         if super::omp_supervision_requests::binding(intent)?.is_some() {
             return self.omp_supervision_advice_view(intent).map(Some);

@@ -3,6 +3,8 @@ import { ErrorText } from "./ErrorText";
 import {useRef,useState} from 'react';
 import type {Command,DesktopTaskReview,DesktopTaskStatus,Snapshot} from './contracts';
 
+const supervisionStates:Record<string,string>={waitingForHooks:"等待 Qoder Hook 连接",collecting:"已连接，正在采集工具事件",advicePending:"副指挥正在生成建议",outputReleased:"建议已通过 Hook 输出",unknown:"建议输出结果待核对",recordOnly:"建议已保存",interrupted:"监督已中断，保留原记录待核对",stopped:"本次监督已结束",failed:"监督需要处理"};
+
 export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;send:(c:Command)=>Promise<boolean>}) {
   const access=data?.desktopAccess;
   const prepared=access?.taskReview?.observation.window.app==='qoder'?access.taskReview:undefined;
@@ -56,6 +58,12 @@ export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;s
         {job.active&&<p>可继续查看工作台。外部应用可能使用自己的工具或等待批准，请保持目标聊天不变。</p>}
         {job.progress?.latest&&<p data-desktop-progress={r.attempt.id}>最近界面观察：{job.progress.latest.statusText||(job.progress.latest.observation.busy?'忙碌或等待批准':'空闲')} · {new Date(job.progress.latest.observation.capturedAt).toLocaleTimeString('zh-CN')}。{job.progress.error?'后续观察暂不可用；这是上次结果。':'仅反映原聊天界面，完成仍以独立验收为准。'}</p>}
         {job.progress?.error&&<p className="secondary">进度观察：{job.progress.error}。原任务不会因此重发或被判定失败。</p>}
+        {job.progress?.supervision&&<section className="panel" aria-label="桌面任务监督">
+          <HelpHeading as="h4" help="显示原任务的 Hook 连接、工具异常记录和副指挥建议输出状态。建议是否解决问题由后续任务结果核对。">副指挥任务监督</HelpHeading>
+          <p>{supervisionStates[job.progress.supervision.state]??"监督状态待核对"}</p>
+          <p className="secondary">已采集 {job.progress.supervision.events} 个事件，工具失败 {job.progress.supervision.failures} 次，连续失败异常 {job.progress.supervision.incidents} 项。</p>
+          {job.progress.supervision.error&&<p role="alert"><ErrorText error={job.progress.supervision.error}/></p>}
+        </section>}
         {job.reviewedStopRecord&&!job.retired&&<p>原停止记录已复核，原文保留；结果仍未确认。当前仅恢复本地管理，不能继续回读、发送或停止原尝试。核对外部应用后可结束本地跟踪。</p>}
         {job.cancellation&&<p>已记录停止请求：{job.cancellation.reason}。{job.cancellation.confirmed?'已核实原任务取消，已有修改保留，后续需要修订方案。':accepted?'核对时原任务已完成，随后已通过独立验收并由主指挥收口。':job.submitted?'核对时原任务已完成，仍需独立验收和主指挥收口。':'后续调度已暂停；停止结果待核对，不会再次发送停止动作。'}</p>}
         {!retiredAdapter&&!job.submitted&&!job.retired&&!job.cancellation&&!job.stopping&&!job.reviewedStopRecord&&<button className="secondary-button" disabled={busy||pending||!!access?.checking&&!job.active} onClick={()=>{setStop(job);setReason('');setStopAck(false);}}>停止原桌面任务</button>}

@@ -2,6 +2,7 @@ import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import {useState} from 'react';
 import type {Command,Snapshot} from './contracts';
+import { LocalConnectionTest } from './LocalConnectionTest';
 export function DesktopSessions({data,busy,send,projectId,idPrefix="desktop",onBound}:{projectId?:string;idPrefix?:string;onBound?:()=>void;data:Snapshot|null;busy:boolean;send:(command:Command)=>Promise<boolean>}) {
   const access=data?.desktopAccess;
   const [project,setProject]=useState('');const [label,setLabel]=useState('');const [ack,setAck]=useState(false);
@@ -15,6 +16,8 @@ export function DesktopSessions({data,busy,send,projectId,idPrefix="desktop",onB
     <HelpHeading as="h2" topic="DesktopSessions">Qoder 已有会话</HelpHeading>
     <p className="secondary">选择已打开的聊天，读取后关联工作台项目。Qoder 0.4.3.0 可另行确认固定文本验证。批准方案并启动后，副指挥分配的编程任务会在“需求与计划”等待你审阅发送；后续任务会先核对上一条任务及回复，历史或聊天身份变化时停止。</p>
     <button type="button" className="secondary-button" disabled={!access||disabled} onClick={()=>void send({type:'discoverDesktop'})}>发现已打开窗口</button>
+    <LocalConnectionTest scope={data?.dataDirectory??""} busy={disabled} request={observation?{kind:"qoder",observation}:null}
+      hint="先发现窗口并读取目标会话，再测试当前聊天的读取连接。"/>
     {access?.checking&&<p role="status">正在核对桌面会话或验证消息，请保持目标聊天不变…</p>}
     {access?.error&&<p role="alert"><ErrorText error={access.error}/></p>}
     {access?.windows.filter(window=>window.app==='qoder').map(window=><article className="panel" key={`${window.hwnd}:${window.startTicks}`}>

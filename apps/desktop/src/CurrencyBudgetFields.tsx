@@ -73,10 +73,10 @@ export type CurrencyBudgetProps = {
 };
 export function CurrencyBudgetFields(props: CurrencyBudgetProps) {
   if (props.value?.schema === 2) return <ScopedCurrencyBudgetFields {...props} value={props.value} />;
-  return <><LegacyCurrencyBudgetFields {...props} />{!props.value && <button type="button" className="secondary-button" onClick={() => {
+  return <><LegacyCurrencyBudgetFields {...props} />{!props.value && <div className="currency-budget-actions"><button type="button" className="secondary-button" onClick={() => {
     props.onChange({ schema: 2, limitUsdNanos: 0, quotes: [], scopedQuotes: [] });
     props.onInvalid("请补齐累计金额和服务档位、上下文报价。");
-  }}>配置服务档位与上下文报价</button>}</>;
+  }}>配置服务档位与上下文报价</button></div>}</>;
 }
 function LegacyCurrencyBudgetFields({ value, resetValue, draft, resetKey, onChange, onInvalid }: CurrencyBudgetProps) {
   const [amount, setAmount] = useState(""); const [rows, setRows] = useState<Row[]>([]); const [error, setError] = useState<string>();

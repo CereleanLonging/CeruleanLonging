@@ -1,8 +1,10 @@
 pub mod baseline_product;
 pub mod blind_review;
+pub mod independent_checks;
 pub mod independent_verifier;
 pub mod omp_jobs;
 pub mod omp_restore;
+pub mod review_weights;
 pub mod team_timing;
 pub mod timezone;
 use serde::{Deserialize, Serialize};
@@ -468,6 +470,10 @@ pub enum Command {
         reader_sha256: String,
     },
     DiscoverDesktop,
+    BindDesktopSession {
+        project_id: String,
+        session_id: String,
+    },
     InspectDesktop {
         window: desktop_sessions::DesktopWindow,
     },

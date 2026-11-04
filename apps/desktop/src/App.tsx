@@ -86,7 +86,7 @@ export function App() {
       setBusy(false);
     }
   }
-  async function send(command: Command) {
+  async function send(command: Command, onError?: (message: string) => void) {
     snapshotGeneration.current++;
     setSnapshotLoading(false);
     setBusy(true); setError(""); setNotice("");
@@ -94,11 +94,12 @@ export function App() {
       const outcome=await submitAndRead(command,
         c=>invoke<CommandResult>("core_submit",{command:c}),
         ()=>invoke<Snapshot>("core_request",{command:{type:"snapshot"}}));
-      if(outcome.type==="unconfirmed"){setError(outcome.error);return false;}
+      if(outcome.type==="unconfirmed"){setError(outcome.error);onError?.(outcome.error);return false;}
       if(outcome.snapshot) setData(outcome.snapshot);
       if(outcome.type==="accepted" && outcome.refreshError) {
         setNotice("操作已由核心接收；后台任务是否完成请核对原记录。");
-        setError(`操作确认已收到，完整视图刷新失败；请重新读取，勿重复提交：${outcome.refreshError}`);
+        const message=`操作确认已收到，完整视图刷新失败；请重新读取，勿重复提交：${outcome.refreshError}`;
+        setError(message);onError?.(message);
       }
       return true;
     } finally {setBusy(false);}

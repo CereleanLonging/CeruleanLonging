@@ -114,7 +114,7 @@ fn call_native(
     )?;
     response.result
 }
-fn call(operation: Operation) -> Result<Output, String> {
+pub(crate) fn call(operation: Operation) -> Result<Output, String> {
     #[cfg(test)]
     {
         evaluate(&operation)
@@ -178,6 +178,24 @@ pub(crate) fn tally(
         _ => Err("独立验收计票响应类型不符".into()),
     }
 }
+pub(crate) fn audit_ballot(
+    material: &ReviewMaterial,
+    seat: &ReviewSeat,
+    model: &str,
+    ballot: Option<Ballot>,
+    audit: ReviewToolAudit,
+) -> Result<Ballot, String> {
+    match call(Operation::AuditBallot {
+        material: material.clone(),
+        seat: seat.clone(),
+        model: model.into(),
+        ballot,
+        audit,
+    })? {
+        Output::BallotAudited { ballot } => Ok(ballot),
+        _ => Err("独立验收评分过程核验响应不符".into()),
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -209,7 +227,8 @@ mod tests {
             .map(|role| ReviewSeat {
                 id: role.into(),
                 role: role.into(),
-                target: cerulean_domain::api_worker::ApiTarget::OpenAi {},
+                target: Some(cerulean_domain::api_worker::ApiTarget::OpenAi {}),
+                transport: None,
                 model: role.into(),
                 allowed_models: vec![role.into()],
             })
@@ -217,6 +236,7 @@ mod tests {
         let mut ballots = Vec::new();
         for seat in &seats {
             let ballot = Ballot {
+                assessments: vec![],
                 vote: Vote::Pass,
                 citations: vec!["fragment-0001".into()],
                 reason: "Matches the approved source and criterion".into(),
@@ -236,6 +256,8 @@ mod tests {
                 Output::BallotChecked {}
             );
             ballots.push(RevealedBallot {
+                tool_audit: None,
+                original_ballot: None,
                 seat: seat.id.clone(),
                 model: seat.model.clone(),
                 ballot,

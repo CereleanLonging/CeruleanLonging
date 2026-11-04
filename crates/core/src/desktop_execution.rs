@@ -325,7 +325,7 @@ fn directory(root: &Path, r: &TaskReview) -> Result<std::path::PathBuf, String> 
     ordinary(&path, true)?;
     Ok(path)
 }
-fn publish<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<(), String> {
+pub(crate) fn publish<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<(), String> {
     let pending = dir.join(format!("{name}.pending"));
     let target = dir.join(format!("{name}.json"));
     require(
@@ -346,7 +346,7 @@ fn publish<T: Serialize>(dir: &Path, name: &str, value: &T) -> Result<(), String
     fs::hard_link(&pending, &target).map_err(|_| "派发发布失败，禁止发送")?;
     fs::remove_file(&pending).map_err(|_| "派发临时记录待核对".into())
 }
-fn load<T: for<'a> Deserialize<'a>>(dir: &Path, name: &str) -> Result<T, String> {
+pub(crate) fn load<T: for<'a> Deserialize<'a>>(dir: &Path, name: &str) -> Result<T, String> {
     ordinary(dir, true)?;
     let mut saved = None;
     for extension in ["json", "pending"] {

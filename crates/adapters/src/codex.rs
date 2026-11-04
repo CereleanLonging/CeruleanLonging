@@ -7,6 +7,7 @@ use tokio::{
     process::{Child, Command},
     time::{timeout_at, Instant},
 };
+mod reviewer;
 #[path = "codex_steer.rs"]
 mod steer;
 pub use steer::SteerRequest;
@@ -636,6 +637,9 @@ pub struct CodexClient {
     workspace: String,
     active: Option<(String, String)>,
     binding: Option<WorkerBinding>,
+    review_restore: Option<Value>,
+    review_process: bool,
+    review_audit: Option<cerulean_domain::blind_review::ReviewToolAudit>,
 }
 impl CodexClient {
     pub fn from_owned_process(
@@ -653,6 +657,9 @@ impl CodexClient {
             workspace: workspace.to_str().ok_or("non-Unicode workspace")?.into(),
             active: None,
             binding: None,
+            review_restore: None,
+            review_process: false,
+            review_audit: None,
         })
     }
     pub fn capture_observations(&mut self, capture: crate::codex_observation::ObservationCapture) {
@@ -671,6 +678,13 @@ impl CodexClient {
         self.rpc.broken = true;
     }
     pub fn launch(executable: &Path, workspace: &Path) -> Result<Self, String> {
+        Self::launch_with_overrides(executable, workspace, &[])
+    }
+    fn launch_with_overrides(
+        executable: &Path,
+        workspace: &Path,
+        overrides: &[String],
+    ) -> Result<Self, String> {
         if !executable.is_absolute()
             || !workspace.is_absolute()
             || !executable.is_file()
@@ -700,6 +714,9 @@ impl CodexClient {
             .kill_on_drop(true);
         #[cfg(windows)]
         command.creation_flags(0x08000000);
+        for value in overrides {
+            command.args(["-c", value]);
+        }
         let mut child = command.spawn().map_err(|_| "Codex process launch failed")?;
         let stdout = child.stdout.take().ok_or("Codex stdout missing")?;
         let stdin = child.stdin.take().ok_or("Codex stdin missing")?;
@@ -712,6 +729,9 @@ impl CodexClient {
             workspace: workspace.to_str().ok_or("non-Unicode workspace")?.into(),
             active: None,
             binding: None,
+            review_restore: None,
+            review_process: false,
+            review_audit: None,
         })
     }
     pub fn launch_readonly(executable: &Path, workspace: &Path) -> Result<Self, String> {
@@ -779,6 +799,22 @@ impl CodexClient {
             models,
             model_calls: 0,
         })
+    }
+    /// Check an existing session without loading turns or starting model work.
+    pub async fn check_session(&mut self, session_id: &str) -> Result<(), String> {
+        cerulean_domain::execution::identifier(session_id)?;
+        let result = self
+            .rpc
+            .request(
+                "thread/read",
+                json!({"threadId":session_id,"includeTurns":false}),
+                Duration::from_secs(20),
+            )
+            .await?;
+        if result["thread"]["id"] != session_id {
+            return Err("Codex 返回的会话标识与所填标识不一致".into());
+        }
+        Ok(())
     }
     /// Trusted controller must persist a session binding before turn dispatch.
     pub async fn create_worker(&mut self, model: &str) -> Result<WorkerBinding, String> {
@@ -1041,6 +1077,9 @@ mod tests {
             workspace: std::env::current_dir().unwrap().to_string_lossy().into(),
             active: None,
             binding: None,
+            review_restore: None,
+            review_audit: None,
+            review_process: false,
         }
     }
 
@@ -1341,6 +1380,56 @@ mod tests {
         .await
         .is_err());
         assert!(line.is_empty());
+    }
+
+    #[tokio::test]
+    async fn connection_check_reads_only_the_requested_session_and_rejects_wrong_identity() {
+        struct ClosedProcess;
+        impl OwnedCodexProcess for ClosedProcess {
+            fn try_wait(&mut self) -> Result<Option<bool>, String> {
+                Ok(Some(true))
+            }
+            fn terminate(&mut self) -> Result<(), String> {
+                Ok(())
+            }
+        }
+        for returned_id in ["requested-session", "other-session"] {
+            let (stream, server) = duplex(4096);
+            let (read, write) = split(stream);
+            let mut client = CodexClient::from_owned_process(
+                Box::new(ClosedProcess),
+                Box::new(read),
+                Box::new(write),
+                Path::new("fixture"),
+                true,
+            )
+            .unwrap();
+            let server = tokio::spawn(async move {
+                let mut server = BufReader::new(server);
+                let mut line = String::new();
+                server.read_line(&mut line).await.unwrap();
+                let request: Value = serde_json::from_str(&line).unwrap();
+                assert_eq!(request["method"], "thread/read");
+                assert_eq!(
+                    request["params"],
+                    json!({"threadId":"requested-session","includeTurns":false})
+                );
+                let mut response = serde_json::to_vec(
+                    &json!({"id":request["id"],"result":{"thread":{"id":returned_id}}}),
+                )
+                .unwrap();
+                response.push(b'\n');
+                server.get_mut().write_all(&response).await.unwrap();
+            });
+            assert_eq!(
+                client.check_session("requested-session").await.is_ok(),
+                returned_id == "requested-session"
+            );
+            assert_eq!(client.request_counts().get("thread/read"), Some(&1));
+            assert_eq!(client.request_counts().len(), 1);
+            server.await.unwrap();
+            client.close().await.unwrap();
+        }
     }
     #[test]
     fn empty_interruption_requires_unique_full_bound_turn_and_explicit_gate() {

@@ -217,6 +217,64 @@ pub(super) async fn eof(reader: &mut Reader) {
 }
 
 #[tokio::test]
+async fn review_requires_complete_reply_and_rejects_tool_requests_in_stream() {
+    for mode in [
+        "clean",
+        "toolcall_start",
+        "unknown",
+        "host-tool",
+        "missing-reply",
+    ] {
+        let (mut client, peer) = pair();
+        let (_cancel, mut cancellation) = oneshot::channel();
+        let peer = tokio::spawn(async move {
+            let (mut reader, mut writer) = setup(peer, true).await;
+            let prompt = read(&mut reader).await;
+            respond(&mut writer, &prompt, Value::Null).await;
+            if mode == "host-tool" {
+                send(&mut writer, json!({"type":"host_tool_call","id":"action"})).await;
+            } else if matches!(mode, "toolcall_start" | "unknown") {
+                send(
+                    &mut writer,
+                    json!({"type":"message_update","assistantMessageEvent":{"type":mode}}),
+                )
+                .await;
+            } else {
+                if mode == "clean" {
+                    send(&mut writer, json!({"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"PASS"}})).await;
+                    send(&mut writer, json!({"type":"message_end","message":{"role":"assistant","model":"fixture","content":[{"type":"text","text":"PASS"}]}})).await;
+                }
+                send(&mut writer, result("completed")).await;
+                let request = read(&mut reader).await;
+                assert_eq!(request["type"], "get_state");
+                respond(&mut writer, &request, state()).await;
+            }
+            eof(&mut reader).await;
+        });
+        client.connect(Duration::from_secs(2)).await.unwrap();
+        let outcome = client
+            .execute_review(
+                intent(),
+                PROMPT,
+                Duration::from_secs(2),
+                &mut cancellation,
+                |_| Ok(()),
+            )
+            .await;
+        match mode {
+            "clean" => assert_eq!(outcome.unwrap().1, "PASS"),
+            "host-tool" | "toolcall_start" => {
+                assert!(outcome.unwrap_err().starts_with("review_tool_observed:"))
+            }
+            _ => assert!(outcome.is_err()),
+        }
+        assert_eq!(client.command_attempts().get("prompt"), Some(&1));
+        client.close_input().await.unwrap();
+        peer.await.unwrap();
+    }
+}
+
+#[tokio::test]
 async fn one_prompt_waits_for_ack_bound_result_and_fresh_idle_state() {
     let (mut client, peer) = pair();
     let (_cancel, mut rx) = oneshot::channel();

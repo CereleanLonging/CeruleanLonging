@@ -204,7 +204,43 @@ pub fn verify(
     operation_id: &str,
     cancel: &AtomicBool,
 ) -> Result<VerificationReport, String> {
-    execute(input, pins, evidence_root, operation_id, cancel, None, &[])
+    execute(
+        input,
+        pins,
+        evidence_root,
+        operation_id,
+        cancel,
+        None,
+        RunPolicy::default(),
+    )
+}
+
+#[derive(Default)]
+struct RunPolicy<'a> {
+    retired: &'a [String],
+    functional_source: Option<&'a str>,
+}
+pub(crate) fn verify_functional(
+    input: VerificationInput<'_>,
+    pins: &[PinnedCheck],
+    evidence_root: &Path,
+    operation_id: &str,
+    cancel: &AtomicBool,
+    source: &str,
+) -> Result<VerificationReport, String> {
+    sha256(source)?;
+    execute(
+        input,
+        pins,
+        evidence_root,
+        operation_id,
+        cancel,
+        None,
+        RunPolicy {
+            retired: &[],
+            functional_source: Some(source),
+        },
+    )
 }
 
 /// Trusted scheduler only: every retired ID was revalidated against its user
@@ -224,7 +260,10 @@ pub(crate) fn verify_with_retirements(
         operation_id,
         cancel,
         None,
-        retired,
+        RunPolicy {
+            retired,
+            functional_source: None,
+        },
     )
 }
 
@@ -245,7 +284,10 @@ pub(crate) fn verify_recheck(
         operation,
         cancel,
         Some(&authority),
-        authority.retired_operations,
+        RunPolicy {
+            retired: authority.retired_operations,
+            functional_source: None,
+        },
     )
 }
 
@@ -256,8 +298,9 @@ fn execute(
     operation_id: &str,
     cancel: &AtomicBool,
     recheck: Option<&RecheckAuthority<'_>>,
-    retired: &[String],
+    policy: RunPolicy<'_>,
 ) -> Result<VerificationReport, String> {
+    let retired = policy.retired;
     identifier(operation_id)?;
     require(
         !retired.iter().any(|id| id == operation_id),
@@ -436,6 +479,12 @@ fn execute(
             &dir,
             operation_id,
         )?;
+        if let Some(expected) = policy.functional_source {
+            require(
+                snapshot.seal.manifest_sha256 == expected,
+                "整体功能测试源码与盲评封存不符，未执行检查",
+            )?;
+        }
         if let Some(recheck) = recheck {
             require(
                 snapshot.seal.manifest_sha256
@@ -558,5 +607,15 @@ fn execute(
         &dir.join("result.json"),
         &serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
     )?;
+    if let Ok(report) = &result {
+        let checked = crate::independent_checks::inspect(
+            &input.plan.project.id,
+            operation_id,
+            input.manifest,
+            specs,
+            report,
+        )?;
+        crate::independent_checks::persist(&dir, "independent-check", &checked)?;
+    }
     result
 }

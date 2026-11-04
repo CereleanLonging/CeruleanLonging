@@ -3,7 +3,7 @@ import type { ProjectWorkerAdapter, SupervisionAdviceView, SupervisionOverride, 
 import { apiWorkerOptions } from "./ApiWorkerFields";
 
 export function canRecordSupervision(adapter: ProjectWorkerAdapter): boolean {
-  return adapter === "codex" || adapter === "omp" || apiWorkerOptions.some(([id]) => id === adapter);
+  return adapter === "codex" || adapter === "omp" || adapter === "qoder" || apiWorkerOptions.some(([id]) => id === adapter);
 }
 
 export function supervisionConflictFor(adapter: ProjectWorkerAdapter, policy: SupervisionPolicy | null | undefined): boolean {
@@ -11,6 +11,15 @@ export function supervisionConflictFor(adapter: ProjectWorkerAdapter, policy: Su
 }
 
 export function supervisionDeliverySummary(advice: SupervisionAdviceView): string {
+  if(advice.deliveryState?.startsWith("desktopHook:")){
+    switch(advice.deliveryState){
+      case "desktopHook:outputReleased":return "建议已通过原任务 Hook 输出，后续执行结果可在任务记录中核对";
+      case "desktopHook:recordOnly":return "副指挥建议已保存供审阅";
+      case "desktopHook:unknown":return "原 Hook 投送结果待核对";
+      case "desktopHook:expired":return "原异常已变化，建议已失效且不会投送；原请求与计费记录保留供核对";
+      default:return "等待原任务的 Hook 投送窗口";
+    }
+  }
   if (advice.omp) {
     switch (advice.deliveryState) {
       case "recordOnly": return "OMP 建议仅保存供审阅，未向原任务发送";
@@ -41,7 +50,8 @@ export function supervisionDeliverySummary(advice: SupervisionAdviceView): strin
 export const defaultSupervision: SupervisionPolicy = {
   schemaVersion: 1,
   repeatedFailureThreshold: 2,
-  maxAdvicePerAttempt: 0,
+  maxAdvicePerAttempt: 1,
+  deliveryEnabled: true,
 };
 
 export function effectiveSupervision(
@@ -59,7 +69,7 @@ export function supervisionSummary(policy: SupervisionPolicy | null | undefined)
   return `同一操作连续失败 ${policy.repeatedFailureThreshold} 次记录异常；每次尝试最多 ${policy.maxAdvicePerAttempt} 条建议，计入项目累计请求上限。${policy.deliveryEnabled ? "允许向原执行轮次发送建议；未知回执不重发。" : "可请求并保存建议，不向执行器发送。"}`;
 }
 
-export function SupervisionFields({ id, value, inherited, adapter, onChange }: {
+export function SupervisionFields({ value, inherited, adapter }: {
   id: string;
   value: SupervisionOverride | null | undefined;
   inherited: SupervisionPolicy | null | undefined;
@@ -67,35 +77,11 @@ export function SupervisionFields({ id, value, inherited, adapter, onChange }: {
   onChange: (next: SupervisionOverride | undefined) => void;
 }) {
   const policy = effectiveSupervision(value, inherited);
-  const supported = canRecordSupervision(adapter);
-  const conflict = supervisionConflictFor(adapter, policy);
-  const custom = value?.mode === "enabled" ? value.policy : undefined;
-  function update(patch: Partial<SupervisionPolicy>) {
-    if (custom) onChange({ mode: "enabled", policy: { ...custom, ...patch } });
-  }
   return <section className="panel" aria-label="执行配置异常监督">
-    <HelpHeading as="h4" topic="SupervisionFields">此执行配置的异常监督</HelpHeading>
-    <label htmlFor={`${id}-mode`}>监督方式</label>
-    <select id={`${id}-mode`} value={value?.mode ?? "inherit"} onChange={e => {
-      if (e.target.value === "inherit") onChange(undefined);
-      else if (e.target.value === "disabled") onChange({ mode: "disabled" });
-      else onChange({ mode: "enabled", policy: { ...(inherited ?? defaultSupervision) } });
-    }}>
-      <option value="inherit">沿用项目默认</option>
-      <option value="disabled">关闭此配置的监督</option>
-      <option value="enabled" disabled={!supported}>单独设置监督</option>
-    </select>
-    {custom && supported && <>
-      <div className="planning-fields">
-        <div><label htmlFor={`${id}-threshold`}>{adapter === "omp" ? "同一文件工具连续失败阈值" : "同一命令连续失败阈值"}</label><input id={`${id}-threshold`} type="number" min={2} max={8} required value={custom.repeatedFailureThreshold} onChange={e => update({ repeatedFailureThreshold: Number(e.target.value) })}/></div>
-        <div><label htmlFor={`${id}-limit`}>每次尝试建议上限</label><input id={`${id}-limit`} type="number" min={0} max={2} required value={custom.maxAdvicePerAttempt} onChange={e => update({ maxAdvicePerAttempt: Number(e.target.value), ...(Number(e.target.value) === 0 ? { deliveryEnabled: false } : {}) })}/></div>
-      </div>
-      <label className="checkbox-label"><input type="checkbox" checked={!!custom.deliveryEnabled} disabled={!custom.deliveryEnabled && custom.maxAdvicePerAttempt === 0} onChange={e => update({ deliveryEnabled: e.target.checked })}/>允许向此配置的当前执行轮次发送建议</label>
-    </>}
+    <HelpHeading as="h4" topic="SupervisionFields">监督机制 · 固定关联副指挥</HelpHeading>
+    <p>监督固定关联本项目副指挥，当前策略随配置保存并在方案批准后执行。</p>
     <p className="secondary">{supervisionSummary(policy)}</p>
-    {!supported && <p className="secondary">此接入尚不支持运行中异常监督；可关闭此配置的监督，与启用监督的 Codex 一起使用。</p>}
-    {adapter === "omp" && <p className="secondary">OMP 根据原文件工具的连续失败请求副指挥建议，计入管理请求额度。允许投送时，在原文件工具结果等待期间发送一次建议，并核对原任务队列与消息流；结果未知不重发。未允许投送时只保存建议供审阅。</p>}
-    {supported && adapter !== "codex" && adapter !== "omp" && <p className="secondary">允许投送时，API 在工具执行后等待建议，并将建议计入下一轮请求。未允许投送时只保存建议供审阅。</p>}
-    {conflict && <p role="alert">此执行接入不能使用当前监督策略。请关闭此配置的监督，或单独设置支持的策略。</p>}
+    {adapter==="qoder"&&<p className="secondary">Qoder 通过项目内的官方 Hook 采集工具异常并接收建议。任务开始后的连接和投送状态显示在任务记录中。</p>}
+    {!canRecordSupervision(adapter) && <p className="secondary">此接入的运行中异常采集尚待适配，任务分配与完成核对仍由副指挥负责。</p>}
   </section>;
 }

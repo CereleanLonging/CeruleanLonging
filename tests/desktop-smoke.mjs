@@ -204,7 +204,7 @@ try {
   }
   if(codexMode) {
     await page.getByLabel("Codex 程序完整路径",{exact:true}).fill(codexExecutable);
-    await page.getByRole("button",{name:"检查现有 Codex 登录",exact:true}).click();
+    await page.getByRole("region",{name:"Codex 连接检查",exact:true}).getByRole("button",{name:"测试连通",exact:true}).click();
     await page.getByText("连接检查通过",{exact:true}).waitFor({timeout:60000});
     await page.getByText("登录类型：chatgpt",{exact:true}).waitFor();
     const snapshot=await page.evaluate(()=>window.__TAURI_INTERNALS__.invoke("core_request",{command:{type:"snapshot"}}));

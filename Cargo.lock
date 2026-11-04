@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-adapters"
-version = "0.1.44"
+version = "0.1.45"
 dependencies = [
  "base64 0.22.1",
  "cerulean-domain",
@@ -300,7 +300,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-cache"
-version = "0.1.44"
+version = "0.1.45"
 dependencies = [
  "chrono",
  "serde",
@@ -311,7 +311,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-core"
-version = "0.1.44"
+version = "0.1.45"
 dependencies = [
  "cerulean-adapters",
  "cerulean-domain",
@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-desktop"
-version = "0.1.44"
+version = "0.1.45"
 dependencies = [
  "cerulean-cache",
  "cerulean-core",
@@ -345,7 +345,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-domain"
-version = "0.1.44"
+version = "0.1.45"
 dependencies = [
  "chrono",
  "chrono-tz",

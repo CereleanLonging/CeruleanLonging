@@ -94,6 +94,9 @@ mod currency_product_tests;
 mod dependency_host_fixture;
 #[path = "deputy_management_host.rs"]
 mod deputy_management_host;
+#[cfg(windows)]
+#[path = "desktop_supervision.rs"]
+mod desktop_supervision;
 #[path = "document_refinement.rs"]
 pub(crate) mod document_refinement;
 #[cfg(windows)]
@@ -101,6 +104,9 @@ pub(crate) mod document_refinement;
 mod execution_resources;
 #[path = "external_chief.rs"]
 mod external_chief;
+#[cfg(windows)]
+#[path = "functional_test_host.rs"]
+mod functional_test_host;
 #[path = "historical_charge_host.rs"]
 mod historical_charge_host;
 #[path = "historical_paging.rs"]
@@ -113,6 +119,9 @@ mod integration_tests;
 #[cfg(all(test, windows))]
 #[path = "legacy_scheduler_tests.rs"]
 mod legacy_scheduler_tests;
+#[cfg(windows)]
+#[path = "local_review.rs"]
+mod local_review;
 #[path = "management_application.rs"]
 mod management_application;
 #[path = "management_assignments.rs"]
@@ -279,6 +288,8 @@ pub struct RuntimeHost {
     blind_reviews: crate::blind_review::Ledger,
     #[cfg(windows)]
     blind_active: Option<blind_review_host::ActiveReview>,
+    #[cfg(windows)]
+    functional_active: Option<functional_test_host::ActiveFunctionalTest>,
     #[cfg(all(test, windows))]
     blind_fixture: Option<blind_review_host::Fixture>,
     #[cfg(windows)]
@@ -552,6 +563,7 @@ impl RuntimeHost {
         model: &str,
         requirement: &str,
     ) -> Result<(), String> {
+        self.require_review_dispatch_idle()?;
         self.require_management_dispatch_available(project, purpose)?;
         self.poll_verifications();
         if purpose == management::Purpose::Accept
@@ -948,6 +960,8 @@ impl RuntimeHost {
             blind_reviews,
             #[cfg(windows)]
             blind_active: None,
+            #[cfg(windows)]
+            functional_active: None,
             #[cfg(all(test, windows))]
             blind_fixture: None,
             root,
@@ -1028,6 +1042,8 @@ impl RuntimeHost {
         host.load_currency_accounts()?;
         #[cfg(windows)]
         host.validate_api_supervision_requests()?;
+        #[cfg(windows)]
+        host.validate_desktop_supervision_requests()?;
         #[cfg(windows)]
         host.validate_omp_supervision_requests()?;
         host.validate_advice_closures()?;
@@ -2306,7 +2322,22 @@ impl RuntimeHost {
     }
     pub fn poll_verifications(&mut self) {
         #[cfg(windows)]
+        {
+            self.poll_functional_test();
+            if self.functional_active.is_some() {
+                return;
+            }
+        }
+        #[cfg(windows)]
         self.poll_blind_review();
+        if self
+            .blind_reviews
+            .rounds
+            .values()
+            .any(|r| r.phase == cerulean_domain::blind_review::ReviewPhase::Collecting)
+        {
+            return;
+        }
         #[cfg(windows)]
         self.baselines.poll();
         if !self.omp_stop_issues.is_empty() {
@@ -2546,7 +2577,7 @@ impl RuntimeHost {
             return false;
         }
         #[cfg(windows)]
-        if self.blind_active.is_some() {
+        if self.blind_active.is_some() || self.functional_active.is_some() {
             return false;
         }
         #[cfg(windows)]
@@ -2678,6 +2709,31 @@ impl RuntimeHost {
                 error: Some(ApiError {
                     code: "protocolMismatch".into(),
                     message: "核心协议版本不匹配".into(),
+                }),
+            };
+        }
+        #[cfg(windows)]
+        if (self.functional_active.is_some()
+            || self
+                .blind_reviews
+                .rounds
+                .values()
+                .any(|r| r.phase == cerulean_domain::blind_review::ReviewPhase::Collecting))
+            && !matches!(
+                &request.command,
+                Command::Snapshot
+                    | Command::BlindReview {
+                        action: cerulean_domain::blind_review::BlindReviewAction::Cancel { .. }
+                    }
+            )
+        {
+            return Response {
+                id: request.id,
+                result: None,
+                error: Some(ApiError {
+                    code: "functionalTestActive".into(),
+                    message: "主指挥整体功能测试进行中，请等待或取消原操作后修改配置及派发任务"
+                        .into(),
                 }),
             };
         }
@@ -3044,6 +3100,20 @@ impl RuntimeHost {
                 #[cfg(not(windows))]
                 {
                     Err("桌面观察仅支持Windows".into())
+                }
+            }
+            Command::BindDesktopSession {
+                project_id,
+                session_id,
+            } => {
+                #[cfg(windows)]
+                {
+                    self.bind_desktop_session(&project_id, &session_id)
+                }
+                #[cfg(not(windows))]
+                {
+                    let _ = (project_id, session_id);
+                    Err("桌面会话绑定仅支持Windows".into())
                 }
             }
             Command::InspectDesktop { window } => {

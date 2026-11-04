@@ -119,7 +119,8 @@ pub(crate) fn save_for(
     provider: CredentialProvider,
     key: &SecretInput,
 ) -> Result<(), String> {
-    crate::relay_guard::require_protected(root, provider == CredentialProvider::A6Api)?;
+    // Credential slots have independent DPAPI envelopes and do not change the
+    // project journal format. Reader guards apply when project records are written.
     key.validate()?;
     let dest = provider_location(root, provider)?;
     let folder = dest.parent().ok_or("credential folder missing")?;

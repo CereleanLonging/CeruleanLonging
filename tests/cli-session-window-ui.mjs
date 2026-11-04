@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {mkdtemp, writeFile} from 'node:fs/promises';
+import {join, resolve} from 'node:path';
+import {build} from 'vite';
+import {chromium} from 'playwright-core';
+
+const dir = await mkdtemp(resolve('reports/cli-session-window-ui-'));
+const entry = join(dir, 'entry.tsx');
+await writeFile(entry, `import React from 'react';import{createRoot}from'react-dom/client';import{flushSync}from'react-dom';import{CliSessionWindow}from'../../apps/desktop/src/CliSessionWindow';const root=createRoot(document.getElementById('root'));let epoch=0;window.show=value=>flushSync(()=>root.render(<CliSessionWindow key={++epoch} read={async()=>value}/>));`);
+await build({configFile:false, logLevel:'error', define:{'process.env.NODE_ENV':JSON.stringify('production')}, oxc:{jsx:{runtime:'automatic'}}, build:{outDir:join(dir,'bundle'), emptyOutDir:false, lib:{entry, name:'CliSessionWindow', formats:['iife'], fileName:()=> 'ui.js'}}});
+const data = {projectId:'fixture-project', root:'D:/synthetic-project', total:3, completed:1, runs:[{adapter:'Codex', task:'task-one', attempt:'attempt-one', model:'fixture-model', state:'executing', message:null}], reviewProgress:null};
+const cases = [], errors = [];
+const browser = await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless:true});
+try {
+  const page = await browser.newPage({viewport:{width:1100,height:850}});
+  page.on('pageerror', error=>errors.push(String(error)));
+  await page.setContent('<meta charset="utf-8"><div id="root"></div>');
+  await page.addStyleTag({path:resolve('apps/desktop/src/style.css')});
+  await page.addScriptTag({path:join(dir,'bundle/ui.js')});
+  await page.evaluate(value=>window.show(value), data);
+  await page.getByText('已接受 1 / 3 个任务').waitFor();
+  assert.equal(await page.getByRole('button').count(),0);
+  assert.equal(await page.getByRole('textbox').count(),0);
+  cases.push('Project status is read-only and has no arbitrary command or response submission');
+  const progress = {seat:'worker-1', model:'fixture-model', sessionId:'session-exact', request:'request-1', packet:2, packets:4, materialMessage:'{"fragment":"<script>window.bad=true</script>"}', acknowledged:false};
+  await page.evaluate(value=>window.show(value), {...data,reviewProgress:progress});
+  await page.getByText('session-exact',{exact:true}).waitFor();
+  assert.match(await page.locator('.review-session-material').textContent(), /<script>/);
+  assert.equal(await page.evaluate(()=>window.bad),undefined);
+  assert.equal(await page.getByText(/总分/).count(),0);
+  cases.push('The bound session and original packet render as inert text without scores');
+  await page.evaluate(value=>window.show(value), {...data,reviewProgress:{...progress,acknowledged:true}});
+  await page.getByText('消息 2 / 4 · 已核对回执').waitFor();
+  cases.push('Acknowledgement is displayed separately from acceptance');
+  await page.setViewportSize({width:640,height:850});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth));
+  await page.screenshot({path:join(dir,'session-window.png'),fullPage:true});
+  cases.push('Session window fits its minimum supported width');
+  assert.deepEqual(errors,[]);
+  await writeFile(join(dir,'result.json'),JSON.stringify({passed:true,cases,errors,scope:'offline production component with synthetic session data'},null,2));
+  console.log(JSON.stringify({passed:true,cases:cases.length,report:dir}));
+} finally { await browser.close(); }

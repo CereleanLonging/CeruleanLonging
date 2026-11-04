@@ -7,6 +7,7 @@ use std::{
 use tauri::{Emitter, Manager};
 mod access_settings;
 mod cache_monitor;
+mod cli_sessions;
 mod experiment_workbench;
 mod maintenance;
 mod portable_archive;
@@ -48,7 +49,23 @@ fn review_workflow_template(
     cerulean_domain::workflow_template::review(&input)
 }
 
+#[tauri::command]
+async fn test_local_connection(
+    request: cerulean_core::connection_tests::LocalConnectionRequest,
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, State>,
+) -> Result<cerulean_core::connection_tests::ConnectionResult, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
+    let directory = state.workbenches.directory(window.label())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        cerulean_core::connection_tests::test_local_connection(&directory, request)
+    })
+    .await
+    .map_err(|_| "本机连通测试未完成，请稍后重试".to_string())?
+}
+
 struct State {
+    cli_sessions: cli_sessions::Windows,
     lifecycle: workbench_exit::Lifecycle,
     workbenches: experiment_workbench::Windows,
     experiment_root: PathBuf,
@@ -76,6 +93,9 @@ async fn close_workbench(
     )
     .await
     .map_err(|e| format!("后台退出尚未完成，窗口已保留：{e}"))?;
+    state
+        .cli_sessions
+        .close_owner(window.label(), window.app_handle())?;
     if let Some(logs) = window
         .app_handle()
         .get_webview_window(&review_logs::label(window.label()))
@@ -584,6 +604,7 @@ fn main() {
                 },
             )?;
             app.manage(State {
+                cli_sessions: cli_sessions::Windows::default(),
                 lifecycle: workbench_exit::Lifecycle::default(),
                 workbenches,
                 experiment_root,
@@ -608,7 +629,9 @@ fn main() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if review_logs::owner(window.label()).is_some() {
+                if review_logs::owner(window.label()).is_some()
+                    || cli_sessions::is_label(window.label())
+                {
                     return; // Read-only windows close normally without stopping the owner.
                 }
                 // Intercept in native code, including close before React mounts.
@@ -618,6 +641,8 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            cli_sessions::open_cli_session_window,
+            cli_sessions::cli_session_read,
             cache_monitor::build_cache_monitor,
             access_settings::access_settings_load,
             access_settings::access_setting_put,
@@ -626,6 +651,7 @@ fn main() {
             close_workbench,
             cancel_workbench_exit,
             scan_codex_installations,
+            test_local_connection,
             independent_verifier_status,
             review_workflow_template,
             portable_evidence,
