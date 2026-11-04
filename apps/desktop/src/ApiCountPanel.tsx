@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useRef, useState } from "react";
 import type { ApiCountEntry, ApiCountLookup, ApiCountPage, ApiCountRecord, ApiCountResolutionInput, ApiCountReview, Command, CountResolutionResult } from "./contracts";
@@ -31,13 +32,13 @@ export function ApiCountPanel({query,busy=false}:{query:Query;busy?:boolean}) {
       setRecord(found);
     }catch(err){setError(String(err));}finally{gate.current=false;setPending(false);}
   }
-  return <section className="workflow-plans" aria-label="API 计数费用核对"><h2>API 计数费用核对</h2>
+  return <section className="workflow-plans" aria-label="API 计数费用核对"><HelpHeading as="h2" topic="ApiCountPanel">API 计数费用核对</HelpHeading>
     <p>仅核对计数费用。生成费用、执行结果和请求次数分别保留；本次核对不会重新发送任务或标记任务完成。</p>
     <button disabled={busy||pending||!!selected} onClick={()=>void read()}>读取 API 计数清单</button>
     {error&&<p role="alert"><ErrorText error={error}/></p>}
     {page&&<><p>共 {page.total} 条；当前从第 {page.offset+(page.total?1:0)} 条显示。</p>
       {page.entries.map(e=><article className="panel" key={e.projectId+":"+e.requestId}>
-        <h3>任务 {e.taskId} · 第 {e.round} 轮</h3><p>项目：{e.projectId}；尝试：{e.attemptId}</p><p>原请求：{e.requestId}</p>
+        <HelpHeading as="h3" topic="ApiCountPanel">任务 {e.taskId} · 第 {e.round} 轮</HelpHeading><p>项目：{e.projectId}；尝试：{e.attemptId}</p><p>原请求：{e.requestId}</p>
         <p>原计数结果：{outcome(e.originalOutcome)}；原费用预留：{usd(e.maximumUsdNanos)}</p>
         <p>{e.feeResolution?`已确认 ${usd(e.feeResolution.amountUsdNanos!)}，${e.feeResolution.state==="recorded"?"已记账":"待发布"}`:"计数费用尚未核销"}</p>
         {!e.feeResolution&&<button disabled={busy||pending||!!selected||e.originalOutcome==="pending"} onClick={()=>{setSelected(e);setRecord(null);}}>核对此 API 计数费用</button>}
@@ -45,7 +46,7 @@ export function ApiCountPanel({query,busy=false}:{query:Query;busy?:boolean}) {
       </article>)}
       {page.nextOffset!==null&&<button disabled={busy||pending||!!selected} onClick={()=>void read(true)}>下一页 API 计数</button>}
     </>}
-    {record&&<section className="panel" aria-label="原 API 费用确认"><h3>原 API 费用确认</h3>
+    {record&&<section className="panel" aria-label="原 API 费用确认"><HelpHeading as="h3" topic="ApiCountPanel">原 API 费用确认</HelpHeading>
       <p>项目：{record.review.input.projectId}；任务：{record.review.taskId}；尝试：{record.review.attemptId}；轮次：{record.review.round}</p>
       <p>金额：{usd(record.review.input.amountUsdNanos)}；账单引用：{record.review.input.billingReference}</p><p>{record.review.input.explanation}</p>
       <p>{record.state==="recorded"?"已记入原账本":"用户确认已保存，待发布"}；原计数结果：{outcome(record.review.originalOutcome)}</p>
@@ -81,7 +82,7 @@ export function ApiCountForm({entry,query,busy,close}:{entry:ApiCountEntry;query
       setStatus(!found?"尚未找到原确认；未自动重发。":found.state==="recorded"?"原 API 计数费用已记入账本，请刷新清单和项目金额。":"原确认已保存，账本待发布，请保留原数据并重开核心核对。");
     }catch(e){setError(String(e));}finally{gate.current=false;setPending(false);}
   }
-  return <section className="panel" aria-label="核对 API 计数费用"><h3>核对任务 {entry.taskId} 第 {entry.round} 轮计数费用</h3>
+  return <section className="panel" aria-label="核对 API 计数费用"><HelpHeading as="h3" topic="ApiCountPanel">核对任务 {entry.taskId} 第 {entry.round} 轮计数费用</HelpHeading>
     <fieldset disabled={busy||pending||!!submitted}>
       <label>实际 API 计数金额（USD）<input aria-label="实际 API 计数金额（USD）" value={amount} onChange={e=>edit(()=>setAmount(e.target.value))}/></label>
       <label>API 计数账单引用<input aria-label="API 计数账单引用" value={reference} onChange={e=>edit(()=>setReference(e.target.value))}/></label>

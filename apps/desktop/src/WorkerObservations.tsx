@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceObservationDetail, WorkspaceObservationEventPage, WorkspaceObservationIncidentPage, WorkspaceQuery, WorkspaceResult } from "./contracts";
@@ -59,7 +60,7 @@ export function WorkerObservations(props: Props) {
   }
   function close() { alive.current = false; generation.current++; lock.current = false; props.close(); }
   return <section className="panel" aria-label="执行观察" aria-busy={loading}>
-    <div className="section-heading"><h3>执行观察</h3><button onClick={close}>关闭观察</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkerObservations">执行观察</HelpHeading><button onClick={close}>关闭观察</button></div>
     <p>任务 {props.taskId} · 尝试 {props.attemptId}</p>
     <p className="secondary">查看执行器报告的工具完成记录。它们不代替独立验收；建议正文、发送状态和原轮次回执可在指挥记录查看。</p>
     <p>这里只读取原记录，不派发、取消或恢复任务。未知结果仍占用原资源，不能据此重发。</p>
@@ -71,14 +72,14 @@ export function WorkerObservations(props: Props) {
       <p>遗漏 {detail.dropped} 项 · 拒绝 {detail.rejected} 项异常或错轮次事件 · 去重 {detail.duplicates} 项</p>
       {(detail.dropped > 0 || detail.rejected > 0) && <p role="status">观察证据不完整，不可据此自动纠偏。</p>}
       {detail.storageError && <p role="alert"><ErrorText error={detail.storageError}/></p>}
-      {detail.supervision ? <section aria-label="监督异常"><h4>监督异常</h4><p>连续失败阈值 {detail.supervision.repeatedFailureThreshold} 次 · 每次尝试建议上限 {detail.supervision.maxAdvicePerAttempt} 条</p>
+      {detail.supervision ? <section aria-label="监督异常"><HelpHeading as="h4" topic="WorkerObservations">监督异常</HelpHeading><p>连续失败阈值 {detail.supervision.repeatedFailureThreshold} 次 · 每次尝试建议上限 {detail.supervision.maxAdvicePerAttempt} 条</p>
         <p>以下仅记录观察到的连续命令失败，不代表已证明卡循环；建议请求及正文请在主副指挥请求记录中查看。</p>
         <button disabled={blocked || stale} onClick={() => readIncidents(0, [])}>读取监督异常首页</button>
         {!incidents ? <p>监督异常尚未读取，共 {detail.incidentCount} 条。</p> : <>{incidents.total === 0 ? <p>尚未观察到达到阈值的连续失败。</p> : <ul>{incidents.entries.map(i => <li key={i.id}><strong>连续命令失败</strong><p>事件 {i.firstSequence}–{i.triggerSequence}</p><details><summary>异常证据</summary><p><code>{i.id}</code></p><p><code>{i.evidenceDigest}</code></p></details></li>)}</ul>}
           <nav aria-label="监督异常分页"><button disabled={blocked || stale || !incidentBack.length} onClick={() => readIncidents(incidentBack.at(-1)!, incidentBack.slice(0, -1))}>上一页</button><span>当前显示 {incidents.entries.length} / {incidents.total}</span><button disabled={blocked || stale || incidents.nextOffset === null} onClick={() => readIncidents(incidents.nextOffset!, [...incidentBack, incidents.offset])}>下一页</button></nav></>}
       </section> : <p>原方案未启用异常监督。</p>}
-      <section aria-label="工具完成记录"><h4>工具完成记录</h4><button disabled={blocked || stale} onClick={() => readEvents(0, [])}>读取工具观察首页</button>
-        {!events ? <p>工具完成记录尚未读取，共 {detail.eventCount} 条。</p> : <>{events.total === 0 ? <p>尚无可展示的工具完成记录。</p> : <ol start={events.offset + 1}>{events.entries.map(e => <li key={e.sequence}><h4>{e.kind === "command" ? "命令执行" : "文件变更"} · {e.status === "completed" ? "已完成" : e.status === "failed" ? "失败" : "被拒绝"}</h4><p>{new Date(Number(e.receivedAtMs)).toLocaleString("zh-CN")} · 退出码 {e.exitCode ?? "未提供"}</p><details><summary>事件摘要</summary><p>事件：<code>{e.itemDigest}</code></p>{e.actionDigest && <p>动作：<code>{e.actionDigest}</code></p>}</details></li>)}</ol>}
+      <section aria-label="工具完成记录"><HelpHeading as="h4" topic="WorkerObservations">工具完成记录</HelpHeading><button disabled={blocked || stale} onClick={() => readEvents(0, [])}>读取工具观察首页</button>
+        {!events ? <p>工具完成记录尚未读取，共 {detail.eventCount} 条。</p> : <>{events.total === 0 ? <p>尚无可展示的工具完成记录。</p> : <ol start={events.offset + 1}>{events.entries.map(e => <li key={e.sequence}><HelpHeading as="h4" topic="WorkerObservations">{e.kind === "command" ? "命令执行" : "文件变更"} · {e.status === "completed" ? "已完成" : e.status === "failed" ? "失败" : "被拒绝"}</HelpHeading><p>{new Date(Number(e.receivedAtMs)).toLocaleString("zh-CN")} · 退出码 {e.exitCode ?? "未提供"}</p><details><summary>事件摘要</summary><p>事件：<code>{e.itemDigest}</code></p>{e.actionDigest && <p>动作：<code>{e.actionDigest}</code></p>}</details></li>)}</ol>}
           <nav aria-label="工具观察分页"><button disabled={blocked || stale || !eventBack.length} onClick={() => readEvents(eventBack.at(-1)!, eventBack.slice(0, -1))}>上一页</button><span>当前显示 {events.entries.length} / {events.total}</span><button disabled={blocked || stale || events.nextOffset === null} onClick={() => readEvents(events.nextOffset!, [...eventBack, events.offset])}>下一页</button></nav></>}
       </section>
       <details><summary>关联证据</summary><p>会话 {detail.threadId ?? "未确认"}</p><p>轮次 {detail.turnId ?? "未确认"}</p><p>方案 <code>{detail.revisionDigest}</code></p><p>记录 <code>{detail.evidenceDigest}</code></p></details>

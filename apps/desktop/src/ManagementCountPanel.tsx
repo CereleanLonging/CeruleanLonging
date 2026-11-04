@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useRef, useState } from "react";
 import type { Command, CountResolutionInput, CountResolutionRecord, CountResolutionResult, CountResolutionReview, ManagementCountEntry, ManagementCountPage } from "./contracts";
@@ -34,12 +35,12 @@ export function ManagementCountPanel({ query, busy = false }: { query: Query; bu
       setPage(result.counts);
     } catch(e) { setError(String(e)); } finally { gate.current = false; setPending(false); }
   }
-  return <section className="workflow-plans" aria-label="计数费用与续发核对"><h2>计数费用与续发核对</h2>
+  return <section className="workflow-plans" aria-label="计数费用与续发核对"><HelpHeading as="h2" topic="ManagementCountPanel">计数费用与续发核对</HelpHeading>
     <p>费用核销与终止续发分别确认。核销只调整原计数费用；终止保留费用、原结果和请求次数，不会重新发送。</p>
     <button disabled={busy || pending} onClick={() => void read()}>读取计数清单</button>
     {error && <p role="alert"><ErrorText error={error}/></p>}
     {page && <><p>共 {page.total} 条；当前从第 {page.offset + (page.total ? 1 : 0)} 条显示。</p>
-      {page.entries.map(e => <article className="panel" key={e.projectId + ":" + e.operationId}><h3>{e.operationId}</h3>
+      {page.entries.map(e => <article className="panel" key={e.projectId + ":" + e.operationId}><HelpHeading as="h3" topic="ManagementCountPanel">{e.operationId}</HelpHeading>
         <p>项目：{e.projectId}；原计数结果：{outcome(e.originalOutcome)}；原费用预留：${decimalAmount(e.maximumUsdNanos,9)}</p>
         <p>计数费：{e.feeResolution ? `已确认${e.feeResolution.state === "recorded" ? "并记账" : "，待发布"} $${decimalAmount(e.feeResolution.amountUsdNanos ?? 0,9)}` : "尚未核销"}；续发：{e.retirement ? (e.retirement.state === "recorded" ? "已终止" : "终止待发布") : "尚未人工终止"}</p>
         <button disabled={busy || pending || !!selected || e.originalOutcome === "pending" || (!!e.feeResolution && !!e.retirement)} onClick={() => setSelected(e)}>核对原操作</button>
@@ -48,7 +49,7 @@ export function ManagementCountPanel({ query, busy = false }: { query: Query; bu
       </article>)}
       {page.nextOffset !== null && <button disabled={busy || pending} onClick={() => void read(true)}>下一页计数</button>}
     </>}
-    {record && <section className="panel" aria-label="原计数确认"><h3>{record.review.input.operationId} 原确认</h3>
+    {record && <section className="panel" aria-label="原计数确认"><HelpHeading as="h3" topic="ManagementCountPanel">{record.review.input.operationId} 原确认</HelpHeading>
       {record.review.input.action.kind === "settleFee" ? <><p>金额：${decimalAmount(record.review.input.action.amountUsdNanos,9)}；账单引用：{record.review.input.action.billingReference}</p><p>{record.review.input.action.explanation}</p></> : <p>终止原因：{record.review.input.action.reason}</p>}
       <p>{record.state === "recorded" ? "已记入账本" : "用户确认已保存，账本待发布"}；原计数结果：{outcome(record.review.originalOutcome)}</p>
       <details><summary>原确认引用</summary><p>用户确认：<code>{record.userEventDigest}</code></p><p>审阅：<code>{record.review.reviewDigest}</code></p><p>计数来源：<code>{record.review.sourceDigest}</code></p></details>
@@ -98,7 +99,7 @@ export function CountResolutionForm({ entry, query, busy, close }: { entry: Mana
       setStatus(!found.record ? "尚未找到原确认；未自动重发。" : found.record.state === "recorded" ? "原确认已记入账本。请刷新计数清单。" : "原确认已保存，账本待发布，请保留数据并重开核心核对。");
     } catch(e) { setError(String(e)); } finally { gate.current = false; setPending(false); }
   }
-  return <section className="panel" aria-label="核对计数操作"><h3>核对 {entry.operationId}</h3>
+  return <section className="panel" aria-label="核对计数操作"><HelpHeading as="h3" topic="ManagementCountPanel">核对 {entry.operationId}</HelpHeading>
     <fieldset disabled={busy || pending || !!submitted}>
       <label>处理事项<select aria-label="处理事项" value={kind} onChange={e => edit(() => setKind(e.target.value as typeof kind))}>
         <option value="settleFee" disabled={!!entry.feeResolution}>核销计数费用</option><option value="retireContinuation" disabled={!!entry.retirement}>终止原操作续发</option>

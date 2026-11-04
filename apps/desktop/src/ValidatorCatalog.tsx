@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import {IndependentVerifier} from "./IndependentVerifier";
 import { ErrorText } from "./ErrorText";
 import { useState } from "react";
@@ -11,7 +12,7 @@ export function ValidatorCatalog({items,send,busy,connected}:{items:RegisteredVa
   const [environment,setEnvironment]=useState("");
   const [error,setError]=useState("");
   return <section className="panel validator-catalog" aria-label="验收工具登记">
-    <h2>验收工具</h2>
+    <HelpHeading as="h2" topic="ValidatorCatalog">验收工具</HelpHeading>
     <IndependentVerifier connected={connected}/>
     <details className="custom-validator-settings"><summary>配置项目专用检查程序（高级）</summary>
     <p className="secondary">为具体需求登记测试程序和固定检查文件。这里只读取文件并保存版本，实际使用前仍须审阅执行方案。独立验收工具的固定关联不受影响。</p>
@@ -35,9 +36,9 @@ export function ValidatorCatalog({items,send,busy,connected}:{items:RegisteredVa
       {error && <p role="alert"><ErrorText error={error}/></p>}
       <button className="primary" disabled={busy || !connected}>读取文件并登记</button>
     </form>
-    <h3>已登记项目检查程序 · {items.length}</h3>
+    <HelpHeading as="h3" topic="ValidatorCatalog">已登记项目检查程序 · {items.length}</HelpHeading>
     {items.length===0 ? <p className="secondary">尚未登记项目专用检查程序，项目功能检查尚未就绪。</p> : items.map(item=><article key={item.id} className="validator-entry">
-      <h4>{item.name}</h4><p className="secondary">{new Date(item.registeredAt).toLocaleString("zh-CN")} · 登记时文件摘要，运行前再次核验</p>
+      <HelpHeading as="h4" topic="ValidatorCatalog">{item.name}</HelpHeading><p className="secondary">{new Date(item.registeredAt).toLocaleString("zh-CN")} · 登记时文件摘要，运行前再次核验</p>
       <dl><dt>实际程序</dt><dd><code>{item.tool.executable.path}</code></dd><dt>程序 SHA-256</dt><dd><code>{item.tool.executable.sha256}</code></dd>
       <dt>固定验收文件</dt><dd>{item.tool.inputs.length ? item.tool.inputs.map(file=><div key={file.path}><code>{file.path}</code><br/><code>{file.sha256}</code></div>) : "无"}</dd>
       <dt>环境设置</dt><dd>{Object.entries(item.tool.environment).map(([key,value])=>`${key}=${value}`).join("、") || "核心隔离环境"}</dd></dl>

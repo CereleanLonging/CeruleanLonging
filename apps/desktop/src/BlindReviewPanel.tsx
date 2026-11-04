@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import type { ApiTarget, BlindReviewAction, Command, ReviewPhase, Snapshot } from "./contracts";
@@ -40,7 +41,7 @@ export function BlindReviewPanel({ data, busy, send }: {
   }
   const latest = new Map((data?.blindReviews ?? []).map(r => [r.projectId, r]));
   return <section className="panel blind-review-panel" aria-label="项目盲评">
-    <h2>项目盲评与最终验收</h2>
+    <HelpHeading as="h2" topic="BlindReviewPanel">项目盲评与最终验收</HelpHeading>
     <p>任务执行完成后，核对完整交付和客观检查，再由副指挥确认就绪。主、副指挥和每个执行模型各一票，全票通过后由你最终确认。</p>
     <p>评审只能接收批准的源码片段，没有文件工具、总分或其他票据。CLI、桌面或外部聊天未具备受限评审协议时，会明确停止整轮。</p>
     <label>项目编号<input list="blind-review-projects" value={projectId} onChange={e => setProject(e.target.value)} placeholder="选择或输入已完成任务验收的项目编号" /></label>
@@ -51,7 +52,7 @@ export function BlindReviewPanel({ data, busy, send }: {
     <p>准备仅在本机进行。首次使用会保护新验收数据，旧版核心将拒绝打开此数据目录，并禁止旧宿主权限执行及外部主指挥聊天。建议使用独立实验工作台，先保留已有备份。</p>
     {error && <p role="alert"><ErrorText error={error}/></p>}
     {[...latest.values()].map(r => <article key={r.roundId}>
-      <h3>{r.projectId} · {r.phase === "accepted" && !r.finalAccepted ? "历史轮次已确认，当前交付未核实" : labels[r.phase]}</h3>
+      <HelpHeading as="h3" topic="BlindReviewPanel">{r.projectId} · {r.phase === "accepted" && !r.finalAccepted ? "历史轮次已确认，当前交付未核实" : labels[r.phase]}</HelpHeading>
       <p>{r.fileCount} 个文件，{r.fragmentCount} 个片段，材料 {r.materialBytes} 字节。每席一票，需要 {r.seats.length}/{r.seats.length} 通过。</p>
       <ul>{r.seats.map(s => <li key={s.id}>{s.role === "chief" ? "主指挥" : s.role === "deputy" ? "副指挥" : "执行端"}：{s.model} · {serviceName(s.target)}；允许的返回名称：{s.allowedModels.join("、")}</li>)}</ul>
       {r.message && <p>{r.message}</p>}

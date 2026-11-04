@@ -18,13 +18,4 @@ jobs:
       - name: Build core and desktop
         run: npm run desktop:build
       - name: Rust lint and sidecar isolation
-        run: |
-          cargo build -p cerulean-core --locked
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          $coreBefore = (Get-FileHash target/debug/cerulean-core.exe).Hash
-          cargo clippy --workspace --all-targets --features custom-protocol --locked -- -D warnings
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cargo test -p cerulean-desktop --features custom-protocol --locked
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          if ((Get-FileHash target/debug/cerulean-core.exe).Hash -ne $coreBefore) { throw 'Desktop build replaced Cargo core binary' }
-          npm run test:ipc
+        run: ./scripts/lint.ps1

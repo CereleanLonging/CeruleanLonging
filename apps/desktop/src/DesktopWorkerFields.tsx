@@ -1,7 +1,12 @@
-import { useEffect } from 'react';
-import type { DesktopWorkerSelection, Snapshot } from './contracts';
+import { HelpHeading } from "./HelpHeading";
+import { useEffect, useRef, useState } from 'react';
+import type { Command, DesktopWorkerSelection, Snapshot } from './contracts';
+import { DesktopSessions } from './DesktopSessions';
 
-export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix="planning-desktop",isolationEnabled=false}:{isolationEnabled?:boolean;idPrefix?:string;data:Snapshot;projectId:string;app:'qoder';worker:DesktopWorkerSelection|undefined|null;onChange:(worker:DesktopWorkerSelection|undefined)=>void}) {
+export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix="planning-desktop",isolationEnabled=false,send,busy=false}:{busy?:boolean;send?:(command:Command)=>Promise<boolean>;isolationEnabled?:boolean;idPrefix?:string;data:Snapshot;projectId:string;app:'qoder';worker:DesktopWorkerSelection|undefined|null;onChange:(worker:DesktopWorkerSelection|undefined)=>void}) {
+  const [connecting, setConnecting] = useState(false);
+  const bindingSelect = useRef<HTMLSelectElement>(null);
+  useEffect(() => setConnecting(false), [projectId]);
   const project=data.workflows.find(w=>w.project.id===projectId)?.project;
   useEffect(()=>{
     if(!worker||!project)return;
@@ -16,17 +21,25 @@ export function DesktopWorkerFields({data,projectId,app,worker,onChange,idPrefix
       if(active&&root!==worker!.projectRoot)onChange({...worker!,projectRoot:root,workspaceConfirmed:false});
     }
     void resolve();return()=>{active=false;};
-  },[project?.root,worker?.modelLabel,isolationEnabled,app]);
+  },[project?.root,worker?.binding.id,worker?.modelLabel,worker?.projectRoot,isolationEnabled,app]);
   const bindings=data.desktopAccess?.bindings.filter(b=>b.projectId===projectId&&b.observation.window.app===app&&b.observation.modelLabel)??[];
   return <section className="panel" aria-label="桌面编程会话配置">
-    <h3>已有聊天与执行范围</h3>{isolationEnabled&&<p>先保存此模型配置并设置独立账户，再打开独立应用登录、核对下方目录，重新关联新账户窗口。保存配置不会发送任务。</p>}
-    <p>先在接入管理关联本项目的已有聊天。这里保存会话与权限配置；批准方案并启动调度后，副指挥分配的任务会等待你审阅并确认发送。</p>
+    <HelpHeading as="h3" topic="DesktopWorkerFields">已有聊天与执行范围</HelpHeading>
+    <p>选择当前项目已关联的 Qoder 聊天。首次使用时，打开并登录 Qoder，选择模型与聊天，再点击下方按钮读取并关联。</p>
+    {isolationEnabled&&<p className="secondary">项目配置保存后，在 Windows 执行账户中准备独立账户，登录该账户的 Qoder 并重新关联聊天，核对分配的执行目录。</p>}
+    {send && <button type="button" className="secondary-button" disabled={busy||!!data.desktopAccess?.checking} aria-expanded={connecting} aria-controls={`${idPrefix}-connection`} onClick={() => setConnecting(value => !value)}>
+      {connecting ? "收起 Qoder 会话关联" : "关联 Qoder 会话"}
+    </button>}
+    {connecting && send && <div id={`${idPrefix}-connection`} className="desktop-inline-connection">
+      <DesktopSessions data={data} busy={busy} send={send} projectId={projectId} idPrefix={`${idPrefix}-session`}
+        onBound={() => { setConnecting(false); requestAnimationFrame(() => bindingSelect.current?.focus()); }}/>
+    </div>}
     <label htmlFor={`${idPrefix}-binding`}>选择已保存会话</label>
-    <select id={`${idPrefix}-binding`} required value={worker?.binding.id??''} onChange={e=>{const binding=bindings.find(b=>b.id===e.target.value);onChange(binding&&project?{binding,projectRoot:project.root,modelLabel:binding.observation.modelLabel!,workspaceConfirmed:false,externalToolsAcknowledged:false}:undefined);}}>
+    <select ref={bindingSelect} id={`${idPrefix}-binding`} required value={worker?.binding.id??''} onChange={e=>{const binding=bindings.find(b=>b.id===e.target.value);onChange(binding&&project?{binding,projectRoot:project.root,modelLabel:binding.observation.modelLabel!,workspaceConfirmed:false,externalToolsAcknowledged:false}:undefined);}}>
       <option value="">选择已观察模型的会话关联</option>
       {bindings.map(b=><option key={b.id} value={b.id}>{b.label} · {b.observation.modelLabel} · {b.observation.window.version}</option>)}
     </select>
-    {!bindings.length&&<p role="status">尚无可用关联。请在接入管理读取目标聊天，确认模型显示名后建立关联；应用重启后需要重新读取。</p>}
+    {!bindings.length&&<p role="status">当前项目还没有包含模型名称的 Qoder 会话关联。请{send ? "点击“关联 Qoder 会话”" : "在接入管理中"}发现窗口、读取当前聊天，并确认保存项目关联。</p>}
     {worker&&<>
       <DesktopExecutionReview worker={worker}/>
       <label className="checkbox-label"><input type="checkbox" required checked={worker.workspaceConfirmed} onChange={e=>onChange({...worker,workspaceConfirmed:e.target.checked})}/>我已在外部应用核对工作目录与模型，确认该聊天用于上面的项目</label>

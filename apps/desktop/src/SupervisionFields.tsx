@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import type { ProjectWorkerAdapter, SupervisionAdviceView, SupervisionOverride, SupervisionPolicy } from "./contracts";
 import { apiWorkerOptions } from "./ApiWorkerFields";
 
@@ -73,7 +74,7 @@ export function SupervisionFields({ id, value, inherited, adapter, onChange }: {
     if (custom) onChange({ mode: "enabled", policy: { ...custom, ...patch } });
   }
   return <section className="panel" aria-label="执行配置异常监督">
-    <h4>此执行配置的异常监督</h4>
+    <HelpHeading as="h4" topic="SupervisionFields">此执行配置的异常监督</HelpHeading>
     <label htmlFor={`${id}-mode`}>监督方式</label>
     <select id={`${id}-mode`} value={value?.mode ?? "inherit"} onChange={e => {
       if (e.target.value === "inherit") onChange(undefined);

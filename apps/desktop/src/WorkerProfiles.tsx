@@ -1,10 +1,13 @@
+import { ProjectApiConnections } from "./ProjectConnections";
+import { HelpHeading } from "./HelpHeading";
 import { AssertionFields } from "./AssertionFields";
 import { SupervisionFields } from "./SupervisionFields";
 import { ResourceFields } from "./ResourceFields";
-import type { AcceptanceStageDraft, ProjectWorkerAdapter, Snapshot, WorkerProfile, WorkerProfileDraft, SupervisionPolicy } from "./contracts";
+import type { Command, AcceptanceStageDraft, ProjectWorkerAdapter, Snapshot, WorkerProfile, WorkerProfileDraft, SupervisionPolicy } from "./contracts";
 import { ApiWorkerFields, apiWorkerOptions, newApiWorker } from "./ApiWorkerFields";
 import { DesktopWorkerFields } from "./DesktopWorkerFields";
 import { NativeWorkerCost } from "./NativeWorkerCost";
+import { defaultWorkerAdapter, workerMethod, workerMethodLabels, type WorkerMethod } from "./ConnectionMethods";
 
 function nextId(prefix:string, used:string[]):string {
   let value=1;
@@ -15,22 +18,26 @@ function nextId(prefix:string, used:string[]):string {
 export function restoreProfile(p: WorkerProfile): WorkerProfileDraft {
   return {supervisionOverride:p.supervisionOverride,resourceKeys:p.resourceKeys,id:p.id,description:p.description,workerAdapter:p.workerAdapter,codexExecutable:p.worker?.executable.path??"",workerModel:p.worker?.model??p.apiWorker?.model??p.desktopWorker?.modelLabel??"",ompRuntimeParent:p.worker?.ompRuntimeParent,apiWorker:p.apiWorker,desktopWorker:p.desktopWorker,artifactPaths:p.artifactPaths,acceptance:{schemaVersion:1,stages:p.acceptance.stages.map(s=>({expectedAssertions:s.check.expectedAssertions,id:s.check.id,name:s.check.name??s.check.id,validatorId:s.validatorId,args:s.check.args,timeoutSeconds:s.check.timeoutSeconds}))}};
 }
-export function WorkerProfiles({data,projectId,value,worktree,commonResources,supervision,onChange,isolationEnabled=false}: {
-  isolationEnabled?:boolean;supervision?:SupervisionPolicy|null;commonResources:string[];data:Snapshot;projectId:string;value:WorkerProfileDraft[];worktree:boolean;onChange:(profiles:WorkerProfileDraft[])=>void;
+export function WorkerProfiles({data,projectId,value,worktree,commonResources,supervision,onChange,isolationEnabled=false,send,busy=false,showConnections=false,methodFilter}: {
+  methodFilter?:WorkerMethod;send?:(command:Command)=>Promise<boolean>;busy?:boolean;showConnections?:boolean;isolationEnabled?:boolean;supervision?:SupervisionPolicy|null;commonResources:string[];data:Snapshot;projectId:string;value:WorkerProfileDraft[];worktree:boolean;onChange:(profiles:WorkerProfileDraft[])=>void;
 }) {
   function update(index:number,patch:Partial<WorkerProfileDraft>) {onChange(value.map((p,i)=>i===index?{...p,...patch}:p));}
   function stages(index:number,next:AcceptanceStageDraft[]) {update(index,{acceptance:{schemaVersion:1,stages:next}});}
-  return <section className="panel" aria-label="附加执行配置">
-    <h3>附加执行配置</h3>
-    <p className="secondary">主指挥可按任务选择下方配置或上面的默认执行者。每个配置有独立的模型、交付范围和检查；同一供应商可添加多个模型。选择会写入方案，批准后不能由副指挥替换。共享项目请求上限；并行派发按已批准的工作目录、依赖和资源条件执行。</p>
+  const addAdapter=methodFilter?defaultWorkerAdapter[methodFilter]:"deepseek";
+  return <section className={methodFilter?"filtered-worker-profiles":"panel"} aria-label={methodFilter?`${workerMethodLabels[methodFilter]}附加配置`:"附加执行配置"}>
+    {!methodFilter&&<><HelpHeading as="h3" topic="WorkerProfiles">附加执行配置</HelpHeading>
+    <p className="secondary">主指挥可按任务选择下方配置或上面的默认执行者。每个配置有独立的模型、交付范围和检查；同一供应商可添加多个模型。选择会写入方案，批准后不能由副指挥替换。共享项目请求上限；并行派发按已批准的工作目录、依赖和资源条件执行。</p></>}
     {value.map((p,index)=>{
+      if(methodFilter&&workerMethod(p.workerAdapter)!==methodFilter)return null;
       const prefix=`profile-${index}`;
       const desktop=p.workerAdapter==="qoder"||p.workerAdapter==="workbuddy";
       return <section className="panel" aria-label={`执行配置 ${index+1}`} key={index}>
         <label htmlFor={`${prefix}-id`}>配置 ID</label><input id={`${prefix}-id`} required value={p.id} onChange={e=>update(index,{id:e.target.value})}/>
         <label htmlFor={`${prefix}-description`}>适用任务与特长</label><input id={`${prefix}-description`} required maxLength={2000} value={p.description} onChange={e=>update(index,{description:e.target.value})}/>
         <label htmlFor={`${prefix}-adapter`}>执行接入</label><select id={`${prefix}-adapter`} value={p.workerAdapter} onChange={e=>{const adapter=e.target.value as ProjectWorkerAdapter;update(index,{workerAdapter:adapter,codexExecutable:"",workerModel:"",ompRuntimeParent:undefined,desktopWorker:undefined,apiWorker:newApiWorker(adapter)});}}>
-          <option value="codex">Codex Agent</option><option value="omp">OMP Agent</option>{apiWorkerOptions.map(([id,label])=><option key={id} value={id}>{label}</option>)}<option disabled={worktree} value="qoder">Qoder 已有聊天</option>{p.workerAdapter==="workbuddy"&&<option disabled value="workbuddy">WorkBuddy · 支持已移除</option>}
+          {(!methodFilter||methodFilter==="cli")&&<><option value="codex">Codex Agent</option><option value="omp">OMP Agent</option></>}
+          {(!methodFilter||methodFilter==="api")&&apiWorkerOptions.map(([id,label])=><option key={id} value={id}>{label}</option>)}
+          {(!methodFilter||methodFilter==="desktop")&&<><option disabled={worktree} value="qoder">Qoder 已有聊天</option>{p.workerAdapter==="workbuddy"&&<option disabled value="workbuddy">WorkBuddy · 支持已移除</option>}</>}
         </select>
         {!desktop&&!p.apiWorker&&<><label htmlFor={`${prefix}-exe`}>执行程序绝对路径</label><input id={`${prefix}-exe`} required value={p.codexExecutable} onChange={e=>update(index,{codexExecutable:e.target.value})}/></>}
         {!desktop&&<><label htmlFor={`${prefix}-model`}>模型 ID</label><input id={`${prefix}-model`} required value={p.workerModel} onChange={e=>update(index,{workerModel:e.target.value,apiWorker:p.apiWorker?{...p.apiWorker,model:e.target.value}:undefined})}/></>}
@@ -38,7 +45,8 @@ export function WorkerProfiles({data,projectId,value,worktree,commonResources,su
         {p.apiWorker&&<ApiWorkerFields idPrefix={`${prefix}-api`} worker={p.apiWorker} onChange={apiWorker=>update(index,{apiWorker})}/>}
         <NativeWorkerCost adapter={p.workerAdapter}/>
         {p.workerAdapter==="workbuddy"&&<p role="alert">WorkBuddy 支持已移除，请替换此执行器或删除该附加配置。</p>}
-        {p.workerAdapter==="qoder"&&<DesktopWorkerFields isolationEnabled={isolationEnabled} idPrefix={`${prefix}-desktop`} data={data} projectId={projectId} app="qoder" worker={p.desktopWorker} onChange={desktopWorker=>update(index,{desktopWorker,workerModel:desktopWorker?.modelLabel??""})}/>}
+        {p.workerAdapter==="qoder"&&<DesktopWorkerFields send={send} busy={busy} isolationEnabled={isolationEnabled} idPrefix={`${prefix}-desktop`} data={data} projectId={projectId} app="qoder" worker={p.desktopWorker} onChange={desktopWorker=>update(index,{desktopWorker,workerModel:desktopWorker?.modelLabel??""})}/>}
+        {showConnections&&send&&p.apiWorker&&<ProjectApiConnections target={p.apiWorker.target} prefix={prefix} data={data} busy={busy} send={send}/>}
         <SupervisionFields id={`${prefix}-supervision`} value={p.supervisionOverride} inherited={supervision} adapter={p.workerAdapter} onChange={supervisionOverride=>update(index,{supervisionOverride})}/>
         <ResourceFields id={`${prefix}-resources`} common={commonResources} value={p.resourceKeys} onChange={resourceKeys=>update(index,{resourceKeys})}/>
         <label htmlFor={`${prefix}-artifacts`}>任务交付文件（每行一个）</label><textarea id={`${prefix}-artifacts`} required value={p.artifactPaths.join("\n")} onChange={e=>update(index,{artifactPaths:e.target.value.split(/\r?\n/)})}/>
@@ -57,6 +65,6 @@ export function WorkerProfiles({data,projectId,value,worktree,commonResources,su
         <div className="card-footer"><button type="button" className="secondary-button" disabled={p.acceptance.stages.length>=8} onClick={()=>stages(index,[...p.acceptance.stages,{id:nextId("check",p.acceptance.stages.map(s=>s.id)),name:"任务检查",validatorId:data.validators[0]?.id??"",args:[],timeoutSeconds:30}])}>增加检查</button><button type="button" className="secondary-button" onClick={()=>onChange(value.filter((_,i)=>i!==index))}>移除执行配置</button></div>
       </section>;
     })}
-    <button type="button" className="secondary-button" disabled={value.length>=16} onClick={()=>onChange([...value,{id:nextId("profile",value.map(p=>p.id)),description:"",workerAdapter:"deepseek",supervisionOverride:{mode:"disabled"},codexExecutable:"",workerModel:"",apiWorker:newApiWorker("deepseek"),artifactPaths:[],acceptance:{schemaVersion:1,stages:[{id:"profile-check",name:"任务检查",validatorId:data.validators[0]?.id??"",args:[],timeoutSeconds:30}]}}])}>添加执行配置</button>
+    <button type="button" className="secondary-button" disabled={busy||value.length>=16||(methodFilter==="desktop"&&worktree)} onClick={()=>onChange([...value,{id:nextId("profile",value.map(p=>p.id)),description:"",workerAdapter:addAdapter,supervisionOverride:{mode:"disabled"},codexExecutable:"",workerModel:"",apiWorker:newApiWorker(addAdapter),artifactPaths:[],acceptance:{schemaVersion:1,stages:[{id:"profile-check",name:"任务检查",validatorId:data.validators[0]?.id??"",args:[],timeoutSeconds:30}]}}])}>{methodFilter?`添加${workerMethodLabels[methodFilter]}执行配置`:"添加执行配置"}</button>
   </section>;
 }

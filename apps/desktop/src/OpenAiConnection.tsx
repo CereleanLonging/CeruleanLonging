@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import type { Command, OpenAiConnection as Status } from "./contracts";
@@ -6,7 +7,7 @@ export function OpenAiConnection({status,send,busy,connected,view="all",idPrefix
   const checking=status?.state==="checking";
   const labels:Record<string,string>={notConfigured:"尚未配置",unchecked:"已加密保存，待检查",checking:"正在检查官方 API",available:"官方 API 认证通过",failed:"连接检查未通过"};
   return <section className="panel">
-    <div className="section-heading"><h3>OpenAI {view==="key"?"Key":"API"}</h3><span className="badge">{labels[status?.state??"notConfigured"]??"尚未配置"}</span></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="OpenAiConnection">OpenAI {view==="key"?"Key":"API"}</HelpHeading><span className="badge">{labels[status?.state??"notConfigured"]??"尚未配置"}</span></div>
     <p className="secondary">使用官方 API Key。API 用量与 Codex 订阅分开计费；角色能力由项目配置和已批准方案决定。</p>
     {view!=="api"&&<form onSubmit={async event=>{event.preventDefault();if(busy||checking||!connected)return;const value=key;setKey("");await send({type:"setOpenAiKey",key:value});}}>
       <label htmlFor={`${idPrefix}-key`}>OpenAI API Key</label>

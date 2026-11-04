@@ -2,3 +2,4 @@
 # Dependencies and release artifacts remain cached; compilation may take longer.
 [build]
 incremental = false
+target-dir = ".temp/build-cache/manual/cargo"

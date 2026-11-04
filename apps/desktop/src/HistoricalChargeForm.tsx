@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Command, CurrencyHistoryGap, HistoricalAccounting, HistoricalChargeInput, HistoricalChargeReview, HistoricalScope, ProjectCurrencyBudget, HistoricalResult } from "./contracts";
@@ -79,7 +80,7 @@ export function HistoricalChargeForm({ gap, accounts, busy, query, close }: {
     } catch (e) { if (active.current) setError(String(e)); }
     finally { sending.current = false; if (active.current) setPending(false); }
   }
-  return <section className="panel currency-history" aria-label="核对历史费用"><h3>核对 {gap.sourceId}</h3>
+  return <section className="panel currency-history" aria-label="核对历史费用"><HelpHeading as="h3" topic="HistoricalChargeForm">核对 {gap.sourceId}</HelpHeading>
     <p>填写覆盖这条原调用或完整执行范围的账单金额。零金额也需要明确依据；本次记录不会释放其他请求的预留。</p>
     <fieldset disabled={pending || busy || !!submitted}>
       <label htmlFor={`${formId}-project`}>归属项目</label><select id={`${formId}-project`} value={project} disabled={gap.projectId !== null} onChange={e => edit(() => setProject(e.target.value))}>
@@ -92,7 +93,7 @@ export function HistoricalChargeForm({ gap, accounts, busy, query, close }: {
     </fieldset>
     {(!book || !book.approvalLinked) && <p role="status">请先为归属项目批准金额预算。</p>}
     {error && <p role="alert"><ErrorText error={error}/></p>}
-    {review && !submitted && <section aria-label="确认历史金额"><h4>请核对后确认</h4>
+    {review && !submitted && <section aria-label="确认历史金额"><HelpHeading as="h4" topic="HistoricalChargeForm">请核对后确认</HelpHeading>
       <p>项目：{review.input.projectId}；金额：${decimalAmount(review.input.amountUsdNanos, 9)}</p>
       <p>账单引用：{review.input.billingReference}</p><p>核对说明：{review.input.explanation}</p>
       <p>原结果仍有 {review.source.uncertainOutcomes} 项不确定。本次金额来自你的账单核对，工作台未向供应商验证账单。</p>

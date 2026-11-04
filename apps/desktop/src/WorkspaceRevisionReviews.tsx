@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { ProjectRevisionReview, WorkspaceRevisionReviewDetail, WorkspaceRevisionReviewPage } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -76,16 +77,16 @@ export function WorkspaceRevisionReviews(props: Props) {
     });
   }
   return <section className="panel" aria-label="项目修订审阅" aria-busy={loading}>
-    <div className="section-heading"><h3>项目 {props.projectId} 的修订审阅</h3><button disabled={blocked} onClick={() => void run(readPage)}>刷新修订审阅</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceRevisionReviews">项目 {props.projectId} 的修订审阅</HelpHeading><button disabled={blocked} onClick={() => void run(readPage)}>刷新修订审阅</button></div>
     <p>这里只读原始修订与结果控制审阅候选；不是修订历史，不会申请修订、退役任务、启动或暂停运行。</p>
     {loading && <p role="status">正在读取原修订审阅…</p>}
     {error && <p role="alert">{error} 上次内容仅供核对，请刷新后继续。</p>}
     {!page ? <p>修订审阅尚未取得；这不表示没有可审阅候选。</p> : <>
       <p>原修订审阅版本 <code>{page.revision}</code></p>
       {page.unavailableReason !== null ? <p role="alert">原修订审阅暂不可用：{page.unavailableReason}；这不表示没有可审阅候选。</p> : page.total === 0 ? <p>原项目当前没有可审阅修订候选。</p> : page.entries.map(record => <article className="panel" key={record.projectId}>
-        <h4>原项目修订候选</h4><RecordFields record={record}/><button disabled={blocked || stale} onClick={() => readDetail(record)}>查看完整原修订审阅</button>
+        <HelpHeading as="h4" topic="WorkspaceRevisionReviews">原项目修订候选</HelpHeading><RecordFields record={record}/><button disabled={blocked || stale} onClick={() => readDetail(record)}>查看完整原修订审阅</button>
       </article>)}
     </>}
-    {detail && <section className="panel" aria-label="完整原项目修订审阅"><h4>完整原修订审阅</h4><RecordFields record={detail.record}/><details><summary>查看原记录字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail.record, null, 2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
+    {detail && <section className="panel" aria-label="完整原项目修订审阅"><HelpHeading as="h4" topic="WorkspaceRevisionReviews">完整原修订审阅</HelpHeading><RecordFields record={detail.record}/><details><summary>查看原记录字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail.record, null, 2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
   </section>;
 }

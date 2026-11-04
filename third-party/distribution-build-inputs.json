@@ -13,7 +13,7 @@
       {
         "path": "third-party/distribution-inputs.json",
         "bytes": 200517,
-        "sha256": "07b250bd79c392ea2270fbfe29d69090b10d3ea3efd1250af27abaaf2dddd8fa"
+        "sha256": "a119868ed60bd02437d174a05c79fac8f394feca1b59dd717534443ee36bc4f6"
       },
       {
         "path": "third-party/distribution-inputs.zip",
@@ -27,8 +27,8 @@
       },
       {
         "path": ".cargo/config.toml",
-        "bytes": 187,
-        "sha256": "fb713c6edf68a517a39b942d90085166783b3d9031bb5619051724bd11dc8b9b"
+        "bytes": 233,
+        "sha256": "4750fab5a331f46def2e4ccf76d643dda6455fcf12a20b1b42ec94fb4671d143"
       },
       {
         "path": "apps/desktop/src-tauri/installer/hooks.nsh",

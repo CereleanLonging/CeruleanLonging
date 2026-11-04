@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import type { Command, Snapshot } from "./contracts";
 import { ExperimentWorkbenches } from "./ExperimentWorkbenches";
 import { TeamTimingPanel } from "./TeamTimingPanel";
@@ -12,7 +13,7 @@ type Props = {
 
 export function ExperimentLab(props: Props) {
   return <section className="experiment-lab" aria-label="独立实验功能">
-    <div className="page-heading"><div><div className="eyebrow">EXPERIMENT WORKBENCH</div><h1>独立实验工作台</h1><p>集中管理独立实验窗口，以及团队与单执行者的效率对照。</p></div></div>
+    <div className="page-heading"><div><div className="eyebrow">EXPERIMENT WORKBENCH</div><HelpHeading as="h1" topic="ExperimentLab">独立实验工作台</HelpHeading><p>集中管理独立实验窗口，以及团队与单执行者的效率对照。</p></div></div>
     <section className="panel">
       <label className="experiment-feature-switch"><input type="checkbox" checked={props.enabled} disabled={props.busy} onChange={event => props.onEnabled(event.target.checked)}/>开启独立实验功能</label>
       <p>每次打开工作台默认关闭，勾选后展开实验管理与效率验收。开启只显示功能，不会创建实验或发送模型任务。</p>

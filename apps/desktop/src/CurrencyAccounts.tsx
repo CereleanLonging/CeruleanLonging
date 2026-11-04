@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import type { CurrencyHistoryGap, ProjectCurrencyBudget, HistoricalAccounting, HistoricalSourcePage, HistoricalAccountingPage } from "./contracts";
 import { decimalAmount } from "./CurrencyBudgetFields";
 import type { HistoricalQuery } from "./HistoricalChargeForm";
@@ -7,13 +8,13 @@ import { HistoricalPages } from "./HistoricalPages";
 export function CurrencyAccounts({ accounts, history, accounted, sources, accounting, query, busy = false }: { accounts: ProjectCurrencyBudget[], history?: CurrencyHistoryGap[] | null; accounted?: HistoricalAccounting[] | null; sources?: HistoricalSourcePage | null; accounting?: HistoricalAccountingPage | null; query?: HistoricalQuery; busy?: boolean }) {
   const usd = (value: number) => "$" + decimalAmount(value, 9);
   const paged = sources !== undefined || accounting !== undefined;
-  return <>{paged ? <HistoricalPages sources={sources} accounting={accounting} accounts={accounts} query={query} busy={busy}/> : <CurrencyHistory history={history} accounted={accounted} accounts={accounts} query={query} busy={busy}/>}{accounts.length > 0 && <section className="workflow-plans" aria-label="项目累计金额账本"><h2>项目累计金额</h2>
+  return <>{paged ? <HistoricalPages sources={sources} accounting={accounting} accounts={accounts} query={query} busy={busy}/> : <CurrencyHistory history={history} accounted={accounted} accounts={accounts} query={query} busy={busy}/>}{accounts.length > 0 && <section className="workflow-plans" aria-label="项目累计金额账本"><HelpHeading as="h2" topic="CurrencyAccounts">项目累计金额</HelpHeading>
     <p className="secondary">按批准报价核算；实际供应商账单仍需核对。当前版本尚未开放带金额预算的模型请求。</p>
     {accounts.map(a => {
       const pending = paged ? undefined : history?.filter(g => (g.projectId === null || g.projectId === a.projectId) && !isHistoryAccounted(g, accounted)).length;
       const available = paged ? (sources && sources.pendingTotal !== null && accounting ? a.availableUsdNanos : null) : pending === 0 ? a.availableUsdNanos : null;
       return <article className="panel" key={a.projectId} aria-label={`项目 ${a.projectId} 金额`}>
-      <h3>项目 {a.projectId}</h3>
+      <HelpHeading as="h3" topic="CurrencyAccounts">项目 {a.projectId}</HelpHeading>
       <dl><dt>累计上限</dt><dd>{usd(a.limitUsdNanos)}</dd><dt>已核算费用</dt><dd>{usd(a.chargedUsdNanos)}</dd>
         <dt>未释放预留</dt><dd>{usd(a.reservedUsdNanos)}</dd><dt>可用额度</dt><dd>{available === null ? "待核对，暂不可用" : usd(available)}</dd></dl>
       {!paged && pending === undefined && <p role="status">尚未取得完整历史费用清单。</p>}

@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { supervisionDeliverySummary } from "./SupervisionFields";
 import { useEffect, useRef, useState } from "react";
@@ -35,18 +36,18 @@ function historyPage(snapshot: Snapshot): HistoryPage {
 }
 function FullText({ decision }: { decision: ManagementView }) {
   return <>
-    {decision.supervisionAdvice&&<section className="management-saved-text" aria-label="副指挥监督建议"><h4>副指挥监督建议</h4>
+    {decision.supervisionAdvice&&<section className="management-saved-text" aria-label="副指挥监督建议"><HelpHeading as="h4" topic="ManagementReview">副指挥监督建议</HelpHeading>
       <p>任务 {decision.supervisionAdvice.taskId} · 尝试 {decision.supervisionAdvice.attemptId}</p>
       {decision.supervisionAdvice.omp && <p>OMP 原请求 {decision.supervisionAdvice.omp.requestId}</p>}
       {decision.supervisionAdvice.api && <p>API 请求 {decision.supervisionAdvice.api.requestId} · 第 {decision.supervisionAdvice.api.round} 轮</p>}
       {decision.supervisionAdvice.deliveryState === "recordOnly" && !decision.supervisionAdvice.omp && <p>仅保存供审阅，尚未自动投送；不代表执行器已经纠偏。</p>}
       <p>{decision.supervisionAdvice.current?"原观察仍对应当前运行":"原观察已过期或执行已结束，仅供审阅"} · {supervisionDeliverySummary(decision.supervisionAdvice)}</p>
-      {decision.supervisionAdvice.suggestion?<><p className="management-text">{decision.supervisionAdvice.suggestion}</p><h4>建议依据</h4><p className="management-text">{decision.supervisionAdvice.rationale}</p></>:<p>尚无可确认的建议正文；请求结果未知时不会自动重发。</p>}
+      {decision.supervisionAdvice.suggestion?<><p className="management-text">{decision.supervisionAdvice.suggestion}</p><HelpHeading as="h4" topic="ManagementReview">建议依据</HelpHeading><p className="management-text">{decision.supervisionAdvice.rationale}</p></>:<p>尚无可确认的建议正文；请求结果未知时不会自动重发。</p>}
       <details><summary>关联异常</summary><p><code>{decision.supervisionAdvice.incidentId}</code></p><p><code>{decision.supervisionAdvice.observationDigest}</code></p>{decision.supervisionAdvice.omp && <p>原文件工具记录 <code>{decision.supervisionAdvice.omp.toolHead}</code></p>}</details>
     </section>}
-    {decision.waitReason !== null && <div className="management-saved-text"><h4>指挥等待原因（原文）</h4><p className="management-text">{decision.waitReason}</p></div>}
-    {decision.userReply !== null && <div className="management-saved-text"><h4>已保存的用户答复</h4><p className="management-text">{decision.userReply}</p><p className="secondary">答复供后续指挥请求参考；不改变已批准范围，也不自动恢复调度。</p></div>}
-    {decision.discardReason !== null && <div className="management-saved-text"><h4>{["abandoned", "startupClosed"].includes(decision.state) ? "关闭原因" : "放弃本地请求的理由"}</h4><p className="management-text">{decision.discardReason}</p><p className="secondary">{decision.state === "startupClosed" ? "启动记录已在本地关闭，不发送任务、不自动恢复调度，也不退回请求额度；此前可能已经建立远端会话，此处不代表远程取消或退费。" : decision.state === "abandoned" ? "应用事务已在本地关闭，不发送任务、不自动恢复调度，也不退回已记录的请求额度。" : "本地请求已关闭。这不代表供应商已取消处理或退费，系统不会重发此请求。"}</p></div>}
+    {decision.waitReason !== null && <div className="management-saved-text"><HelpHeading as="h4" topic="ManagementReview">指挥等待原因（原文）</HelpHeading><p className="management-text">{decision.waitReason}</p></div>}
+    {decision.userReply !== null && <div className="management-saved-text"><HelpHeading as="h4" topic="ManagementReview">已保存的用户答复</HelpHeading><p className="management-text">{decision.userReply}</p><p className="secondary">答复供后续指挥请求参考；不改变已批准范围，也不自动恢复调度。</p></div>}
+    {decision.discardReason !== null && <div className="management-saved-text"><HelpHeading as="h4" topic="ManagementReview">{["abandoned", "startupClosed"].includes(decision.state) ? "关闭原因" : "放弃本地请求的理由"}</HelpHeading><p className="management-text">{decision.discardReason}</p><p className="secondary">{decision.state === "startupClosed" ? "启动记录已在本地关闭，不发送任务、不自动恢复调度，也不退回请求额度；此前可能已经建立远端会话，此处不代表远程取消或退费。" : decision.state === "abandoned" ? "应用事务已在本地关闭，不发送任务、不自动恢复调度，也不退回已记录的请求额度。" : "本地请求已关闭。这不代表供应商已取消处理或退费，系统不会重发此请求。"}</p></div>}
     {!decision.supervisionAdvice && decision.waitReason === null && decision.userReply === null && decision.discardReason === null && <p className="secondary">这条请求没有已保存的等待原因、用户答复或放弃理由。</p>}
   </>;
 }
@@ -191,7 +192,7 @@ export function ManagementReview({ data, send, query, busy, focusOperation }: {
   }
 
   return <section className="workflow-plans management-review" aria-label="主副指挥请求记录">
-    <h2>主副指挥请求记录</h2>
+    <HelpHeading as="h2" topic="ManagementReview">主副指挥请求记录</HelpHeading>
     <p className="secondary">每页显示 50 条请求摘要，完整记录按需读取。答复后，请在“项目持续执行”中决定是否恢复调度。</p>
     <div className="panel management-history-toolbar">
       <div><label htmlFor="management-history-project">筛选请求项目</label><select id="management-history-project" value={history?.projectId ?? ""} disabled={pending || !history} onChange={e => void readPage(e.target.value || null, 0, null)}>
@@ -204,7 +205,7 @@ export function ManagementReview({ data, send, query, busy, focusOperation }: {
     {notice && <p role="status" className="management-feedback">{notice}</p>}
     {reading && <p role="status" className="secondary">正在读取记录…</p>}
     {detail && <article ref={detailPanel} className="panel management-detail" aria-label="请求完整记录" data-management-detail={detail.value.operationId}>
-      <div className="section-heading"><h3>请求完整记录</h3><button type="button" className="secondary-button" disabled={pending} onClick={() => setDetail(null)}>收起完整记录</button></div>
+      <div className="section-heading"><HelpHeading as="h3" topic="ManagementReview">请求完整记录</HelpHeading><button type="button" className="secondary-button" disabled={pending} onClick={() => setDetail(null)}>收起完整记录</button></div>
       <dl className="management-identifiers"><dt>项目</dt><dd>{projectRoot(detail.value.projectId)}</dd><dt>请求</dt><dd><code>{detail.value.operationId}</code></dd><dt>状态</dt><dd>{states[detail.value.state] ?? detail.value.state}</dd></dl>
       {!detailFresh && <p className="management-stale">此详情读取后记录已变化，请从刷新后的列表重新查看。</p>}
       <FullText decision={detail.value}/>
@@ -216,14 +217,14 @@ export function ManagementReview({ data, send, query, busy, focusOperation }: {
         else { setDetail(null); setError("处置已保存，请刷新列表查看最新记录。"); }
       }}/>
       {detail.value.applicationRecovery && <div className="management-saved-text">
-        <h4>未提交的应用事务</h4><ApplicationTarget candidate={detail.value.applicationRecovery}/>
+        <HelpHeading as="h4" topic="ManagementReview">未提交的应用事务</HelpHeading><ApplicationTarget candidate={detail.value.applicationRecovery}/>
         <p className="secondary">已保存应用意图，但尚无对应工作流事件。关闭只记录本地处置，不发送任务、不自动恢复调度、不退回请求额度。</p>
         <button type="button" className="secondary-button" disabled={pending || !detailFresh || !pageFresh} onClick={() => void readDetail(detail.value, "close", detail.value.applicationRecovery!.evidenceDigest)}>关闭未提交应用…</button>
       </div>}
     </article>}
     {!decisions.length && <p className="secondary">{history?.projectId ? "该项目暂无请求记录。" : "尚无主副指挥请求记录。"}</p>}
     {decisions.map(d => <article className="panel management-entry" key={d.operationId} data-management-operation={d.operationId}>
-      <div className="section-heading"><h3>{purposes[d.purpose] ?? d.purpose}</h3><span className="badge">{states[d.state] ?? d.state}</span></div>
+      <div className="section-heading"><HelpHeading as="h3" topic="ManagementReview">{purposes[d.purpose] ?? d.purpose}</HelpHeading><span className="badge">{states[d.state] ?? d.state}</span></div>
       <dl className="management-identifiers"><dt>项目</dt><dd>{projectRoot(d.projectId)}</dd><dt>请求</dt><dd><code>{d.operationId}</code></dd></dl>
       {d.message && <p className="management-text">{d.message}</p>}
       <p className="secondary management-record-flags">{[d.hasWait && "有等待原因", d.hasReply && "有用户答复", d.hasDiscard && (d.state === "abandoned" ? "有关闭原因" : "有放弃理由")].filter(Boolean).join(" · ") || "请求摘要"}。全文请查看完整记录。</p>
@@ -240,13 +241,13 @@ export function ManagementReview({ data, send, query, busy, focusOperation }: {
       <button type="button" className="secondary-button" disabled={pending || !pageFresh || history.nextOffset === null} onClick={() => { if (history.nextOffset !== null) void readPage(history.projectId, history.nextOffset, history.revision); }}>下一页</button>
     </nav>}
     {review && <dialog ref={dialog} className="panel modal management-dialog" aria-labelledby="management-review-title" aria-describedby="management-review-impact" onCancel={e => { e.preventDefault(); if (!pending) setReview(null); }}>
-      <h2 id="management-review-title">{review.action === "close" ? "确认关闭未提交应用" : review.action === "discard" ? "确认放弃本地指挥请求" : "确认保存指挥答复"}</h2>
+      <HelpHeading as="h2" topic="ManagementReview" id="management-review-title">{review.action === "close" ? "确认关闭未提交应用" : review.action === "discard" ? "确认放弃本地指挥请求" : "确认保存指挥答复"}</HelpHeading>
       <dl className="management-identifiers"><dt>项目</dt><dd>{review.projectRoot}</dd><dt>请求</dt><dd><code>{review.decision.operationId}</code></dd></dl>
       {review.action === "close"
         ? <>{review.decision.applicationRecovery && <ApplicationTarget candidate={review.decision.applicationRecovery}/>}<p id="management-review-impact">关闭只保存本地处置记录，不会发送编程任务、执行这条应用指令或自动恢复项目调度。原始指挥记录继续保留，已记录的请求额度不会退回。</p></>
         : review.action === "discard"
         ? <p id="management-review-impact">此操作仅关闭本地无工具指挥请求，不证明供应商已经取消处理或退费，也不会重发请求。它不会取消已经派发的编程任务。</p>
-        : <><div className="management-saved-text"><h3>指挥等待原因（原文）</h3><p className="management-text">{review.decision.waitReason}</p></div><p id="management-review-impact">答复会持久保存，供下一次指挥请求参考。它不改变已经批准的执行范围，也不会自动恢复调度。</p></>}
+        : <><div className="management-saved-text"><HelpHeading as="h3" topic="ManagementReview">指挥等待原因（原文）</HelpHeading><p className="management-text">{review.decision.waitReason}</p></div><p id="management-review-impact">答复会持久保存，供下一次指挥请求参考。它不改变已经批准的执行范围，也不会自动恢复调度。</p></>}
       <form onSubmit={e => { e.preventDefault(); void confirm(); }}>
         <label htmlFor="management-review-input">{review.action === "close" ? "关闭原因" : review.action === "discard" ? "放弃理由" : "给指挥的答复"}</label>
         <textarea id="management-review-input" rows={5} autoFocus required value={input} disabled={pending} aria-describedby="management-input-limit" onChange={e => setInput(e.target.value)}/>

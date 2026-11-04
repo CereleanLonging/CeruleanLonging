@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useState } from "react";
 import { decimalAmount } from "./CurrencyBudgetFields";
 import type { CurrencyHistoryGap, CurrencyHistoryReason, HistoricalAccounting, ProjectCurrencyBudget } from "./contracts";
@@ -24,7 +25,7 @@ export function CurrencyHistory({ history, accounted, accounts = [], busy = fals
   history = history?.filter(g => !isHistoryAccounted(g, accounted));
   const [requestedPage, setPage] = useState(0);
   const [requestedAccountedPage, setAccountedPage] = useState(0);
-  if (!history) return <section className="panel currency-history" aria-label="待核算历史"><h2>历史费用</h2>
+  if (!history) return <section className="panel currency-history" aria-label="待核算历史"><HelpHeading as="h2" topic="CurrencyHistory">历史费用</HelpHeading>
     <p role="status">历史费用清单暂不可用，可用额度待核对。</p></section>;
   const chosen = history.find(g => `${g.projectId ?? "?"}:${g.sourceId}:${g.reference}` === selected);
   if (!history.length && !accounted?.length) return null;
@@ -33,7 +34,7 @@ export function CurrencyHistory({ history, accounted, accounts = [], busy = fals
   const accountedPages = Math.ceil((accounted?.length ?? 0) / 20);
   const accountedPage = Math.max(0, Math.min(requestedAccountedPage, accountedPages - 1));
   const unattributed = history.filter(g => g.projectId === null).length;
-  return <><section className="panel currency-history" aria-label="待核算历史"><h2>历史费用待核对</h2>
+  return <><section className="panel currency-history" aria-label="待核算历史"><HelpHeading as="h2" topic="CurrencyHistory">历史费用待核对</HelpHeading>
     {notice && <p role="status">{notice}</p>}
     {accounted === null && <p role="status">历史核算明细暂不可用，请保留原数据并重开核对。</p>}
     <p>共 {history.length} 条记录或执行范围待核算。这不是收费请求数量，也不代表免费；关闭任务或确认残缺记录不会消除费用。</p>
@@ -51,8 +52,8 @@ export function CurrencyHistory({ history, accounted, accounts = [], busy = fals
     </details>
   </section>
     {chosen && query && <HistoricalChargeForm key={selected} gap={chosen} accounts={accounts} busy={busy} query={query} close={saved => {setSelected(null);if(saved)setNotice("历史金额已记录，原始来源继续保留。");}}/>}
-    {!!accounted?.length && <section className="panel currency-history" aria-label="已确认历史金额"><h2>已确认历史金额</h2><p>原始历史来源保留 {original?.length ?? 0} 条；以下金额保留原结果的不确定性。</p>
-      {accounted.slice(accountedPage * 20, accountedPage * 20 + 20).map(r => <article key={r.userEventDigest}><h3>项目 {r.review.input.projectId} · ${decimalAmount(r.review.input.amountUsdNanos,9)}</h3>
+    {!!accounted?.length && <section className="panel currency-history" aria-label="已确认历史金额"><HelpHeading as="h2" topic="CurrencyHistory">已确认历史金额</HelpHeading><p>原始历史来源保留 {original?.length ?? 0} 条；以下金额保留原结果的不确定性。</p>
+      {accounted.slice(accountedPage * 20, accountedPage * 20 + 20).map(r => <article key={r.userEventDigest}><HelpHeading as="h3" topic="CurrencyHistory">项目 {r.review.input.projectId} · ${decimalAmount(r.review.input.amountUsdNanos,9)}</HelpHeading>
         <p>{r.state === "accounted" ? "已核算" : "用户已确认，金额发布待核对"}；原结果不确定项：{r.review.source.uncertainOutcomes}</p>
         <p>账单引用：{r.review.input.billingReference}</p><p>核对说明：{r.review.input.explanation}</p>
         <details><summary>查看已确认原记录</summary><p>用户确认：<code>{r.userEventDigest}</code></p><p>来源摘要：<code>{r.review.source.digest}</code></p><ol>{r.review.source.references.map(s => <li key={s}><code>{s}</code></li>)}</ol></details>

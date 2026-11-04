@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { UnsentAssignmentReview, WorkspaceUnsentAssignmentDetail, WorkspaceUnsentAssignmentPage } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -83,15 +84,15 @@ export function WorkspaceUnsentAssignments(props: Props) {
     });
   }
   return <section className="panel" aria-label="项目未发送分配审阅" aria-busy={loading}>
-    <div className="section-heading"><h3>项目 {props.projectId} 的未发送分配审阅</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新未发送分配审阅</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceUnsentAssignments">项目 {props.projectId} 的未发送分配审阅</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新未发送分配审阅</button></div>
     <p>这里只读原始未发送分配审阅；不会发送、放弃或批准任务，也不会启动模型任务。</p>
     <p>原证据摘要对应无 DispatchIntent 的原始审阅证据，不是发送许可；本页没有放弃、发送或批准操作。</p>
     {loading && <p role="status">正在读取原未发送分配审阅…</p>}{error && <p role="alert">{error} 上次内容仅供核对，请刷新后继续。</p>}
     {!page ? <p>未发送分配审阅尚未取得；这不表示没有原记录。</p> : <>
       <p>原未发送分配审阅版本 <code>{page.revision}</code></p>
-      {page.unavailableReason !== null ? <p role="alert">原未发送分配审阅暂不可用：{page.unavailableReason}；这不表示没有原记录。</p> : page.total === 0 ? <p>原项目当前没有未发送分配审阅记录。</p> : page.entries.map(record => <article className="panel" key={JSON.stringify([record.taskId, record.attemptId])}><h4>原未发送分配</h4><Fields record={record}/><button disabled={blocked || stale} onClick={() => readDetail(record)}>查看完整原未发送分配</button></article>)}
+      {page.unavailableReason !== null ? <p role="alert">原未发送分配审阅暂不可用：{page.unavailableReason}；这不表示没有原记录。</p> : page.total === 0 ? <p>原项目当前没有未发送分配审阅记录。</p> : page.entries.map(record => <article className="panel" key={JSON.stringify([record.taskId, record.attemptId])}><HelpHeading as="h4" topic="WorkspaceUnsentAssignments">原未发送分配</HelpHeading><Fields record={record}/><button disabled={blocked || stale} onClick={() => readDetail(record)}>查看完整原未发送分配</button></article>)}
       {page.total > 0 && <nav aria-label="未发送分配分页"><button disabled={blocked || stale || !back.length} onClick={() => { const next = back.at(-1)!; void run(current => readPage(next, page.revision, back.slice(0, -1), current)); }}>上一页</button><span>当前显示 {page.offset + page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void run(current => readPage(page.nextOffset!, page.revision, [...back, page.offset], current))}>下一页</button></nav>}
     </>}
-    {detail && <section className="panel" role="dialog" aria-label="完整原未发送分配审阅"><h4>完整原未发送分配审阅</h4><Fields record={detail.record}/><details><summary>查看原记录字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail.record, null, 2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
+    {detail && <section className="panel" role="dialog" aria-label="完整原未发送分配审阅"><HelpHeading as="h4" topic="WorkspaceUnsentAssignments">完整原未发送分配审阅</HelpHeading><Fields record={detail.record}/><details><summary>查看原记录字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail.record, null, 2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
   </section>;
 }

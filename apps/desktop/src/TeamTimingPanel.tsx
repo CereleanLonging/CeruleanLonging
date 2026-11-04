@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -26,7 +27,7 @@ export function TeamTimingPanel({data,busy,send,desktop=false}:{data:Snapshot;bu
   const disabled=busy||sending||!!(imported&&imported.state!=="completed");
   const selected=confirm&&data.projectSetups.find(s=>s.setup.projectId===confirm.projectId&&s.digest===confirm.setupDigest);
   function card(v:TeamTimingView){return <article className="panel" key={v.projectId}>
-    <h3>{v.projectId} · {phases[v.phase]??v.phase}</h3>
+    <HelpHeading as="h3" topic="TeamTimingPanel">{v.projectId} · {phases[v.phase]??v.phase}</HelpHeading>
     <dl><dt>总耗时</dt><dd>{duration(v.elapsedMs)}</dd><dt>规划</dt><dd>{duration(v.planningMs)}</dd>
       <dt>等待批准</dt><dd>{duration(v.approvalWaitMs)}</dd><dt>批准后执行与收口</dt><dd>{duration(v.executionAndClosureMs)}</dd>
       <dt>人工参与</dt><dd>{duration(v.humanActiveMs)}{v.humanActive?"（正在记录）":""}</dd></dl>
@@ -41,11 +42,11 @@ export function TeamTimingPanel({data,busy,send,desktop=false}:{data:Snapshot;bu
     <details><summary>计时记录引用</summary><code>{v.startDigest??"尚无可确认的引用"}</code></details>
   </article>;}
   return <section className="panel" aria-label="团队效率验收">
-    <h2>团队效率验收</h2>
+    <HelpHeading as="h2" topic="TeamTimingPanel">团队效率验收</HelpHeading>
     <p>使用固定任务材料，在原项目流程中记录规划、等待批准、执行与人工参与时间。人工参与由你主动开关，任务批准仍在原方案卡片完成。</p>
     <p className="secondary">这是当前计时记录的读数，包含检查及收口开销。对比效率仍需相同配置的单执行者样本和真实用量；计时成功不等于正式发布验收通过。</p>
     {imported&&<section className="panel" aria-label="团队材料导入状态">
-      <h3>{({running:"材料正在导入",completed:"原材料已导入",failed:"原导入未完成",interrupted:"原导入需核查"} as Record<string,string>)[imported.state]??"原导入需核查"}</h3>
+      <HelpHeading as="h3" topic="TeamTimingPanel">{({running:"材料正在导入",completed:"原材料已导入",failed:"原导入未完成",interrupted:"原导入需核查"} as Record<string,string>)[imported.state]??"原导入需核查"}</HelpHeading>
       <p>{imported.message??"原导入结果已保存，下一步可审阅计时规划。"}</p>
       {imported.state!=="completed"&&<p>请读取同一操作的结果，不重复导入。关闭窗口后核心继续工作；若核心中断，已有记录会保留。</p>}
       {["failed","interrupted"].includes(imported.state)&&<details><summary>保留失败现场并继续其他工作</summary>
@@ -59,7 +60,7 @@ export function TeamTimingPanel({data,busy,send,desktop=false}:{data:Snapshot;bu
       <details><summary>原导入引用</summary><p>{imported.sourcePath}</p><code>{imported.sourceSha256}</code><p>{imported.requestId}</p></details>
     </section>}
     {!data.workflows.length&&!imported&&<form onSubmit={e=>{e.preventDefault();void once({kind:"import",path:path.trim(),sha256:sha.trim().toLowerCase()});}}>
-      <fieldset disabled={disabled}><legend>导入已冻结的团队材料</legend>
+      <fieldset disabled={disabled}><HelpHeading as="legend" topic="TeamTimingPanel">导入已冻结的团队材料</HelpHeading>
         <label htmlFor="timing-material-path">团队材料请求文件</label><input id="timing-material-path" required value={path} onChange={e=>setPath(e.target.value)} placeholder="D:\\验收材料\\request.json"/>
         <label htmlFor="timing-material-sha">材料文件 SHA256</label><input id="timing-material-sha" required pattern="[a-fA-F0-9]{64}" value={sha} onChange={e=>setSha(e.target.value)}/>
         <p>当前工作台目录必须与材料一致。导入将登记隔离项目、验收工具和执行配置；开始规划需下一步单独确认。</p>
@@ -71,7 +72,7 @@ export function TeamTimingPanel({data,busy,send,desktop=false}:{data:Snapshot;bu
     </div>)}
     {views.map(card)}
     {confirm&&<div className="modal-backdrop"><section className="modal panel" role="dialog" aria-modal="true" aria-label="确认计时规划">
-      <h3>确认计时规划</h3>
+      <HelpHeading as="h3" topic="TeamTimingPanel">确认计时规划</HelpHeading>
       {selected?<><p>{selected.setup.requirement}</p><p>主指挥：{selected.setup.chiefModel}。确认后开始计时，并通过原主指挥接入请求一次方案，可能产生供应商费用。此操作不批准或执行编程任务。</p></>:<p role="alert">执行配置已变化，请返回重新审阅。</p>}
       <p>需先绑定固定材料；已有规划或计时记录时核心会拒绝重复请求。</p>
       <button type="button" className="secondary-button" onClick={()=>setConfirm(null)}>返回</button>

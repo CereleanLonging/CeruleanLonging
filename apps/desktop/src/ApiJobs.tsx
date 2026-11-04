@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, ApiJob, ApiJobState, Snapshot, UnsentAssignmentReview } from "./contracts";
@@ -29,11 +30,11 @@ export function ApiJobs({data,send,busy,openManagement}:{data:Snapshot|null;send
     void act(command,review.kind==="retire"?"本地尝试已结束，远端结果与费用仍未知。已有修改保留，请申请修订并重新批准方案。":review.kind==="cancel"?"停止请求已提交，后续调度已暂停。请等待后台结束，已有修改保留；不代表供应商确认取消。":"本次记录已关闭，原证据保留；没有重新发送任务。");
   }
   if(!jobs.length&&!review)return null;
-  return <section className="workflow-plans" aria-label="API 执行记录"><h2>API 编程执行</h2>{message&&<p role="status">{message}</p>}
+  return <section className="workflow-plans" aria-label="API 执行记录"><HelpHeading as="h2" topic="ApiJobs">API 编程执行</HelpHeading>{message&&<p role="status">{message}</p>}
     {jobs.map(job=>{const w=data?.workflows.find(w=>w.project.id===job.projectId),task=w?.state.tasks[job.taskId],unsent=data?.unsentAssignments.find(u=>same(u,job));const live=["starting","executing"].includes(job.state),accepted=task?.attempt===job.attemptId&&task.state==="accepted";
       const goal=w?.revisionDigest===job.revisionDigest?w.revision?.workflow.tasks.find(t=>t.id===job.taskId)?.goal:null;
       return <article className="panel codex-job" data-api-project={job.projectId} data-api-attempt={job.attemptId} key={job.projectId+":"+job.attemptId}>
-        <div className="section-heading"><h3>{goal??`任务 ${job.taskId}`}</h3><span className="badge">{accepted?"已独立验收并收口":unsent?"已分配但尚未派发":labels[job.state]}</span></div>
+        <div className="section-heading"><HelpHeading as="h3" topic="ApiJobs">{goal??`任务 ${job.taskId}`}</HelpHeading><span className="badge">{accepted?"已独立验收并收口":unsent?"已分配但尚未派发":labels[job.state]}</span></div>
         <p>{service(job)} · {job.worker.model}</p><details className="codex-record-identity"><summary>记录详情</summary><p>{w?.project.root??job.projectId}</p><p>任务：{job.taskId} · 尝试：{job.attemptId}</p><p>开始时间：{new Date(job.startedAt).toLocaleString("zh-CN")}</p>{job.managementOperation&&<p>分配记录：{job.managementOperation}</p>}</details>
         {job.message&&<p>{job.message}</p>}
         {job.state==="cancel-requested"&&<p>等待本地后台结束；这不代表供应商已取消请求或停止计费。</p>}
@@ -53,7 +54,7 @@ export function ApiJobs({data,send,busy,openManagement}:{data:Snapshot|null;send
       </article>;
     })}
     <dialog ref={dialog} className="panel modal unsent-assignment-dialog" aria-labelledby="api-control-title" onCancel={e=>{e.preventDefault();if(!blocked)setReview(null);}}>{review&&<>
-      <h2 id="api-control-title">{review.kind==="retire"?"确认结束本地未知尝试":review.kind==="cancel"?"确认停止 API 任务":review.kind==="startup"?"确认关闭 API 启动":"确认放弃 API 未派发尝试"}</h2>
+      <HelpHeading as="h2" topic="ApiJobs" id="api-control-title">{review.kind==="retire"?"确认结束本地未知尝试":review.kind==="cancel"?"确认停止 API 任务":review.kind==="startup"?"确认关闭 API 启动":"确认放弃 API 未派发尝试"}</HelpHeading>
       <p>{data?.workflows.find(w=>w.project.id===review.job.projectId)?.project.root??review.job.projectId}</p><p>项目 {review.job.projectId} · 任务 {review.job.taskId}</p><p>尝试 {review.job.attemptId}</p>
       <p>{review.kind==="retire"?"本地后台已结束，但没有可靠完成记录。此操作不会取消供应商请求，也不代表执行成功或免计费。原请求、已有文件修改和预算占用保留；后续须申请修订并重新批准方案。":review.kind==="cancel"?"将暂停后续调度并请求停止本地 API 执行。已有修改保留；供应商可能已经处理请求并计费，结果仍需核对。":review.kind==="startup"?"关闭已证明尚未分配的启动，保留原始记录，不代表任务完成。":"本次分配尚无派发记录。放弃后任务回到待分配，不自动恢复调度。"}</p>
       <label htmlFor="api-control-reason">原因</label><textarea id="api-control-reason" value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked} rows={3}/>

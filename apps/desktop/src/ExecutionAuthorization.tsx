@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { effectiveSupervision, supervisionSummary } from "./SupervisionFields";
 import { CurrencyBudgetReview } from "./CurrencyBudgetFields";
 import { DesktopExecutionReview } from "./DesktopWorkerFields";
@@ -22,7 +23,7 @@ export function ExecutionAuthorization({revision}:{revision:PlanRevision}) {
       </dl>
       {revision.workflow.tasks.map(task => {
         const execution = revision.execution.find(e => e.taskId === task.id)!;
-        return <div key={task.id}><h3>{task.goal}</h3>{revision.worktree?.integration?.taskId===task.id&&<p><strong>项目最终集成</strong>：在独立目录合入所有前置成果，下列整体检查及主指挥收口均通过后才完成项目。</p>}<p>执行接入：{execution.adapterId} · 执行配置：{execution.profileId??"默认配置"}</p><p>批准的共享资源：{task.resourceKeys?.length?task.resourceKeys.join("、"):"未声明"}</p>
+        return <div key={task.id}><HelpHeading as="h3" topic="ExecutionAuthorization">{task.goal}</HelpHeading>{revision.worktree?.integration?.taskId===task.id&&<p><strong>项目最终集成</strong>：在独立目录合入所有前置成果，下列整体检查及主指挥收口均通过后才完成项目。</p>}<p>执行接入：{execution.adapterId} · 执行配置：{execution.profileId??"默认配置"}</p><p>批准的共享资源：{task.resourceKeys?.length?task.resourceKeys.join("、"):"未声明"}</p>
           <p>此任务异常监督（{execution.supervisionOverride ? "单独设置" : "沿用项目默认"}）：{supervisionSummary(effectiveSupervision(execution.supervisionOverride,revision.policy.supervision))}</p>
           {execution.worker && <dl><dt>执行模型</dt><dd>{execution.worker.provider} / {execution.worker.model}</dd><dt>执行程序</dt><dd><code>{execution.worker.executable.path}</code></dd>{execution.worker.ompRuntimeParent&&<><dt>OMP 独立运行目录</dt><dd><code>{execution.worker.ompRuntimeParent}</code></dd></>}<dt>执行程序 SHA-256</dt><dd><code>{execution.worker.executable.sha256}</code></dd></dl>}
           {execution.desktopWorker && <DesktopExecutionReview worker={execution.desktopWorker}/>}

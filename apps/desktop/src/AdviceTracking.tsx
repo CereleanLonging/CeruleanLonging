@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, ManagementView, Snapshot } from "./contracts";
@@ -51,7 +52,7 @@ export function AdviceTracking({ decision, data, send, query, busy, refresh }: {
   }
   return <section aria-label="建议跟踪处置" className="management-saved-text">
     {decision.adviceTrackingClosure ? <>
-      <h4>建议跟踪已由用户结束</h4>
+      <HelpHeading as="h4" topic="AdviceTracking">建议跟踪已由用户结束</HelpHeading>
       <p>送达仍未知。原建议和发送证据保留；此处置不代表接收、执行成功或验收通过。</p>
       <p className="management-text">{decision.adviceTrackingClosure.reason}</p>
       <p className="secondary">{decision.adviceTrackingClosure.at}</p>
@@ -61,7 +62,7 @@ export function AdviceTracking({ decision, data, send, query, busy, refresh }: {
     </> : null}
     {error && <p role="alert"><ErrorText error={error}/></p>}
     {review && <dialog ref={dialog} className="panel modal management-dialog" aria-labelledby="advice-close-title" onCancel={e => { e.preventDefault(); if (!pending) setReview(null); }}>
-      <h2 id="advice-close-title">确认结束建议跟踪</h2>
+      <HelpHeading as="h2" topic="AdviceTracking" id="advice-close-title">确认结束建议跟踪</HelpHeading>
       <dl className="management-identifiers"><dt>项目</dt><dd>{data?.workflows.find(w => w.project.id === review.projectId)?.project.root ?? review.projectId}</dd><dt>请求</dt><dd><code>{review.operationId}</code></dd></dl>
       <p>任务 {review.supervisionAdvice?.taskId} · 尝试 {review.supervisionAdvice?.attemptId}</p>
       <p className="management-text">{review.supervisionAdvice?.suggestion}</p>

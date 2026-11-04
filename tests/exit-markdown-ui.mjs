@@ -37,6 +37,7 @@ try{
  for(const key of ['Tab','Tab','Shift+Tab','Shift+Tab','Tab']){await page.keyboard.press(key);assert.equal(await page.evaluate(()=>!!document.activeElement?.closest('main,aside')),false);}
  await page.screenshot({path:join(dir,'exit-modal-desktop.png'),fullPage:true});
  cases.push('Top-layer dialog covers disabled and elevated pagination, blocks background clicks and confines focus');
+ if(await page.getByRole('tooltip').count()) { await page.keyboard.press('Escape');assert.equal(await page.getByRole('tooltip').count(),0);assert.equal(await page.locator('dialog').evaluate(d=>d.matches(':modal')),true); }
  await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
  assert.deepEqual(await page.evaluate(()=>window.exitCalls),['cancel','cancel']);
  assert.equal(await page.getByRole('button',{name:'退出工作台',exact:true}).evaluate(b=>document.activeElement===b),true);

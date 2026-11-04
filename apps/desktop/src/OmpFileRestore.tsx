@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type {
   Command,
@@ -23,7 +24,7 @@ const restored: Record<string, string> = {
 function Preview({ label, value }: { label: string; value: FilePreview }) {
   return (
     <section className="file-preview">
-      <h4>{label}</h4>
+      <HelpHeading as="h4" topic="OmpFileRestore">{label}</HelpHeading>
       <p>
         {value.bytes === null ? "文件不存在" : `${value.bytes} 字节`}
         {value.truncated ? " · 预览已截断" : ""}
@@ -172,7 +173,7 @@ export function OmpFileRestore({
       className="panel omp-file-restore"
       aria-labelledby="omp-files-heading"
     >
-      <h2 id="omp-files-heading">OMP 文件恢复</h2>
+      <HelpHeading as="h2" topic="OmpFileRestore" id="omp-files-heading">OMP 文件恢复</HelpHeading>
       <p>核对未完成任务的文件改动，确认后恢复到本次写入前。</p>
       {!candidates.length && (
         <p className="muted">当前没有待核对的 OMP 尝试。</p>
@@ -230,7 +231,7 @@ export function OmpFileRestore({
       )}
       {detail && (
         <article className="file-detail">
-          <h3>{detail.path}</h3>
+          <HelpHeading as="h3" topic="OmpFileRestore">{detail.path}</HelpHeading>
           <p>{status[detail.state] ?? detail.state}</p>
           <div className="file-preview-grid">
             <Preview label="当前文件" value={detail.current} />
@@ -270,7 +271,7 @@ export function OmpFileRestore({
             else setReview(null);
           }}
         >
-          <h3 id="file-restore-title">确认文件还原</h3>
+          <HelpHeading as="h3" topic="OmpFileRestore" id="file-restore-title">确认文件还原</HelpHeading>
           <p>
             {review.projectId} / {review.taskId} · {review.path}
           </p>

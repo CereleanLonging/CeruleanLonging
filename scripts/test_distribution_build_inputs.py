@@ -73,7 +73,7 @@ class BuildInputChecks(unittest.TestCase):
 
     def test_valid_inputs_and_only_absolute_installed_compiler_queries(self):
         result = self.check()
-        self.assertEqual(result['files'], 24)
+        self.assertEqual(result['files'], 26)
         self.assertFalse(result['upstreamPluginHistoryProven'])
         self.assertEqual(self.probes, [['-vV'], ['--print', 'sysroot']])
 

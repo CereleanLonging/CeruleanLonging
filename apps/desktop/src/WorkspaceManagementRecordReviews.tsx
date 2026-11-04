@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { ManagementRecordReview, WorkspaceManagementRecordReviewDetail, WorkspaceManagementRecordReviewPage } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -80,15 +81,15 @@ export function WorkspaceManagementRecordReviews(props: Props) {
     });
   }
   return <section className="panel" style={{ overflowWrap: "anywhere" }} aria-label="全局管理复核记录" aria-busy={loading}>
-    <div className="section-heading"><h3>全局管理复核记录</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新管理复核记录</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceManagementRecordReviews">全局管理复核记录</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新管理复核记录</button></div>
     <p>这里只读全局管理残片复核记录；保留原有项目身份，原记录未归属项目时明确显示未归属。复核不会重发请求，不代表执行成功、批准许可或供应商取消；原任务仍须按实际证据处理。</p>
     {loading && <p role="status">正在读取原管理复核记录…</p>}{error && <p role="alert">读取失败：{error} 上次内容仅供核对，请刷新后继续。</p>}
     {stale && <p role="status">原管理复核记录尚未重新确认；保留内容已过期，详情与翻页已暂停。</p>}
     {!page ? <p>管理复核记录尚未取得；这不表示没有原记录。</p> : <>
       <p>原管理复核记录版本 <code>{page.revision}</code></p>
-      {page.total === 0 ? <p>当前没有已复核的 管理残片记录。</p> : page.entries.map(review => <article key={review.relativePath}><h4>原管理复核记录</h4><Fields review={review}/><button disabled={blocked || stale} onClick={() => readDetail(review)}>查看完整原管理复核记录</button></article>)}
+      {page.total === 0 ? <p>当前没有已复核的 管理残片记录。</p> : page.entries.map(review => <article key={review.relativePath}><HelpHeading as="h4" topic="WorkspaceManagementRecordReviews">原管理复核记录</HelpHeading><Fields review={review}/><button disabled={blocked || stale} onClick={() => readDetail(review)}>查看完整原管理复核记录</button></article>)}
       {page.total > 0 && <nav aria-label="管理复核记录分页"><button disabled={blocked || stale || !back.length} onClick={() => { const next = back.at(-1)!; void run(current => readPage(next, page.revision, back.slice(0, -1), current)); }}>上一页</button><span>当前显示 {page.offset + page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void run(current => readPage(page.nextOffset!, page.revision, [...back, page.offset], current))}>下一页</button></nav>}
     </>}
-    {detail && <section aria-label="完整原管理复核记录"><h4>完整原管理复核记录</h4><Fields review={detail.review}/><details><summary>查看原记录字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail.review, null, 2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
+    {detail && <section aria-label="完整原管理复核记录"><HelpHeading as="h4" topic="WorkspaceManagementRecordReviews">完整原管理复核记录</HelpHeading><Fields review={detail.review}/><details><summary>查看原记录字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail.review, null, 2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
   </section>;
 }

@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { supervisionDeliverySummary } from "./SupervisionFields";
 import { useEffect, useRef, useState } from "react";
 import type { ManagementSummary, ManagementView, WorkspaceManagementDecisionDetail, WorkspaceManagementDecisionPage, WorkspaceManagementGatewayEvidenceDetail, WorkspaceGatewayEvidence } from "./contracts";
@@ -117,7 +118,7 @@ function GatewayEvidence({ detail, read, busy, isCurrent }: {
   const requestId = observation?.headers?.requestId;
   const gatewayId = requestId?.kind === "accepted" ? requestId.value : null;
   return <section className="management-saved-text" aria-label="管理网关留证" aria-busy={loading}>
-    <h4>管理网关留证</h4>
+    <HelpHeading as="h4" topic="WorkspaceManagementDecisions">管理网关留证</HelpHeading>
     <button disabled={busy || loading} onClick={() => void inspectGateway()}>查看网关留证</button>
     {loading && <p role="status">正在读取本地网关留证…</p>}
     {failed && <p role="alert">网关留证暂不可读取，请核对当前核心版本及本地证据。原管理详情仍保留；本次失败不表示没有留证。</p>}
@@ -188,20 +189,20 @@ function validPage(value: WorkspaceManagementDecisionPage, projectId: string, of
 
 function FullText({ decision }: { decision: ManagementView }) {
   return <>
-    {decision.message !== null && <div className="management-saved-text"><h4>原请求说明</h4><p className="management-text">{decision.message}</p></div>}
+    {decision.message !== null && <div className="management-saved-text"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">原请求说明</HelpHeading><p className="management-text">{decision.message}</p></div>}
     {decision.supervisionAdvice && <section className="management-saved-text" aria-label="副指挥监督建议">
-      <h4>副指挥监督建议</h4>
+      <HelpHeading as="h4" topic="WorkspaceManagementDecisions">副指挥监督建议</HelpHeading>
       <p>任务 {decision.supervisionAdvice.taskId} · 尝试 {decision.supervisionAdvice.attemptId}</p>
       {decision.supervisionAdvice.omp && <p>OMP 原请求 {decision.supervisionAdvice.omp.requestId}</p>}
       {decision.supervisionAdvice.api && <p>API 请求 {decision.supervisionAdvice.api.requestId} · 第 {decision.supervisionAdvice.api.round} 轮</p>}
       {decision.supervisionAdvice.deliveryState === "recordOnly" && !decision.supervisionAdvice.omp && <p>仅保存供审阅，尚未自动投送；不代表执行器已经纠偏。</p>}
       <p>{decision.supervisionAdvice.current ? "原观察仍对应当前运行" : "原观察已过期或执行已结束，仅供审阅"} · {supervisionDeliverySummary(decision.supervisionAdvice)}</p>
-      {decision.supervisionAdvice.suggestion ? <><p className="management-text">{decision.supervisionAdvice.suggestion}</p><h4>建议依据</h4><p className="management-text">{decision.supervisionAdvice.rationale}</p></> : <p>尚无可确认的建议正文；请求结果未知时不会自动重发。</p>}
+      {decision.supervisionAdvice.suggestion ? <><p className="management-text">{decision.supervisionAdvice.suggestion}</p><HelpHeading as="h4" topic="WorkspaceManagementDecisions">建议依据</HelpHeading><p className="management-text">{decision.supervisionAdvice.rationale}</p></> : <p>尚无可确认的建议正文；请求结果未知时不会自动重发。</p>}
       <details><summary>关联异常</summary><p><code>{decision.supervisionAdvice.incidentId}</code></p><p><code>{decision.supervisionAdvice.observationDigest}</code></p>{decision.supervisionAdvice.omp && <p>原文件工具记录 <code>{decision.supervisionAdvice.omp.toolHead}</code></p>}</details>
     </section>}
-    {decision.waitReason !== null && <div className="management-saved-text"><h4>指挥等待原因（原文）</h4><p className="management-text">{decision.waitReason}</p></div>}
-    {decision.userReply !== null && <div className="management-saved-text"><h4>已保存的用户答复</h4><p className="management-text">{decision.userReply}</p><p className="secondary">答复供后续指挥请求参考；不改变已批准范围，也不自动恢复调度。</p></div>}
-    {decision.discardReason !== null && <div className="management-saved-text"><h4>{["abandoned", "startupClosed"].includes(decision.state) ? "关闭原因" : "放弃本地请求的理由"}</h4><p className="management-text">{decision.discardReason}</p><p className="secondary">{decision.state === "startupClosed" ? "启动记录已在本地关闭，不发送任务、不自动恢复调度，也不退回请求额度；此前可能已经建立远端会话，此处不代表远程取消或退费。" : decision.state === "abandoned" ? "应用事务已在本地关闭，不发送任务、不自动恢复调度，也不退回已记录的请求额度。" : "本地请求已关闭。这不代表供应商已取消处理或退费，系统不会重发此请求。"}</p></div>}
+    {decision.waitReason !== null && <div className="management-saved-text"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">指挥等待原因（原文）</HelpHeading><p className="management-text">{decision.waitReason}</p></div>}
+    {decision.userReply !== null && <div className="management-saved-text"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">已保存的用户答复</HelpHeading><p className="management-text">{decision.userReply}</p><p className="secondary">答复供后续指挥请求参考；不改变已批准范围，也不自动恢复调度。</p></div>}
+    {decision.discardReason !== null && <div className="management-saved-text"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">{["abandoned", "startupClosed"].includes(decision.state) ? "关闭原因" : "放弃本地请求的理由"}</HelpHeading><p className="management-text">{decision.discardReason}</p><p className="secondary">{decision.state === "startupClosed" ? "启动记录已在本地关闭，不发送任务、不自动恢复调度，也不退回请求额度；此前可能已经建立远端会话，此处不代表远程取消或退费。" : decision.state === "abandoned" ? "应用事务已在本地关闭，不发送任务、不自动恢复调度，也不退回已记录的请求额度。" : "本地请求已关闭。这不代表供应商已取消处理或退费，系统不会重发此请求。"}</p></div>}
     {!decision.supervisionAdvice && decision.waitReason === null && decision.userReply === null && decision.discardReason === null && <p className="secondary">这条请求没有已保存的等待原因、用户答复或放弃理由。</p>}
   </>;
 }
@@ -210,12 +211,12 @@ function Evidence({ decision }: { decision: ManagementView }) {
   const targetLabels: Record<string, string> = { propose: "提交方案", assign: "分配任务", accept: "收口任务", advise: "提交建议", wait: "等待补充" };
   return <>
     {decision.applicationRecovery && <section className="management-saved-text" aria-label="未提交的应用事务">
-      <h4>未提交的应用事务</h4>
+      <HelpHeading as="h4" topic="WorkspaceManagementDecisions">未提交的应用事务</HelpHeading>
       <dl className="management-identifiers"><dt>应用目标</dt><dd>{targetLabels[decision.applicationRecovery.targetKind] ?? decision.applicationRecovery.targetKind}（{decision.applicationRecovery.targetKind}）</dd><dt>任务</dt><dd>{decision.applicationRecovery.taskId ?? "未关联任务"}</dd><dt>尝试</dt><dd><code>{decision.applicationRecovery.attemptId ?? "未关联尝试"}</code></dd><dt>会话</dt><dd><code>{decision.applicationRecovery.sessionId ?? "未关联会话"}</code></dd><dt>工作流序号</dt><dd>{decision.applicationRecovery.workflowSequence}</dd><dt>证据摘要</dt><dd><code>{decision.applicationRecovery.evidenceDigest}</code></dd></dl>
       <p className="secondary">已保存应用意图；本页只读，不执行应用、发送任务、恢复调度或退回请求额度。</p>
     </section>}
-    {decision.adviceTrackingReview && <section className="management-saved-text" aria-label="建议跟踪证据"><h4>建议跟踪证据</h4><p>工作流序号 {decision.adviceTrackingReview.workflowSequence}</p><p>证据摘要 <code>{decision.adviceTrackingReview.evidenceDigest}</code></p><p className="secondary">建议送达结果仍须独立对账，本页不会结束跟踪或重发建议。</p></section>}
-    {decision.adviceTrackingClosure && <section className="management-saved-text" aria-label="建议跟踪结束记录"><h4>建议跟踪已由用户结束</h4><p>送达仍未知；原建议和发送证据保留。</p><p className="management-text">{decision.adviceTrackingClosure.reason}</p><p className="secondary">{decision.adviceTrackingClosure.at}</p></section>}
+    {decision.adviceTrackingReview && <section className="management-saved-text" aria-label="建议跟踪证据"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">建议跟踪证据</HelpHeading><p>工作流序号 {decision.adviceTrackingReview.workflowSequence}</p><p>证据摘要 <code>{decision.adviceTrackingReview.evidenceDigest}</code></p><p className="secondary">建议送达结果仍须独立对账，本页不会结束跟踪或重发建议。</p></section>}
+    {decision.adviceTrackingClosure && <section className="management-saved-text" aria-label="建议跟踪结束记录"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">建议跟踪已由用户结束</HelpHeading><p>送达仍未知；原建议和发送证据保留。</p><p className="management-text">{decision.adviceTrackingClosure.reason}</p><p className="secondary">{decision.adviceTrackingClosure.at}</p></section>}
   </>;
 }
 
@@ -324,14 +325,14 @@ export function WorkspaceManagementDecisions(props: Props) {
   }
 
   return <section className="panel" aria-label="项目管理决策记录" aria-busy={loading}>
-    <div className="section-heading"><h3>项目 {props.projectId} 的管理决策</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新管理决策首页</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceManagementDecisions">项目 {props.projectId} 的管理决策</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新管理决策首页</button></div>
     <p>这里只读取原主副指挥决策及其完整证据，保留未知结果供核对。本页不发送请求、不批准、不答复、不放弃，也不自动恢复调度。</p>
     {loading && <p role="status">正在读取原管理决策记录…</p>}
     {error && <p role="alert">{error} 上次内容仅供核对，请刷新后继续。</p>}
     {!page ? <p>管理决策记录尚未取得，不能据此判断没有请求。</p> : <>
       <p>原项目共 {page.total} 条管理决策</p>
       {page.total === 0 ? <p>原项目尚无管理决策；可刷新核对最新记录。</p> : page.entries.map(summary => <article className="panel management-entry" key={summary.operationId} data-management-operation={summary.operationId}>
-        <div className="section-heading"><h4>{purposes[summary.purpose] ?? summary.purpose}</h4><span className="badge">{states[summary.state] ?? summary.state}</span></div>
+        <div className="section-heading"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">{purposes[summary.purpose] ?? summary.purpose}</HelpHeading><span className="badge">{states[summary.state] ?? summary.state}</span></div>
         <dl className="management-identifiers"><dt>项目</dt><dd>{summary.projectId}</dd><dt>请求</dt><dd><code>{summary.operationId}</code></dd></dl>
         {summary.message && <p className="management-text">{summary.message}</p>}
         <p className="secondary">{[summary.hasWait && "有等待原因", summary.hasReply && "有用户答复", summary.hasDiscard && "有关闭或放弃理由"].filter(Boolean).join(" · ") || "请求摘要"}。全文请查看完整记录。</p>
@@ -341,7 +342,7 @@ export function WorkspaceManagementDecisions(props: Props) {
       <nav aria-label="管理决策分页"><button disabled={blocked || stale || !back.length} onClick={() => void run(current => readPage(back.at(-1)!, page.revision, back.slice(0, -1), current))}>上一页</button><span>当前显示 {page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void run(current => readPage(page.nextOffset!, page.revision, [...back, page.offset], current))}>下一页</button></nav>
     </>}
     {detail && <section className="panel management-detail" aria-label="管理决策原详情" data-management-detail={detail.record.operationId}>
-      <div className="section-heading"><h4>管理决策原详情</h4><button onClick={() => { detailGeneration.current++; invalidateGateway(); setDetail(null); }}>关闭管理决策详情</button></div>
+      <div className="section-heading"><HelpHeading as="h4" topic="WorkspaceManagementDecisions">管理决策原详情</HelpHeading><button onClick={() => { detailGeneration.current++; invalidateGateway(); setDetail(null); }}>关闭管理决策详情</button></div>
       <dl className="management-identifiers"><dt>项目</dt><dd>{detail.record.projectId}</dd><dt>请求</dt><dd><code>{detail.record.operationId}</code></dd><dt>目的</dt><dd>{purposes[detail.record.purpose] ?? detail.record.purpose}</dd><dt>状态</dt><dd>{states[detail.record.state] ?? detail.record.state}</dd><dt>证据摘要</dt><dd><code>{detail.record.evidenceDigest}</code></dd><dt>可答复</dt><dd>{detail.record.canReply ? "是" : "否"}</dd><dt>可放弃</dt><dd>{detail.record.canDiscard ? "是" : "否"}</dd></dl>
       <FullText decision={detail.record}/>
       <Evidence decision={detail.record}/>

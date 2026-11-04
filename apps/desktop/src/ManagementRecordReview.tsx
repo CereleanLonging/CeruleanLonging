@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, DiagnosticFile } from "./contracts";
@@ -29,7 +30,7 @@ export function ManagementRecordReview({file,busy,send}:{file:DiagnosticFile;bus
     {file.reviewed?<p>已保存复核，原文保留；仍须重新启动并通过全部关联校验。</p>:file.reviewKind==="management"&&file.reviewDigest?<button className="secondary-button" disabled={blocked} onClick={()=>{setReview(file);setReason("");setAck(false);setMessage("");}}>复核半写管理记录…</button>:<p>此文件尚不满足复核条件。请保留原证据，核对前置记录和关联冲突。</p>}
     {message&&!review&&<p role="status">{message}</p>}
     <dialog ref={dialog} className="panel modal unsent-assignment-dialog" aria-labelledby="management-record-review-title" onCancel={e=>{e.preventDefault();if(!blocked)setReview(null);}}>{review&&<>
-      <h2 id="management-record-review-title">确认复核半写管理记录</h2><p style={{overflowWrap:"anywhere"}}>{review.relativePath}</p>
+      <HelpHeading as="h2" topic="ManagementRecordReview" id="management-record-review-title">确认复核半写管理记录</HelpHeading><p style={{overflowWrap:"anywhere"}}>{review.relativePath}</p>
       <p>{impacts[stage]}</p><p>原始残片保留，本次说明另存。保存复核不代表任务完成；存在坏关联或其他未决文件时，重启后仍会停在诊断页面。</p>
       <label htmlFor="management-record-review-reason">本次复核说明</label><textarea id="management-record-review-reason" rows={3} value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked}/>
       <label className="checkbox-label"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)} disabled={blocked}/>我已核对目标和本阶段的处置影响</label>

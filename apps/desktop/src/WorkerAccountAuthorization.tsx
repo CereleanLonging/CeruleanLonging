@@ -1,6 +1,7 @@
+import { HelpHeading } from "./HelpHeading";
 export function WorkerAccountAuthorization({available,checked,disabled,directories=[],onChange}:{available:boolean;checked:boolean;disabled:boolean;directories?:string[];onChange:(checked:boolean)=>void}) {
   return <section className="panel" aria-label="本方案管理员操作授权">
-    <h3>隔离账户与目录权限</h3>
+    <HelpHeading as="h3" topic="WorkerAccountAuthorization">隔离账户与目录权限</HelpHeading>
     <label className="checkbox-label"><input type="checkbox" checked={checked} disabled={disabled||!available} onChange={e=>onChange(e.target.checked)}/>授权工作台为本方案创建隔离账户、设置项目目录权限</label>
     <p className="secondary">默认不授权。勾选并确认方案后，工作台自动发起一次准备，仅覆盖当前配置中已登记的模型目录。执行模型仍使用普通账户；模型登录和任务启动另行操作。</p>
     {!!directories.length&&<details><summary>本次保护的主指挥目录及执行目录（{directories.length}）</summary><ul>{directories.map(path=><li key={path}><code>{path}</code></li>)}</ul><p className="secondary">同时保护项目共享目录和工作台内部数据；已登记的闲置模型目录仍保留各自隔离账户。</p></details>}

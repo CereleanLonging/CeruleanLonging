@@ -3103,7 +3103,7 @@
     "Windows system DLLs and the WebView2 Runtime remain external prerequisites; candidate MSVC CRT/UCRT static linkage is separately inventoried and awaits actual-link verification",
     "Microsoft static CRT/UCRT attribution preserves available input identities and applicable source materials; formal redistribution scope and entitlement review remain open, not approved"
   ],
-  "dependencyFingerprint": "2a46dda62de0cc19a0b49d649fe3f7c09757a90e40fb9230f3352e8504429c45",
+  "dependencyFingerprint": "0be47c26ca0be9020f13c1c23687125f907bbe323bedf6100dafb0b6c3453ef3",
   "textEncodings": {
     "native/nsis/Contrib/Modern UI 2/License.txt": "latin-1"
   },

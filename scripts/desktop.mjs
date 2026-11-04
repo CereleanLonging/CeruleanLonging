@@ -1,9 +1,19 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 const mode = process.argv[2];
 if (!["dev", "build", "package"].includes(mode)) throw Error("Expected dev, build or package");
+if (!process.env.CERULEAN_CACHE_SESSION) {
+  const managed = spawnSync(process.execPath, ["scripts/cache-task.mjs", "desktop", mode], { stdio: "inherit", shell: false });
+  if (managed.error) throw managed.error;
+  process.exit(managed.status ?? 1);
+}
+const session = resolve(process.env.CERULEAN_CACHE_SESSION.replace(/^\\\\\?\\/, ""));
+const sessionRoot = resolve(".temp/build-cache/jobs");
+if (!session.startsWith(sessionRoot + (process.platform === "win32" ? "\\" : "/")) ||
+    resolve((process.env.CARGO_TARGET_DIR || "").replace(/^\\\\\?\\/, "")) !== join(session, "cargo")) throw Error("Invalid managed compilation directory");
+const cargoTarget = join(session, "cargo");
 const release = mode !== "dev";
 const run = (bin, args, cwd = process.cwd(), env = process.env) => {
   const r = spawnSync(bin, args, { stdio: "inherit", shell: false, cwd, env });
@@ -11,8 +21,10 @@ const run = (bin, args, cwd = process.cwd(), env = process.env) => {
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 if (mode === "package") {
-  run("python", ["scripts/sqlite-notices.py", "--check"]);
-  run("python", ["scripts/distribution-notices.py", "--check"]);
+  const reviewedEnvironment = { ...process.env };
+  delete reviewedEnvironment.CARGO_TARGET_DIR;
+  run("python", ["scripts/sqlite-notices.py", "--check"], process.cwd(), reviewedEnvironment);
+  run("python", ["scripts/distribution-notices.py", "--check"], process.cwd(), reviewedEnvironment);
 }
 const rust = spawnSync("rustc", ["-vV"], { encoding: "utf8" });
 if (rust.status !== 0)
@@ -29,7 +41,7 @@ if (windowsRuntime && triple !== "x86_64-pc-windows-msvc")
 const runtimeOverrides = new Set([
   "RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_BUILD_RUSTFLAGS",
   "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS", "CARGO_BUILD_TARGET",
-  "CARGO_TARGET_DIR", "CARGO_BUILD_TARGET_DIR", "CERULEAN_VERIFIER_SHA256",
+  "CARGO_BUILD_TARGET_DIR", "CERULEAN_VERIFIER_SHA256",
 ]);
 if (windowsRuntime && Object.entries(process.env).some(([name, value]) =>
   value && runtimeOverrides.has(name.toUpperCase())))
@@ -39,7 +51,7 @@ run("cargo", ["build", "-p", "cerulean-domain", "--bin", "cerulean-verifier", "-
   ...(release ? ["--release"] : []),
   ...(windowsRuntime ? ["--target", triple, "--config", 'target.x86_64-pc-windows-msvc.rustflags=["-C","target-feature=+crt-static"]'] : []),
 ]);
-const verifier = join("target", ...(windowsRuntime ? [triple] : []), release ? "release" : "debug", `cerulean-verifier${windowsRuntime ? ".exe" : ""}`);
+const verifier = join(cargoTarget, ...(windowsRuntime ? [triple] : []), release ? "release" : "debug", `cerulean-verifier${windowsRuntime ? ".exe" : ""}`);
 const boundEnvironment = {...process.env, CERULEAN_VERIFIER_SHA256:createHash("sha256").update(readFileSync(verifier)).digest("hex")};
 run("cargo", [
   "build",
@@ -60,8 +72,8 @@ run("cargo", ["run", "-p", "cerulean-domain", "--bin", "export-contracts", "--lo
 const ext = process.platform === "win32" ? ".exe" : "";
 const profile = release ? "release" : "debug";
 const builtRuntime = windowsRuntime
-  ? join("target", triple, profile, `cerulean-core${ext}`)
-  : join("target", profile, `cerulean-core${ext}`);
+  ? join(cargoTarget, triple, profile, `cerulean-core${ext}`)
+  : join(cargoTarget, profile, `cerulean-core${ext}`);
 // Preserve existing freezer/test/direct-launch paths, but stage only the output
 // of the successful explicit-target build. Any missing output/copy error stops.
 mkdirSync(join("target", profile), { recursive: true });
@@ -69,6 +81,9 @@ if (windowsRuntime)
   copyFileSync(builtRuntime, join("target", profile, `cerulean-core${ext}`));
 // The desktop resolves its sibling runtime, including direct launches outside the CLI.
 copyFileSync(builtRuntime, join("target", profile, `cerulean-runtime${ext}`));
+mkdirSync(join(cargoTarget, profile), { recursive: true });
+copyFileSync(builtRuntime, join(cargoTarget, profile, `cerulean-runtime${ext}`));
+copyFileSync(verifier, join(cargoTarget, profile, `cerulean-verifier${ext}`));
 mkdirSync("apps/desktop/src-tauri/binaries", { recursive: true });
 copyFileSync(verifier, join("target", profile, `cerulean-verifier${ext}`));
 copyFileSync(verifier, `apps/desktop/src-tauri/binaries/cerulean-verifier-${triple}${ext}`);
@@ -89,3 +104,9 @@ run(
   resolve("apps/desktop"),
   boundEnvironment,
 );
+if (release) {
+  const gui = join(cargoTarget, profile, `CeruleanLonging${ext}`);
+  copyFileSync(gui, join("target", profile, `CeruleanLonging${ext}`));
+  const bundle = join(cargoTarget, profile, "bundle");
+  if (existsSync(bundle)) cpSync(bundle, join("target", profile, "bundle"), { recursive: true });
+}

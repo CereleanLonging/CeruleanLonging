@@ -98,17 +98,23 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.43 为公开预览版**，精简工作总览的详细记录入口，并修复退出确认弹窗下分页按钮穿透与键盘焦点问题。原记录与正常审批、执行、验收流程保留。详见 [支持范围](SUPPORT.md) 和 [版本说明](docs/releases/0.1.43.md)。本版本不作稳定版承诺。
+**0.1.44 为公开预览版**，增加工作台源码缓存的临时目录、任务结束清理和维护页累计监控，并完善接入配置持久化与折叠布局。详见 [支持范围](SUPPORT.md)、[缓存管理](docs/BUILD-CACHE-MANAGEMENT.md) 和 [版本说明](docs/releases/0.1.44.md)。
 
 建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
 
-安装包与源码包见 [0.1.43 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.43)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.44 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.44)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.44 · 2026-11-04 · 公开预览
+
+源码缓存进入临时目录，受管构建与测试结束后自动清理并保留空目录。维护页增加缓存扫描、累计监控与清理入口，提炼日志保存到独立文档目录。同步改善接入持久化、折叠选择和维护布局。
+
+[版本说明](docs/releases/0.1.44.md)
 
 #### 0.1.43 · 2026-11-03 · 公开预览
 
@@ -287,17 +293,23 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.43 is a public preview** simplifying overview record navigation and fixing pagination and focus escaping exit confirmation. Original records and normal approval, execution and verification flows remain available. See [Support scope](SUPPORT.md) and [Release notes](docs/releases/0.1.43.md). This is not a stable-release commitment.
+**0.1.44 is a public preview** adding source-build temporary directories, end-of-task cache cleanup and cumulative maintenance monitoring, alongside persistent and collapsible connection configuration. See [Support scope](SUPPORT.md), [Cache management](docs/BUILD-CACHE-MANAGEMENT.md) and [Release notes](docs/releases/0.1.44.md).
 
 Try blind review in a separate experiment workbench and prepare checking accounts before execution, either manually or through the optional authorization in plan review. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
 
-Download the installer and source package from the [0.1.43 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.43). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.44 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.44). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.44 · 2026-11-04 · Public Preview
+
+Source caches use temporary job directories and are cleaned after managed builds/tests while empty directories remain. Maintenance adds cache scans, cumulative monitoring and cleanup with distilled local receipts. Connection persistence, collapsed methods and maintenance layout are also refined.
+
+[Release notes](docs/releases/0.1.44.md)
 
 #### 0.1.43 · 2026-11-03 · Public Preview
 

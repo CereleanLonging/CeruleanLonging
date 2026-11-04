@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { AcceptanceCheck, Command, RecheckReview, WorkspaceRecheckInputs, WorkspaceRecheckSummary } from "./contracts";
@@ -113,15 +114,15 @@ export function VerificationRecheckPrepare(props: Props) {
     });
   }
   return <section className="panel" aria-label="准备修订检查器复验" aria-busy={loading}>
-    <div className="section-heading"><h3>为原提交准备复验</h3><button className="secondary-button" onClick={props.close}>关闭复验准备</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="VerificationRecheckPrepare">为原提交准备复验</HelpHeading><button className="secondary-button" onClick={props.close}>关闭复验准备</button></div>
     <p>任务 {props.taskId} · 原尝试 {props.attemptId} · 原失败验收 {props.originalOperationId}</p>
     <p>修改检查器不会改写原失败记录或重新派发模型任务。阶段顺序和名称保留，原封存产物由核心核对。</p>
     {error && <p role="alert"><ErrorText error={error}/></p>}{message && <p role="status">{message}</p>}
     {loading && <p role="status">正在读取和核对原证据…</p>}
     {!sent && <button className="secondary-button" disabled={blocked} onClick={() => void run(load)}>重新读取原检查配置</button>}
     {inputs && !confirmed && <>
-      <fieldset disabled={blocked || sent || stale}><legend>修订检查配置</legend>
-        {checks.map((c, i) => <section className="panel" key={c.id}><h4>{i + 1}. {c.name || c.id}</h4>
+      <fieldset disabled={blocked || sent || stale}><HelpHeading as="legend" topic="VerificationRecheckPrepare">修订检查配置</HelpHeading>
+        {checks.map((c, i) => <section className="panel" key={c.id}><HelpHeading as="h4" topic="VerificationRecheckPrepare">{i + 1}. {c.name || c.id}</HelpHeading>
           <label>检查工具<select aria-label={`阶段 ${i + 1} 的检查工具`} value={tools[i]} onChange={e => choose(i, e.target.value)}><option value="">保留原工具</option>{inputs.validators.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
           <p style={{ overflowWrap: "anywhere" }}>{c.program}</p><p>需要新的检查器时，请先在验收工具入口登记新版本。</p>
           {c.args.map((arg, n) => <div key={n}><label>阶段 {i + 1} 的参数 {n + 1}<textarea aria-label={`阶段 ${i + 1} 的参数 ${n + 1}`} value={arg} onChange={e => update(i, { ...c, args: c.args.map((v, k) => k === n ? e.target.value : v) })}/></label><button className="secondary-button" onClick={() => update(i, { ...c, args: c.args.filter((_, k) => k !== n) })}>删除参数 {n + 1}</button></div>)}
@@ -132,8 +133,8 @@ export function VerificationRecheckPrepare(props: Props) {
       </fieldset>
       <p>每个参数单独填写，空参数与多行文本会原样保留。时限不得超过原批准的 {inputs.maxTimeoutSeconds} 秒。</p>
       <button className="primary" disabled={blocked || sent || !valid} onClick={prepare}>生成复验审阅</button>
-      {review && <section className="panel" aria-label="待批准复验方案"><h4>审阅这次检查器修改</h4><p style={{ whiteSpace: "pre-wrap" }}>{review.reason}</p>
-        {review.replacementChecks.map((c, i) => <article key={c.id}><h5>{c.name || c.id}</h5><p>原时限 {inputs.checks[i].timeoutSeconds} 秒 → 修订后 {c.timeoutSeconds} 秒</p><p>原程序：{inputs.checks[i].program}</p><p>修订程序：{c.program}</p><details><summary>对照参数与固定文件摘要</summary><p>原参数</p><pre>{JSON.stringify(inputs.checks[i].args, null, 2)}</pre><p>修订参数</p><pre>{JSON.stringify(c.args, null, 2)}</pre><p>原工具摘要：{inputs.checks[i].tool?.executable.sha256 ?? "无"}</p><p>修订工具摘要：{c.tool?.executable.sha256}</p><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(c.tool, null, 2)}</pre></details></article>)}
+      {review && <section className="panel" aria-label="待批准复验方案"><HelpHeading as="h4" topic="VerificationRecheckPrepare">审阅这次检查器修改</HelpHeading><p style={{ whiteSpace: "pre-wrap" }}>{review.reason}</p>
+        {review.replacementChecks.map((c, i) => <article key={c.id}><HelpHeading as="h5" topic="VerificationRecheckPrepare">{c.name || c.id}</HelpHeading><p>原时限 {inputs.checks[i].timeoutSeconds} 秒 → 修订后 {c.timeoutSeconds} 秒</p><p>原程序：{inputs.checks[i].program}</p><p>修订程序：{c.program}</p><details><summary>对照参数与固定文件摘要</summary><p>原参数</p><pre>{JSON.stringify(inputs.checks[i].args, null, 2)}</pre><p>修订参数</p><pre>{JSON.stringify(c.args, null, 2)}</pre><p>原工具摘要：{inputs.checks[i].tool?.executable.sha256 ?? "无"}</p><p>修订工具摘要：{c.tool?.executable.sha256}</p><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(c.tool, null, 2)}</pre></details></article>)}
         <p>批准会暂停该项目调度并登记一次复验。本次批准不会启动检查器；检查通过后仍需主指挥验收。</p>
         <label className="checkbox-label"><input type="checkbox" checked={agreed} disabled={blocked || sent || stale} onChange={e => setAgreed(e.target.checked)}/>我已核对修改，批准这份复验方案</label>
         <button className="primary" disabled={blocked || sent || stale || !agreed} onClick={approve}>仅登记这次复验批准</button>

@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import type { ApiTarget, ApiWorkerSelection, ProjectWorkerAdapter } from "./contracts";
 
 export const apiWorkerOptions = [
@@ -32,7 +33,7 @@ export function ApiWorkerFields({worker,onChange,idPrefix="planning-api"}:{idPre
     ["requestTimeoutSeconds","单个 API 请求时限（秒）",600],
   ] as const;
   return <section className="panel" aria-label="API 编程执行配置">
-    <h3>API 编程执行配置</h3>
+    <HelpHeading as="h3" topic="ApiWorkerFields">API 编程执行配置</HelpHeading>
     {(endpoint?.kind==="a6Api"||endpoint?.kind==="a6ApiVip")&&<>
       <label htmlFor={`${idPrefix}-relay-origin`}>A6API 中转站地址</label>
       <select id={`${idPrefix}-relay-origin`} value={endpoint.kind} onChange={e=>{const kind=e.target.value;if(kind==="a6Api"||kind==="a6ApiVip")onChange({...worker,target:{kind:"provider",endpoint:{kind}}});}}>

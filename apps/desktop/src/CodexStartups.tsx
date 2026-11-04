@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { CodexStartupSummary, CodexStartupView, Command, Snapshot } from "./contracts";
@@ -114,30 +115,30 @@ export function CodexStartups({ data, send, query, busy }: {
 
   if (!rows.length && !detail && !review) return null;
   return <section className="workflow-plans codex-startups" aria-label="编程启动记录">
-    <h2>编程启动记录</h2>
+    <HelpHeading as="h2" topic="CodexStartups">编程启动记录</HelpHeading>
     <p className="secondary">查看启动准备及后续处置。没有编程执行记录的启动意图也会保留在这里；关闭须先读取完整证据。</p>
     {error && <p role="alert" className="startup-feedback"><ErrorText error={error}/></p>}
     {notice && <p role="status" className="startup-feedback">{notice}</p>}
     {loading && <p role="status" className="secondary">正在读取启动详情…</p>}
     {detail && <article ref={panel} className="panel startup-detail" aria-label="编程启动详情" data-startup-detail={detail.summary.attemptId} data-startup-project={detail.summary.projectId}>
-      <div className="section-heading"><h3>编程启动详情</h3><button type="button" className="secondary-button" disabled={pending} onClick={() => setDetail(null)}>收起启动详情</button></div>
+      <div className="section-heading"><HelpHeading as="h3" topic="CodexStartups">编程启动详情</HelpHeading><button type="button" className="secondary-button" disabled={pending} onClick={() => setDetail(null)}>收起启动详情</button></div>
       <p><span className="badge">{labels[detail.summary.state] ?? detail.summary.state}</span></p>
       <StartupFields detail={detail}/>
       {!detailFresh && <p role="status" className="startup-stale">记录已变化或不在当前列表，请重新读取详情后再审阅。</p>}
-      {detail.reason !== null && <div className="startup-reason"><h4>关闭原因</h4><p>{detail.reason}</p></div>}
+      {detail.reason !== null && <div className="startup-reason"><HelpHeading as="h4" topic="CodexStartups">关闭原因</HelpHeading><p>{detail.reason}</p></div>}
       {detail.blockedReason !== null && <p className="startup-text">{detail.blockedReason}</p>}
       {detail.summary.state === "legacy" && <p className="secondary">旧记录缺少可验证的启动意图，只能查看现有证据，不能从此入口关闭。</p>}
       {detail.evidenceDigest !== null && detail.summary.state !== "legacy" && <><p className="secondary">可能已经建立远端会话。此处只能关闭本地启动准备，不代表远程会话已取消。</p><button type="button" className="secondary-button" disabled={pending || !detailFresh} onClick={() => void read(detail.summary, detail)}>关闭启动记录…</button></>}
     </article>}
     {rows.map(item => <article className="panel startup-row" key={`${item.projectId}:${item.attemptId}`} data-startup-attempt={item.attemptId} data-startup-project={item.projectId}>
-      <div className="section-heading"><h3>任务 {item.taskId}</h3><span className="badge">{labels[item.state] ?? item.state}</span></div>
+      <div className="section-heading"><HelpHeading as="h3" topic="CodexStartups">任务 {item.taskId}</HelpHeading><span className="badge">{labels[item.state] ?? item.state}</span></div>
       <p className="secondary">项目 {item.projectId} · 尝试 <code>{item.attemptId}</code></p>
       <p className="secondary">关联指挥请求：{item.managementOperation ?? "未关联"}</p>
       {item.state === "legacy" && <p className="secondary">缺少启动证据，暂不可关闭。</p>}
       <button type="button" className="secondary-button" disabled={pending} onClick={() => void read(item)}>查看启动详情</button>
     </article>)}
     {review && <dialog ref={dialog} className="panel modal startup-dialog" aria-labelledby="startup-review-title" aria-describedby="startup-review-impact" onCancel={event => { event.preventDefault(); if (!pending) setReview(null); }}>
-      <h2 id="startup-review-title">确认关闭编程启动记录</h2>
+      <HelpHeading as="h2" topic="CodexStartups" id="startup-review-title">确认关闭编程启动记录</HelpHeading>
       <StartupFields detail={review} compact/>
       <p id="startup-review-impact">仅保存本地关闭处置，保留原始指挥请求和启动记录；不推进任务进度、不退回请求额度、不自动恢复调度或发送任务。此前可能已经建立远端会话，这不证明远程取消或退费。</p>
       <form onSubmit={event => { event.preventDefault(); void confirm(); }}>

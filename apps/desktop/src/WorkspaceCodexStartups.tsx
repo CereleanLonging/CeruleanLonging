@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { CodexStartupSummary, WorkspaceCodexStartupDetail, WorkspaceCodexStartupPage } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -67,16 +68,16 @@ export function WorkspaceCodexStartups(props: Props) {
     });
   }
   return <section className="panel" style={{ overflowWrap: "anywhere" }} aria-label="项目编程启动记录" aria-busy={loading}>
-    <div className="section-heading"><h3>项目 {props.projectId} 的编程启动记录</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新启动首页</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceCodexStartups">项目 {props.projectId} 的编程启动记录</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新启动首页</button></div>
     <p>这里只读取原 Codex 启动意图与证据，尚无作业的启动也会列出。不启动、重试、取消、关闭或放弃任何尝试。</p>
     <p>启动准备、进入后续流程或记录已关闭都不等于任务完成；未知结果与资源占用须回原项目核对，不能据此重发。</p>
     {loading && <p role="status">正在读取原启动记录…</p>}
     {error && <p role="alert">{error} 上次内容仅供核对，请刷新后继续。</p>}
     {!page ? <p>启动记录尚未取得，不能据此判断没有启动意图。</p> : <>
       <p>原项目共 {page.total} 条启动记录</p>
-      {page.total === 0 ? <p>原项目尚无 Codex 启动记录；可刷新核对最新记录。</p> : <ol start={page.offset + 1}>{page.entries.map(s => <li key={s.attemptId}><h4>{s.attemptId} · {states[s.state]}</h4><p>任务 {s.taskId} · 指挥请求 {s.managementOperation ?? "未关联指挥请求"}</p><p>启动意图摘要 <code>{s.intentHash ?? "旧记录未记录"}</code></p><button disabled={blocked || stale} onClick={() => inspect(s)}>查看启动 {s.attemptId} 的原证据</button></li>)}</ol>}
+      {page.total === 0 ? <p>原项目尚无 Codex 启动记录；可刷新核对最新记录。</p> : <ol start={page.offset + 1}>{page.entries.map(s => <li key={s.attemptId}><HelpHeading as="h4" topic="WorkspaceCodexStartups">{s.attemptId} · {states[s.state]}</HelpHeading><p>任务 {s.taskId} · 指挥请求 {s.managementOperation ?? "未关联指挥请求"}</p><p>启动意图摘要 <code>{s.intentHash ?? "旧记录未记录"}</code></p><button disabled={blocked || stale} onClick={() => inspect(s)}>查看启动 {s.attemptId} 的原证据</button></li>)}</ol>}
       <nav aria-label="启动记录分页"><button disabled={blocked || stale || !back.length} onClick={() => void run(current => readPage(back.at(-1)!, page.revision, back.slice(0, -1), current))}>上一页</button><span>当前显示 {page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void run(current => readPage(page.nextOffset!, page.revision, [...back, page.offset], current))}>下一页</button></nav>
     </>}
-    {detail && <section aria-label="原启动证据"><div className="section-heading"><h4>尝试 {detail.detail.summary.attemptId} 的原启动证据</h4><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭启动详情</button></div><p>{states[detail.detail.summary.state]} · 工作目录 {detail.detail.workspace}</p><p>模型 {detail.detail.workerModel} · 启动时间 {detail.detail.startedAt} · 协议 {detail.detail.protocol ?? "未记录"}</p><p>方案摘要 <code>{detail.detail.revisionDigest}</code> · 工作流序号 {detail.detail.workflowSequence}</p><p>证据摘要 <code>{detail.detail.evidenceDigest ?? "尚无可确认摘要"}</code></p>{detail.detail.blockedReason && <p>原阻断说明：{detail.detail.blockedReason}</p>}{detail.detail.reason && <p>原关闭说明：{detail.detail.reason}</p>}<details><summary>原启动完整字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail, null, 2)}</pre></details></section>}
+    {detail && <section aria-label="原启动证据"><div className="section-heading"><HelpHeading as="h4" topic="WorkspaceCodexStartups">尝试 {detail.detail.summary.attemptId} 的原启动证据</HelpHeading><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭启动详情</button></div><p>{states[detail.detail.summary.state]} · 工作目录 {detail.detail.workspace}</p><p>模型 {detail.detail.workerModel} · 启动时间 {detail.detail.startedAt} · 协议 {detail.detail.protocol ?? "未记录"}</p><p>方案摘要 <code>{detail.detail.revisionDigest}</code> · 工作流序号 {detail.detail.workflowSequence}</p><p>证据摘要 <code>{detail.detail.evidenceDigest ?? "尚无可确认摘要"}</code></p>{detail.detail.blockedReason && <p>原阻断说明：{detail.detail.blockedReason}</p>}{detail.detail.reason && <p>原关闭说明：{detail.detail.reason}</p>}<details><summary>原启动完整字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail, null, 2)}</pre></details></section>}
   </section>;
 }

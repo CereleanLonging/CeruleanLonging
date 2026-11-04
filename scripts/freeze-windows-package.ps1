@@ -44,6 +44,9 @@ foreach ($inputFile in $inputs) {
     $artifacts+=@{path=$inputFile.name;bytes=(Get-Item -LiteralPath $destination).Length;sha256=$hash;authenticodeStatus=$signature.Status.ToString();signerThumbprint=if($signature.SignerCertificate){$signature.SignerCertificate.Thumbprint}else{$null}}
 }
 $sources=@()
+foreach ($name in @('scripts/cache-task.mjs','scripts/frontend.mjs','scripts/lint.ps1','crates/cache/Cargo.toml','crates/cache/src/lib.rs','crates/cache/src/main.rs','crates/cache/src/task_job.rs')) {
+    $sources+=@{path=$name;sha256=(Get-FileHash -LiteralPath (Join-Path $root $name) -Algorithm SHA256).Hash.ToLowerInvariant()}
+}
 foreach ($name in @('Cargo.lock','Cargo.toml','package-lock.json','package.json','apps/desktop/src-tauri/tauri.conf.json','apps/desktop/src-tauri/installer/hooks.nsh','apps/desktop/src-tauri/installer/template.nsi','apps/desktop/src-tauri/installer/LICENSE-MIT.tauri','scripts/desktop.mjs','scripts/windows-package-image.ps1','scripts/manage-windows-update.ps1','scripts/maintenance-window.ps1','scripts/test-windows-package.ps1','scripts/sqlite-notices.py','third-party/SQLITE-NOTICES.txt','third-party/sqlite-notices.json','scripts/distribution-notices.py','scripts/distribution-build-inputs.py','third-party/distribution-build-inputs.json','rust-toolchain.toml','.cargo/config.toml','third-party/distribution-inputs.json','third-party/distribution-inputs.zip')) {
     $sources+=@{path=$name;sha256=(Get-FileHash -LiteralPath (Join-Path $root $name) -Algorithm SHA256).Hash.ToLowerInvariant()}
 }

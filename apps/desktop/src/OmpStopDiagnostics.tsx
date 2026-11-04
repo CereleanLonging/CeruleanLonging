@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, OmpStopIssue, Snapshot } from "./contracts";
@@ -24,18 +25,18 @@ export function OmpStopDiagnostics({data,send,busy,restart}:{data:Snapshot|null;
   }
   if(!issues.length)return null;
   return <section className="panel" aria-label="停止记录诊断">
-    <h2>核心处于诊断模式</h2>
+    <HelpHeading as="h2" topic="OmpStopDiagnostics">核心处于诊断模式</HelpHeading>
     <p>停止记录存在异常，调度和其他修改操作已冻结。可读取当前记录并复核未写完整的停止请求。</p>
     {message&&<p role="status">{message}</p>}
     {issues.every(i=>i.acknowledged)&&<button className="secondary-button" disabled={blocked} onClick={async()=>{if(lock.current)return;lock.current=true;setPending(true);try{await restart();}finally{lock.current=false;setPending(false);}}}>重启核心并重新核对</button>}
     {issues.map(i=><article key={i.projectId+":"+i.attemptId}>
-      <h3>项目 {i.projectId} · 任务 {i.taskId} · 尝试 {i.attemptId}</h3>
+      <HelpHeading as="h3" topic="OmpStopDiagnostics">项目 {i.projectId} · 任务 {i.taskId} · 尝试 {i.attemptId}</HelpHeading>
       <p>{i.message}</p>
       <details><summary>查看原始证据位置与摘要</summary><p>{i.pendingPath}</p>{i.pendingSha256&&<><p>{i.pendingBytes} 字节</p><p style={{overflowWrap:"anywhere"}}>SHA-256：{i.pendingSha256}</p></>}</details>
       {i.acknowledged?<p>此记录已复核。重启本地核心后重新验证；原任务结果仍需核对。</p>:i.evidenceDigest?<button className="secondary-button" disabled={blocked} onClick={()=>{setReview(i);setReason("");setAck(false);setMessage("");}}>复核中断的停止记录…</button>:<p>此故障不能直接确认。请保留证据，按可信备份进行专项恢复。</p>}
     </article>)}
     <dialog ref={dialog} className="panel modal unsent-assignment-dialog" aria-labelledby="stop-review-title" onCancel={e=>{e.preventDefault();if(!blocked)setReview(null);}}>{review&&<>
-      <h2 id="stop-review-title">确认复核中断停止记录</h2>
+      <HelpHeading as="h2" topic="OmpStopDiagnostics" id="stop-review-title">确认复核中断停止记录</HelpHeading>
       <p>项目 {review.projectId} · 任务 {review.taskId} · 尝试 {review.attemptId}</p>
       <p>原停止记录未写完整，无法还原当时的停止原因或送达情况。将保留原文并另存本次复核说明，保持项目暂停。这不代表执行器已取消或任务已完成。</p>
       <label htmlFor="stop-review-reason">本次复核说明</label><textarea id="stop-review-reason" value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked} rows={3}/>

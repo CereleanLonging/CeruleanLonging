@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import {useRef,useState} from 'react';
 import type {Command,DesktopTaskReview,DesktopTaskStatus,Snapshot} from './contracts';
@@ -35,20 +36,20 @@ export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;s
   }
   if(!assigned.length&&!jobs.length&&!prepared&&!review)return null;
   return <section className="workflow-plans desktop-tasks" aria-label="桌面编程任务">
-    <h2>桌面编程任务</h2>
+    <HelpHeading as="h2" topic="DesktopTasks">桌面编程任务</HelpHeading>
     <p className="secondary">仅处理已批准且由副指挥分配的尝试。发送后由后台核对回复、封存文件并提交；完成仍需独立验收和主指挥收口。</p>
     {access?.error&&<p role="alert"><ErrorText error={access.error}/></p>}
-    {assigned.map(t=><article className="panel" key={`${t.project}:${t.attempt}`}><h3>{t.goal}</h3><p>{t.project} · {t.task} · 已分配，尚未发送</p>
+    {assigned.map(t=><article className="panel" key={`${t.project}:${t.attempt}`}><HelpHeading as="h3" topic="DesktopTasks">{t.goal}</HelpHeading><p>{t.project} · {t.task} · 已分配，尚未发送</p>
       {runPaused(t.project)&&<p>项目调度已暂停或需要处理，请先核对并恢复运行授权。</p>}
       <button className="secondary-button" disabled={blocked||unresolved||runPaused(t.project)} onClick={()=>void act({type:'prepareDesktopTask',projectId:t.project,taskId:t.task,attemptId:t.attempt})}>准备任务消息</button>
     </article>)}
-    {prepared&&<article className="panel"><h3>任务消息已准备</h3><p>先核对完整任务、项目目录、模型和目标聊天，再确认发送。</p><button className="primary" disabled={blocked} onClick={()=>{setReview(prepared);setAck(false);}}>审阅编程任务</button></article>}
+    {prepared&&<article className="panel"><HelpHeading as="h3" topic="DesktopTasks">任务消息已准备</HelpHeading><p>先核对完整任务、项目目录、模型和目标聊天，再确认发送。</p><button className="primary" disabled={blocked} onClick={()=>{setReview(prepared);setAck(false);}}>审阅编程任务</button></article>}
     {jobs.map(job=>{
       const r=job.review,w=data?.workflows.find(w=>w.project.id===r.projectId),task=w?.state.tasks[r.attempt.taskId];
       const retiredAdapter=r.observation.window.app==='workbuddy';
       const accepted=task?.attempt===r.attempt.id&&task.state==='accepted'&&task.verified;
       return <article className="panel" key={r.id} data-desktop-attempt={r.attempt.id}>
-        <h3>{job.retired?'本地跟踪已结束，结果未确认':job.cancellation?.confirmed?'已确认取消，修改保留':accepted?'已独立验收并收口':job.active?(job.stopping?'正在核对停止结果':job.reading?'正在回读原任务':'正在执行桌面任务'):job.submitted?'交付已提交，等待验收':'任务结果待核对'}</h3>
+        <HelpHeading as="h3" topic="DesktopTasks">{job.retired?'本地跟踪已结束，结果未确认':job.cancellation?.confirmed?'已确认取消，修改保留':accepted?'已独立验收并收口':job.active?(job.stopping?'正在核对停止结果':job.reading?'正在回读原任务':'正在执行桌面任务'):job.submitted?'交付已提交，等待验收':'任务结果待核对'}</HelpHeading>
         <p>{r.projectId} · {r.attempt.taskId} · {r.observation.modelLabel}</p><p>聊天：{chat(r)}</p>
         {retiredAdapter&&<p>WorkBuddy 支持已移除；原记录保留，不再连接外部应用。未决结果可在核对后结束本地跟踪。</p>}
         {!job.retired&&job.error&&<p role="alert"><ErrorText error={job.error}/></p>}
@@ -65,7 +66,7 @@ export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;s
       </article>;
     })}
     {stop&&<div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-labelledby="desktop-stop-title">
-      <h2 id="desktop-stop-title">停止原桌面任务</h2>
+      <HelpHeading as="h2" topic="DesktopTasks" id="desktop-stop-title">停止原桌面任务</HelpHeading>
       <p>{stop.review.projectId} · {stop.review.attempt.taskId}</p><p>聊天：{chat(stop.review)}</p><p>模型：{stop.review.observation.modelLabel}</p>
       <p>先暂停后续调度，再核对并停止这一条原任务。只有核实原任务终态才会显示取消成功；已有文件修改会保留。如果核对时任务已完成，仍需独立验收。</p>
       <label>停止原因<textarea value={reason} maxLength={2000} disabled={busy||pending} onChange={e=>setReason(e.target.value)}/></label>
@@ -73,7 +74,7 @@ export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;s
       <div className="card-footer"><button className="secondary-button" disabled={busy||pending} onClick={()=>setStop(null)}>返回核对</button><button className="primary" disabled={stopBlocked||!stopAck||!reason.trim()} onClick={async()=>{if(await act({type:'cancelDesktopTask',projectId:stop.review.projectId,attemptId:stop.review.attempt.id,reviewDigest:stop.review.id,reason}))setStop(null);}}>确认停止原任务一次</button></div>
     </section></div>}
     {retire&&<div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-labelledby="desktop-retire-title">
-      <h2 id="desktop-retire-title">结束未知桌面任务的本地跟踪</h2>
+      <HelpHeading as="h2" topic="DesktopTasks" id="desktop-retire-title">结束未知桌面任务的本地跟踪</HelpHeading>
       <p>{retire.review.projectId} · {retire.review.attempt.taskId}</p><p>聊天：{chat(retire.review)}</p><p>尝试：{retire.review.attempt.id}</p>
       <p>原执行结果和费用仍未确认，已有文件修改和原消息记录会保留。此操作不会停止外部应用，也不会重发消息或标记验收通过。后续须修订并重新批准方案、重新核对聊天关联。</p>
       <label>处置原因<textarea value={reason} maxLength={2000} disabled={blocked} onChange={e=>setReason(e.target.value)}/></label>
@@ -81,7 +82,7 @@ export function DesktopTasks({data,busy,send}:{data:Snapshot|null;busy:boolean;s
       <div className="card-footer"><button className="secondary-button" disabled={blocked} onClick={()=>setRetire(null)}>返回核对</button><button className="primary" disabled={blocked||!retireAck||!reason.trim()||!retire.retirementDigest||jobs.find(j=>j.review.id===retire.review.id)?.retirementDigest!==retire.retirementDigest} onClick={async()=>{if(retire.retirementDigest&&await act({type:'retireUnknownDesktop',projectId:retire.review.projectId,attemptId:retire.review.attempt.id,evidenceDigest:retire.retirementDigest,reason}))setRetire(null);}}>确认结束本地跟踪</button></div>
     </section></div>}
     {review&&<div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-labelledby="desktop-task-title">
-      <h2 id="desktop-task-title">确认发送编程任务</h2>
+      <HelpHeading as="h2" topic="DesktopTasks" id="desktop-task-title">确认发送编程任务</HelpHeading>
       <p>{review.observation.window.title} · {review.observation.window.app} {review.observation.window.version}</p>
       <p>模型：{review.observation.modelLabel}</p><p>聊天：{chat(review)}</p><p>项目目录：{review.attempt.binding.workspace}</p>
       <p>会发送下面这一条任务消息，可能产生模型费用。工具权限由外部应用管理；请核对该应用当前目录与上述目录一致。</p>

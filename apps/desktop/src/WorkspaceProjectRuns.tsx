@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceProjectRunDetail, WorkspaceProjectRunPage, WorkspaceProjectRunSummary } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -81,7 +82,7 @@ export function WorkspaceProjectRuns(props: Props) {
   }
 
   return <section className="panel" aria-label="项目运行记录" aria-busy={loading}>
-    <div className="section-heading"><h3>项目 {props.projectId} 的运行记录</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新运行首页</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceProjectRuns">项目 {props.projectId} 的运行记录</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新运行首页</button></div>
     <p>这里只读原始项目运行记录；不会启动、暂停、取消或关闭运行。</p>
     {page && page.offset > 0 && page.activeCount > 0 && <p>正在查看历史页，自动刷新暂缓；返回首页后恢复活动状态刷新。</p>}
     {loading && <p role="status">正在读取原项目运行记录…</p>}
@@ -89,13 +90,13 @@ export function WorkspaceProjectRuns(props: Props) {
     {!page ? <p>项目运行记录尚未取得；这不表示项目没有运行。</p> : <>
       <p>原项目共 {page.total} 条运行记录；当前活动运行 {page.activeCount} 条；版本 <code>{page.revision}</code></p>
       {page.total === 0 ? <p>原项目尚无运行记录。</p> : page.entries.map(entry => <article className="panel" key={entry.id}>
-        <h4>{entry.id}</h4><p>状态：{entry.state} · 修订摘要 <code>{entry.revisionDigest}</code> · 设置摘要 <code>{entry.setupDigest}</code></p>
+        <HelpHeading as="h4" topic="WorkspaceProjectRuns">{entry.id}</HelpHeading><p>状态：{entry.state} · 修订摘要 <code>{entry.revisionDigest}</code> · 设置摘要 <code>{entry.setupDigest}</code></p>
         <p>{entry.hasMessage ? "包含原说明" : "没有原说明"} · 已确认决定 {entry.acknowledgedDecisions}</p>
         <button disabled={blocked || stale} onClick={() => readDetail(entry)}>查看完整原运行记录</button>
       </article>)}
       <nav aria-label="项目运行分页"><button disabled={blocked || stale || !back.length} onClick={() => void run(current => readPage(back.at(-1)!, page.revision, back.slice(0, -1), current))}>上一页</button><span>当前显示 {page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void run(current => readPage(page.nextOffset!, page.revision, [...back, page.offset], current))}>下一页</button></nav>
     </>}
-    {detail && <section className="panel" aria-label="完整原项目运行记录"><h4>运行 {detail.record.id} 的完整原记录</h4><p>项目 {detail.record.projectId} · 状态 {detail.record.state} · 修订摘要 <code>{detail.record.revisionDigest}</code> · 设置摘要 <code>{detail.record.setupDigest}</code></p><p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detail.record.message || "原记录没有附加说明。"}</p><p>已确认决定 {detail.record.acknowledgedDecisions}</p><details><summary>查看原记录字段</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(detail.record,null,2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
+    {detail && <section className="panel" aria-label="完整原项目运行记录"><HelpHeading as="h4" topic="WorkspaceProjectRuns">运行 {detail.record.id} 的完整原记录</HelpHeading><p>项目 {detail.record.projectId} · 状态 {detail.record.state} · 修订摘要 <code>{detail.record.revisionDigest}</code> · 设置摘要 <code>{detail.record.setupDigest}</code></p><p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detail.record.message || "原记录没有附加说明。"}</p><p>已确认决定 {detail.record.acknowledgedDecisions}</p><details><summary>查看原记录字段</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(detail.record,null,2)}</pre></details><button onClick={() => { detailGeneration.current++; setDetail(null); }}>关闭</button></section>}
   </section>;
 }
 

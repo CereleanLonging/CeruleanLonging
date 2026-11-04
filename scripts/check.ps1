@@ -1,7 +1,13 @@
+param([switch]$CacheSession)
 $ErrorActionPreference='Stop'
 $ceruleanRoot=Split-Path -Parent $PSScriptRoot
 $env:PATH="$(Join-Path $env:USERPROFILE '.cargo\bin');$env:PATH"
 Set-Location -LiteralPath $ceruleanRoot
+if (-not $CacheSession) {
+    node (Join-Path $PSScriptRoot 'cache-task.mjs') check
+    exit $LASTEXITCODE
+}
+if (-not $env:CERULEAN_CACHE_SESSION -or -not $env:CARGO_TARGET_DIR) { throw 'Managed cache session required' }
 cargo fmt --all -- --check
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo test --workspace --exclude cerulean-desktop --locked
@@ -10,6 +16,10 @@ cargo build -p cerulean-domain --bin cerulean-verifier --locked
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo build -p cerulean-core --locked
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+New-Item -ItemType Directory -Path (Join-Path $ceruleanRoot 'target/debug') -Force | Out-Null
+foreach ($program in @('cerulean-core.exe','cerulean-verifier.exe')) {
+    Copy-Item -LiteralPath (Join-Path $env:CARGO_TARGET_DIR ('debug/'+$program)) -Destination (Join-Path $ceruleanRoot ('target/debug/'+$program)) -Force
+}
 Copy-Item -LiteralPath (Join-Path $ceruleanRoot 'target/debug/cerulean-core.exe') -Destination (Join-Path $ceruleanRoot 'target/debug/cerulean-runtime.exe') -Force
 $ceruleanRustInfo = rustc -vV
 if ($LASTEXITCODE) { exit $LASTEXITCODE }

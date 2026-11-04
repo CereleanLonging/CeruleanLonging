@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { VerificationStageState, VerificationState, WorkspaceResult } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -74,7 +75,7 @@ export function WorkspaceVerificationResult(props: Props) {
   }
   function close() { alive.current = false; generation.current++; lock.current = false; props.close(); }
   return <section className="panel" style={{ overflowWrap: "anywhere" }} aria-label="独立验收结果" aria-busy={loading}>
-    <div className="section-heading"><h3>独立验收结果</h3><button onClick={close}>关闭验收结果</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceVerificationResult">独立验收结果</HelpHeading><button onClick={close}>关闭验收结果</button></div>
     <p>项目 {props.projectId} · 任务 {props.taskId} · 尝试 {props.attemptId} · 验收 {props.operationId}</p>
     <p>这里只读取原证据，不启动、重跑、停止、补记或放弃验收。各项观察不等于整体验收通过，未知结果仍锁定原资源，不能据此重发。</p>
     {loading && <p role="status">正在读取原验收记录…</p>}
@@ -86,12 +87,12 @@ export function WorkspaceVerificationResult(props: Props) {
       {detail.recoveryError && <p>原补记诊断：{detail.recoveryError}</p>}
       {detail.recovery && <p>原补记审阅：{detail.recovery.passed ? "检查通过" : "检查未通过"}；仅供核对，本页不会补记。</p>}
       <details><summary>原验收元数据与证据字段</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(detail, null, 2)}</pre></details>
-      <section aria-label="验收产物"><h4>原产物引用</h4><button disabled={blocked || stale} onClick={() => readArtifacts(0, [])}>读取产物首页</button>
+      <section aria-label="验收产物"><HelpHeading as="h4" topic="WorkspaceVerificationResult">原产物引用</HelpHeading><button disabled={blocked || stale} onClick={() => readArtifacts(0, [])}>读取产物首页</button>
         {!artifacts ? <p>产物页尚未读取。</p> : <>{artifacts.total === 0 ? <p>原记录没有产物引用。</p> : <ol start={artifacts.offset + 1}>{artifacts.entries.map((a, i) => <li key={artifacts.offset + i}><p><code>{a.path}</code> · {a.bytes} 字节</p><p>SHA-256 <code>{a.sha256}</code></p></li>)}</ol>}
           <nav aria-label="验收产物分页"><button disabled={blocked || stale || !artifactBack.length} onClick={() => readArtifacts(artifactBack.at(-1)!, artifactBack.slice(0, -1))}>上一页</button><span>当前显示 {artifacts.entries.length} / {artifacts.total}</span><button disabled={blocked || stale || artifacts.nextOffset === null} onClick={() => readArtifacts(artifacts.nextOffset!, [...artifactBack, artifacts.offset])}>下一页</button></nav></>}
       </section>
-      <section aria-label="验收阶段"><h4>原阶段结果</h4><button disabled={blocked || stale} onClick={() => readStages(0, [])}>读取阶段首页</button>
-        {!stages ? <p>阶段页尚未读取。</p> : <>{stages.total === 0 ? <p>原记录没有阶段结果。</p> : <ol start={stages.offset + 1}>{stages.entries.map((s, i) => <li key={stages.offset + i}><h4>{s.name} · {s.id}</h4><p>{stageStates[s.state]} · 时限 {s.timeoutSeconds} 秒 · 退出码 {s.exitCode ?? "无完整记录"} · {s.timedOut ? "已超时" : "未记载超时"}</p><p>命令 SHA-256 <code>{s.commandDigest}</code></p>{[s.stdout, s.stderr].map((log, index) => <div key={index}><strong>{index === 0 ? "标准输出" : "标准错误"}</strong>{log ? <><p><code>{log.path}</code> · {log.bytes} 字节</p><p>SHA-256 <code>{log.sha256}</code></p></> : <p>尚无可确认引用</p>}</div>)}</li>)}</ol>}
+      <section aria-label="验收阶段"><HelpHeading as="h4" topic="WorkspaceVerificationResult">原阶段结果</HelpHeading><button disabled={blocked || stale} onClick={() => readStages(0, [])}>读取阶段首页</button>
+        {!stages ? <p>阶段页尚未读取。</p> : <>{stages.total === 0 ? <p>原记录没有阶段结果。</p> : <ol start={stages.offset + 1}>{stages.entries.map((s, i) => <li key={stages.offset + i}><HelpHeading as="h4" topic="WorkspaceVerificationResult">{s.name} · {s.id}</HelpHeading><p>{stageStates[s.state]} · 时限 {s.timeoutSeconds} 秒 · 退出码 {s.exitCode ?? "无完整记录"} · {s.timedOut ? "已超时" : "未记载超时"}</p><p>命令 SHA-256 <code>{s.commandDigest}</code></p>{[s.stdout, s.stderr].map((log, index) => <div key={index}><strong>{index === 0 ? "标准输出" : "标准错误"}</strong>{log ? <><p><code>{log.path}</code> · {log.bytes} 字节</p><p>SHA-256 <code>{log.sha256}</code></p></> : <p>尚无可确认引用</p>}</div>)}</li>)}</ol>}
           <nav aria-label="验收阶段分页"><button disabled={blocked || stale || !stageBack.length} onClick={() => readStages(stageBack.at(-1)!, stageBack.slice(0, -1))}>上一页</button><span>当前显示 {stages.entries.length} / {stages.total}</span><button disabled={blocked || stale || stages.nextOffset === null} onClick={() => readStages(stages.nextOffset!, [...stageBack, stages.offset])}>下一页</button></nav></>}
       </section>
     </>}

@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { Command, WorkspaceExecutionReview } from "./contracts";
 import { ExecutionAuthorization } from "./ExecutionAuthorization";
@@ -63,7 +64,7 @@ export function WorkspaceExecution(props: Props) {
     });
   }
   return <div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-label="独立执行授权审阅">
-    <h2>审阅项目执行方案</h2><p>项目 {props.projectId}</p>
+    <HelpHeading as="h2" topic="WorkspaceExecution">审阅项目执行方案</HelpHeading><p>项目 {props.projectId}</p>
     {message && <p role="status">{message}</p>}
     {!view ? <p>完整授权内容尚未取得，不能确认。</p> : !view.revision ? <p>原项目尚无完整执行方案。</p> : <>
       <ExecutionAuthorization revision={view.revision}/>

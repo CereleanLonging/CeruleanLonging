@@ -1,3 +1,5 @@
+import { HelpHeading } from "./HelpHeading";
+import { AccessStorageStatus } from "./accessStorage";
 import { ErrorText } from "./ErrorText";
 import { ExitWorkbench } from "./ExitWorkbench";
 import { useEffect, useRef, useState } from "react";
@@ -12,7 +14,7 @@ import { ApiGenerationPanel } from "./ApiGenerationPanel";
 import { HistoricalCurrencyPanel } from "./HistoricalCurrencyPanel";
 import { ProjectRegistration, WorkflowPlans, VerificationJobs } from "./WorkflowPlans";
 import { ValidatorCatalog } from "./ValidatorCatalog";
-import { IntegrationHub, type IntegrationRole, type ChiefMethod, type ConfigurationRequest } from "./IntegrationHub";
+import type { IntegrationRole, ChiefMethod, ConfigurationRequest } from "./IntegrationHub";
 import { CodexJobs } from "./CodexJobs";
 import { OmpJobs } from "./OmpJobs";
 import { ApiJobs } from "./ApiJobs";
@@ -31,15 +33,15 @@ import packageInfo from "../../../package.json";
 
 const pages = [
   "工作总览",
-  "需求与计划",
   "接入管理",
+  "需求与计划",
   "交接记录",
   "项目设置",
   "独立实验工作台",
   "维护与升级",
 ] as const;
 type Page = (typeof pages)[number];
-const icons = ["◈", "▤", "⌘", "≋", "⚙", "⚗", "↻"];
+const icons = ["◈", "⌘", "▤", "≋", "⚙", "⚗", "↻"];
 const desktop = "__TAURI_INTERNALS__" in window;
 const time = (s: string) =>
   new Date(s).toLocaleString("zh-CN", { hour12: false });
@@ -50,6 +52,10 @@ export function App() {
   const [configuration,setConfiguration]=useState<ConfigurationRequest|null>(null);
   const configurationSequence=useRef(0);
   const [data, setData] = useState<Snapshot | null>(null);
+  // Keep the project draft mounted while page-specific snapshots are loading.
+  // A cached view is read-only until the current page has a fresh snapshot.
+  const planningSnapshot = useRef<Snapshot | null>(null);
+  if (data) planningSnapshot.current = data;
   const [busy, setBusy] = useState(false);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const snapshotGeneration = useRef(0);
@@ -59,7 +65,7 @@ export function App() {
   function navigate(next:Page){setConfiguration(null);setPage(next);}
   function configure(role:IntegrationRole,chiefMethod?:ChiefMethod,projectId?:string){
     setConfiguration({token:++configurationSequence.current,role,chiefMethod,projectId});
-    setPage(data?.workflows.length?"需求与计划":"项目设置");
+    setPage("接入管理");
   }
   const [ompManagement, setOmpManagement] = useState<{operationId:string;token:number}|null>(null);
   const readWorkspace = (query: WorkspaceQuery) => invoke<WorkspaceResult>("workspace_read", { query });
@@ -155,6 +161,8 @@ export function App() {
   },[needsFullView,verifying,busy,snapshotLoading,data?.ompStopIssues?.length,data?.coreDiagnostic]);
   const planCount = workspace?.legacyPlanCount ?? null;
   const pendingCount = workspace?.pendingLegacyPlanCount ?? null;
+  const showPlanning = (page === "接入管理" || page === "需求与计划") && !data?.coreDiagnostic;
+  const standardPage = page !== "维护与升级" && page !== "独立实验工作台" && !data?.coreDiagnostic;
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -216,15 +224,16 @@ export function App() {
           <span className="pill">本地优先</span>
         </header>
         <div className="content">
+          <AccessStorageStatus/>
           {page === "维护与升级" ? <Maintenance desktop={desktop}/> : page === "独立实验工作台" ? <ExperimentLab desktop={desktop} enabled={experimentsEnabled} onEnabled={setExperimentsEnabled} data={data} busy={busy} loading={snapshotLoading} error={error} refresh={()=>void query({type:"snapshot"})} send={send}/> : data?.coreDiagnostic ? <CoreDiagnostics data={data} busy={busy} error={error} refresh={()=>send({type:"snapshot"})} restart={restartDataDiagnostics} send={send}/> : <>
-          {data?.apiRecovery&&<section className="panel" aria-label="API 写入恢复"><h2>API 记录需要重新校验</h2><p>{data.apiRecovery.message}</p><p>暂停所有项目调度并等待后台结束后，可重启核心读取原证据。不会重新发送原模型请求；已有修改保留。</p><button className="primary" disabled={busy||!data.apiRecovery.canRestart} onClick={()=>void restartDataDiagnostics()}>重新校验 API 记录</button></section>}
-          {!!data?.startupReservations?.length&&<section className="panel" aria-label="启动复核记录"><h2>已复核的半写启动意图</h2><p>原文件保留，以下尝试编号永久禁止复用。复核不代表任务完成或取消。</p>{data.startupReservations.map(r=><details key={r.executor+":"+r.projectId+":"+r.attemptId}><summary>{r.executor} · {r.projectId} · {r.attemptId}</summary><p>{r.reason}</p><p>{time(r.at)}</p></details>)}</section>}
-          {!!data?.startupClosureReviews?.length&&<section className="panel" aria-label="关闭复核记录"><h2>已复核的半写关闭记录</h2><p>原文和有效启动身份保留。请在“需求与计划”中核对原启动记录，仍未关闭的项目须重新审阅关闭操作。</p>{data.startupClosureReviews.map(r=><details key={r.relativePath}><summary>{r.executor} · {r.projectId} · {r.attemptId}</summary><p>{r.reason}</p><p style={{overflowWrap:"anywhere"}}>{r.relativePath}</p><p>{time(r.at)}</p></details>)}</section>}
+          {data?.apiRecovery&&<section className="panel" aria-label="API 写入恢复"><HelpHeading as="h2" topic="App">API 记录需要重新校验</HelpHeading><p>{data.apiRecovery.message}</p><p>暂停所有项目调度并等待后台结束后，可重启核心读取原证据。不会重新发送原模型请求；已有修改保留。</p><button className="primary" disabled={busy||!data.apiRecovery.canRestart} onClick={()=>void restartDataDiagnostics()}>重新校验 API 记录</button></section>}
+          {!!data?.startupReservations?.length&&<section className="panel" aria-label="启动复核记录"><HelpHeading as="h2" topic="App">已复核的半写启动意图</HelpHeading><p>原文件保留，以下尝试编号永久禁止复用。复核不代表任务完成或取消。</p>{data.startupReservations.map(r=><details key={r.executor+":"+r.projectId+":"+r.attemptId}><summary>{r.executor} · {r.projectId} · {r.attemptId}</summary><p>{r.reason}</p><p>{time(r.at)}</p></details>)}</section>}
+          {!!data?.startupClosureReviews?.length&&<section className="panel" aria-label="关闭复核记录"><HelpHeading as="h2" topic="App">已复核的半写关闭记录</HelpHeading><p>原文和有效启动身份保留。请在“需求与计划”中核对原启动记录，仍未关闭的项目须重新审阅关闭操作。</p>{data.startupClosureReviews.map(r=><details key={r.relativePath}><summary>{r.executor} · {r.projectId} · {r.attemptId}</summary><p>{r.reason}</p><p style={{overflowWrap:"anywhere"}}>{r.relativePath}</p><p>{time(r.at)}</p></details>)}</section>}
           <OmpStopDiagnostics data={data} send={send} busy={busy} restart={restartReviewedStops}/>
           <div className="page-heading">
             <div>
               <div className="eyebrow">YOUR LOCAL AI WORKSPACE</div>
-              <h1>{page === "工作总览" ? "让每一步协作，有迹可循。" : page}</h1>
+              <HelpHeading as="h1" topic="App">{page === "工作总览" ? "让每一步协作，有迹可循。" : page}</HelpHeading>
               <p>
                 {page === "工作总览"
                   ? "从一份清晰的计划开始，逐步建立你的模型团队。"
@@ -234,7 +243,7 @@ export function App() {
             <button
               className="primary"
               disabled={busy || !workspace}
-              onClick={() => navigate("需求与计划")}
+              onClick={() => configure("chief")}
             >
               ＋ 新建计划
             </button>
@@ -289,11 +298,11 @@ export function App() {
               <section className="hero">
                 <div>
                   <span className="section-tag">从计划到交付</span>
-                  <h2>
+                  <HelpHeading as="h2" topic="App">
                     你决定方向，
                     <br />
                     工作台记录每一步。
-                  </h2>
+                  </HelpHeading>
                   <p>
                     主指挥制定方案，用户确认后交由副指挥分派。
                     <br />
@@ -302,7 +311,7 @@ export function App() {
                   <button
                     className="primary"
                     disabled={!workspace || busy}
-                    onClick={() => navigate("需求与计划")}
+                    onClick={() => configure("chief")}
                   >
                     创建第一份计划 <span>↗</span>
                   </button>
@@ -328,7 +337,7 @@ export function App() {
               </section>
               <section className="panel">
                 <div className="section-heading">
-                  <h2>最近记录</h2>
+                  <HelpHeading as="h2" topic="App">最近记录</HelpHeading>
                   <button
                     className="text-button"
                     onClick={() => navigate("交接记录")}
@@ -339,7 +348,7 @@ export function App() {
                 {!data ? <div className="empty">尚未读取操作记录。请打开“交接记录”查看。</div> : !data.events.length ? (
                   <div className="empty">
                     <span>≋</span>
-                    <h3>一切从第一份计划开始</h3>
+                    <HelpHeading as="h3" topic="App">一切从第一份计划开始</HelpHeading>
                     <p>保存与批准后，操作记录会出现在这里。</p>
                   </div>
                 ) : (
@@ -360,9 +369,18 @@ export function App() {
               </section>
             </>
           )}
+          </>}
+          {planningSnapshot.current && <div hidden={!showPlanning}>
+            <ProjectPlanning key={planningSnapshot.current.dataDirectory} data={data ?? planningSnapshot.current}
+              busy={busy || snapshotLoading || !data || !showPlanning}
+              mode={page === "接入管理" ? "connections" : "planning"} send={send}
+              configuration={configuration} onConfigurationReady={token=>setConfiguration(c=>c?.token===token?null:c)}
+              onSetup={()=>setPage("项目设置")} onConnections={()=>configure("chief")}
+              onContinue={()=>{navigate("需求与计划");window.scrollTo({top:0});}}/>
+          </div>}
+          {standardPage && <>
           {page === "需求与计划" && data && (
             <div className="plan-layout">
-              <ProjectPlanning data={data} busy={busy} send={send} configuration={configuration} onConfigurationReady={token=>setConfiguration(c=>c?.token===token?null:c)} onSetup={()=>configure("chief")}/>
               <WorkflowPlans workflows={data?.workflows ?? []} revisions={data?.projectRevisions ?? []} setups={data?.projectSetups??[]} send={send} busy={busy} />
               <HistoricalCurrencyPanel snapshot={data} query={queryHistorical} busy={busy}/>
               <ManagementCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
@@ -380,17 +398,14 @@ export function App() {
               <VerificationJobs jobs={data?.verificationJobs ?? []} detail={data?.verificationDetail ?? null} send={send} busy={busy} />
             </div>
           )}
-          {page === "接入管理" && data && (
-            <IntegrationHub data={data} busy={busy} send={send} configure={configure}/>
-          )}
           {page === "交接记录" && <WorkspaceHistory read={readWorkspace} enabled={desktop} busy={busy}/>}
           {page === "项目设置" && (
             <>
-            {configuration&&<section className="panel" aria-label="模型配置引导"><h2>继续配置{configuration.role==="chief"?"主指挥":configuration.role==="deputy"?"副指挥":"执行端"}</h2><p>先在下方关联已有项目目录，再进入角色配置。{configuration.chiefMethod==="desktop"?"已保留“当前 Codex 聊天”的选择；进入后填写会话标识。":"关联目录不会调用模型。"}</p><button className="primary" disabled={busy||snapshotLoading||!data?.workflows.length} onClick={()=>setPage("需求与计划")}>继续配置模型</button><p className="secondary">独立验收工具已固定关联；保存执行配置前，请在高级设置登记项目功能检查程序。配置、请求方案、批准与启动保持分别确认。</p></section>}
+            {configuration&&<section className="panel" aria-label="模型配置引导"><HelpHeading as="h2" topic="App">继续配置{configuration.role==="chief"?"主指挥":configuration.role==="deputy"?"副指挥":"执行端"}</HelpHeading><p>先在下方关联已有项目目录，再返回接入管理。{configuration.chiefMethod==="desktop"?"已保留“当前 Codex 聊天”的选择；进入后填写会话标识。":"关联目录不会调用模型。"}</p><button className="primary" disabled={busy||snapshotLoading||!data?.workflows.length} onClick={()=>setPage("接入管理")}>继续配置模型</button><p className="secondary">独立验收工具已固定关联；保存执行配置前，请在高级设置登记项目功能检查程序。配置、请求方案、批准与启动保持分别确认。</p></section>}
             {data && <ProjectRegistration send={send} busy={busy || snapshotLoading} connected={true} />}
             {data && <ValidatorCatalog items={data.validators} send={send} busy={busy || snapshotLoading} connected={true} />}
             <section className="panel settings">
-              <h2>工作台信息</h2>
+              <HelpHeading as="h2" topic="App">工作台信息</HelpHeading>
               <dl>
                 <dt>产品名称</dt>
                 <dd>CeruleanLonging</dd>

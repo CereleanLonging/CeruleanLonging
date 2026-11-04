@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ExecutionAuthorization } from "./ExecutionAuthorization";
 import { WorkerAccountAuthorization } from "./WorkerAccountAuthorization";
 import { useEffect, useRef, useState } from "react";
@@ -19,8 +20,8 @@ export function VerificationJobs({jobs,detail,send,busy}:{jobs:VerificationJob[]
   }
   const [reason,setReason]=useState("");
   if (!jobs.length) return null;
-  return <section className="workflow-plans" aria-label="独立验收记录"><h2>独立验收</h2>{jobs.map(job => <article className="panel" key={`${job.projectId}:${job.operationId}`}>
-    <div className="section-heading"><h3>任务 {job.taskId}</h3><span className="badge">{verificationLabels[job.state]}</span></div>
+  return <section className="workflow-plans" aria-label="独立验收记录"><HelpHeading as="h2" topic="WorkflowPlans">独立验收</HelpHeading>{jobs.map(job => <article className="panel" key={`${job.projectId}:${job.operationId}`}>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkflowPlans">任务 {job.taskId}</HelpHeading><span className="badge">{verificationLabels[job.state]}</span></div>
     <p className="secondary">项目 {job.projectId} · {new Date(job.updatedAt).toLocaleString("zh-CN")}</p>
     <button className="secondary-button" disabled={busy} onClick={()=>void read(job)}>查看阶段结果</button>
     {job.message && <p>{job.message.includes("cancelled") ? "验收已停止，任务未标记为通过。" : job.message}</p>}
@@ -28,7 +29,7 @@ export function VerificationJobs({jobs,detail,send,busy}:{jobs:VerificationJob[]
     {job.state === "unknown" && <button className="secondary-button" disabled={busy || !job.reconciliationDigest} onClick={()=>{setReason("");setReview(job);}}>处理待对账验收</button>}
     {job.state === "running" && <button className="secondary-button" disabled={busy} onClick={()=>void send({type:"cancelVerification",projectId:job.projectId,operationId:job.operationId})}>停止验收</button>}
   </article>)}{review && <div className="modal-backdrop"><section role="dialog" aria-modal="true" aria-labelledby="reconciliation-title" className="modal panel execution-review">
-    <h2 id="reconciliation-title">放弃本次验收</h2>
+    <HelpHeading as="h2" topic="WorkflowPlans" id="reconciliation-title">放弃本次验收</HelpHeading>
     <p>任务 {review.taskId} · 验收 {review.operationId}</p>
     <p>保留本次日志和产物副本，将本次验收记录标记为已放弃。任务不会因此通过，也不会自动重跑检查。</p>
     <p className="secondary">后续如需重新检查，须由调度另行启动。当前证据变化后需要重新审阅。</p>
@@ -36,7 +37,7 @@ export function VerificationJobs({jobs,detail,send,busy}:{jobs:VerificationJob[]
     <div className="card-footer"><button className="secondary-button" disabled={busy} onClick={()=>setReview(null)}>返回检查</button><button className="primary" disabled={busy || !reason.trim() || !review.reconciliationDigest} onClick={async()=>{if(review.reconciliationDigest && await send({type:"abandonVerification",projectId:review.projectId,operationId:review.operationId,digest:review.reconciliationDigest,reason:reason.trim()}))setReview(null);}}>确认放弃本次验收</button></div>
   </section></div>}
   {selected&&<div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-labelledby="verification-detail-title">
-    <h2 id="verification-detail-title">验收阶段结果</h2>
+    <HelpHeading as="h2" topic="WorkflowPlans" id="verification-detail-title">验收阶段结果</HelpHeading>
     <p>任务 {selected.taskId} · 验收 {selected.operationId}</p>
     {!view?<p>{readFailed?"详情暂不可读，请查看错误提示并重新读取。":"正在读取原验收证据…"}</p>:<>
       <p><strong>{verificationLabels[view.state]}</strong> · {view.ledgerRecorded?"已有关联的验收账本记录":"尚无本次验收账本终态"}</p>
@@ -45,11 +46,11 @@ export function VerificationJobs({jobs,detail,send,busy}:{jobs:VerificationJob[]
       {view.recoveryError&&<p className="secondary">暂不能补记：{view.recoveryError}</p>}
       {view.recovery&&!recoverReview&&<button className="secondary-button" disabled={busy} onClick={()=>setRecoverReview(true)}>审阅补记结果</button>}
       {view.recovery&&recoverReview&&<section className="panel" aria-label="补记验收结果确认">
-        <h3>补记原验收结果</h3><p>已核对原方案、完整报告、阶段日志、工具与当前受测文件。结果为：{view.recovery.passed?"全部检查通过":"验收未通过"}。</p>
+        <HelpHeading as="h3" topic="WorkflowPlans">补记原验收结果</HelpHeading><p>已核对原方案、完整报告、阶段日志、工具与当前受测文件。结果为：{view.recovery.passed?"全部检查通过":"验收未通过"}。</p>
         <p>确认只将已有结果补入原验收记录，不会重新运行检查。项目后续调度将暂停，任务仍需主指挥收口或进一步处置。</p>
         <div className="card-footer"><button className="secondary-button" disabled={busy} onClick={()=>setRecoverReview(false)}>返回阶段结果</button><button className="primary" disabled={busy} onClick={async()=>{if(view.recovery&&await send({type:"recoverVerification",projectId:view.projectId,operationId:view.operationId,evidenceDigest:view.recovery.evidenceDigest}))await read(selected);}}>确认补记原结果</button></div>
       </section>}
-      <ol>{view.stages.map(stage=><li key={stage.id}><h3>{stage.name}</h3><p>{stageLabels[stage.state]} · 时限 {stage.timeoutSeconds} 秒 · 退出码 {stage.exitCode??"无完整记录"}</p>
+      <ol>{view.stages.map(stage=><li key={stage.id}><HelpHeading as="h3" topic="WorkflowPlans">{stage.name}</HelpHeading><p>{stageLabels[stage.state]} · 时限 {stage.timeoutSeconds} 秒 · 退出码 {stage.exitCode??"无完整记录"}</p>
         <details><summary>命令摘要与日志引用</summary><p>命令 SHA-256：<code>{stage.commandDigest}</code></p>
           {[stage.stdout,stage.stderr].map((log,index)=>log?<div key={index}><strong>{index===0?"标准输出":"标准错误"}</strong><p><code>{log.path}</code></p><p>{log.bytes} 字节 · SHA-256 <code>{log.sha256}</code></p></div>:<p key={index}>{index===0?"标准输出":"标准错误"}尚无可确认引用</p>)}
         </details></li>)}</ol>
@@ -65,7 +66,7 @@ export function ProjectRegistration({ send, busy, connected }: { send: Send; bus
   const [root, setRoot] = useState("D:\\test\\coding");
   const [timezone, setTimezone] = useState("Asia/Shanghai");
   return <section className="panel">
-    <h2>关联编程项目</h2>
+    <HelpHeading as="h2" topic="WorkflowPlans">关联编程项目</HelpHeading>
     <p className="secondary">选择已有项目目录，后续执行方案将在这里审阅。关联目录不会运行命令或修改项目文件。</p>
     <form onSubmit={async (event) => {
       event.preventDefault();
@@ -97,10 +98,10 @@ export function WorkflowPlans({ workflows, revisions, setups=[], send, busy }: {
   const [retireConfirmed,setRetireConfirmed]=useState(false);
   const revision = review?.revision;
   return <section className="workflow-plans">
-    <h2>项目执行方案</h2>
+    <HelpHeading as="h2" topic="WorkflowPlans">项目执行方案</HelpHeading>
     {workflows.length === 0 ? <div className="empty compact">在项目设置中关联目录后，这里会显示待审阅的执行方案。</div> : workflows.map(workflow =>
       <article className="panel plan-card" key={workflow.project.id}>
-        <div className="section-heading"><h3>{projectName(workflow.project.root)}</h3>
+        <div className="section-heading"><HelpHeading as="h3" topic="WorkflowPlans">{projectName(workflow.project.root)}</HelpHeading>
           <span className={workflow.approval ? "badge approved" : "badge"}>{workflow.approval ? "执行方案已批准" : workflow.revision ? "待审阅" : "等待规划"}</span>
         </div>
         <p className="secondary">{workflow.project.root}</p>
@@ -115,9 +116,9 @@ export function WorkflowPlans({ workflows, revisions, setups=[], send, busy }: {
       </article>
     )}
     {revisionReview&&<div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-labelledby="revision-request-title">
-      <h2 id="revision-request-title">修订下一版方案</h2><p>当前方案已有 {revisionReview.acceptedTasks} 项收口、{revisionReview.cancelledTasks} 项取消、{revisionReview.retiredTasks??0} 项本地结束但远端未知、{revisionReview.pendingTasks} 项尚未开始。</p>
+      <HelpHeading as="h2" topic="WorkflowPlans" id="revision-request-title">修订下一版方案</HelpHeading><p>当前方案已有 {revisionReview.acceptedTasks} 项收口、{revisionReview.cancelledTasks} 项取消、{revisionReview.retiredTasks??0} 项本地结束但远端未知、{revisionReview.pendingTasks} 项尚未开始。</p>
       {revisionReview.submittedTasks>0&&<section className="panel" aria-label="结束本版提交确认">
-        <h3>结束本版提交并修订</h3><p>本版还有 {revisionReview.submittedTasks} 项已提交但未收口，其中 {revisionReview.verifiedSubmissions} 项检查通过、{revisionReview.submittedTasks-revisionReview.verifiedSubmissions} 项未通过或尚未完成检查。</p>
+        <HelpHeading as="h3" topic="WorkflowPlans">结束本版提交并修订</HelpHeading><p>本版还有 {revisionReview.submittedTasks} 项已提交但未收口，其中 {revisionReview.verifiedSubmissions} 项检查通过、{revisionReview.submittedTasks-revisionReview.verifiedSubmissions} 项未通过或尚未完成检查。</p>
         <p>确认后，这些原提交将保留在历史中，不再沿旧方案验收或收口；已写入项目的文件不会回滚。若需再次执行，请在新方案中明确安排，并重新批准和启动。历史调用仍计入项目累计请求数。</p>
         <label className="submission-retirement-confirm"><input type="checkbox" checked={retireConfirmed} onChange={e=>setRetireConfirmed(e.target.checked)}/>我确认结束本版未收口的提交</label>
       </section>}
@@ -127,7 +128,7 @@ export function WorkflowPlans({ workflows, revisions, setups=[], send, busy }: {
       <div className="card-footer"><button className="secondary-button" disabled={busy} onClick={()=>setRevisionReview(null)}>返回</button><button className="primary" disabled={busy||!revisionReason.trim()||(revisionReview.submittedTasks>0&&!retireConfirmed)} onClick={async()=>{if(await send({type:revisionReview.submittedTasks>0?"retireSubmittedPlan":"requestProjectRevision",projectId:revisionReview.projectId,evidenceDigest:revisionReview.evidenceDigest,reason:revisionReason}))setRevisionReview(null);}}>确认开放修订</button></div>
     </section></div>}
     {review && revision && <div className="modal-backdrop"><section className="modal panel execution-review" role="dialog" aria-modal="true" aria-labelledby="execution-review-title">
-      <span className="section-tag">执行授权</span><h2 id="execution-review-title">审阅项目执行方案</h2>
+      <span className="section-tag">执行授权</span><HelpHeading as="h2" topic="WorkflowPlans" id="execution-review-title">审阅项目执行方案</HelpHeading>
       <ExecutionAuthorization revision={revision}/>
       <WorkerAccountAuthorization available={!!scopeKey} directories={setup?.setup.chiefDirectory?[setup.setup.chiefDirectory,...Object.values(setup.setup.workerDirectories??{}).flatMap(d=>d?[`${review.project.root}\\${d.relativePath.replaceAll('/','\\')}`]:[])]:[]} checked={!!scopeKey&&accountScope===scopeKey} disabled={busy||submitted} onChange={v=>setAccountScope(v?scopeKey:null)}/>
       {submitted&&<p role="status">原批准已提交，请读取原记录核对。不会自动重发批准或 UAC。</p>}

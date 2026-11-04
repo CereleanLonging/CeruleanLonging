@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useState } from "react";
 import type { ApiTarget, BudgetSettings, PriceQuote, ProjectSetupDraft } from "./contracts";
@@ -95,7 +96,7 @@ function LegacyCurrencyBudgetFields({ value, resetValue, draft, resetKey, onChan
   } else currentError = undefined;
   useEffect(() => { onInvalid(currentError); }, [currentError, onInvalid]);
   return <section className="panel" aria-label="项目金额预算">
-    <h3>项目金额预算</h3>
+    <HelpHeading as="h3" topic="CurrencyBudgetFields">项目金额预算</HelpHeading>
     <label className="checkbox-label"><input id="currency-enabled" type="checkbox" checked={!!value} onChange={e => {
       if (!e.target.checked) { onChange(undefined); onInvalid(undefined); setError(undefined); }
       else { onChange({ schema: 1, limitUsdNanos: 0, quotes: [] }); publish(amount, rows); }
@@ -110,7 +111,7 @@ function LegacyCurrencyBudgetFields({ value, resetValue, draft, resetKey, onChan
         publish(amount, [...rows, ...added]);
       }}>按当前模型补充报价</button>
       {rows.map((r, i) => <fieldset key={JSON.stringify(r.target) + r.model} className="panel">
-        <legend>{targetName(r.target)} · {r.model}</legend>
+        <HelpHeading as="legend" topic="CurrencyBudgetFields">{targetName(r.target)} · {r.model}</HelpHeading>
         {([['input', '普通输入'], ['output', '输出'], ['read', '缓存读取（未知可留空）'], ['write', '缓存写入（未知可留空）']] as const).map(([key, name]) => <div key={key}>
           <label htmlFor={`currency-${i}-${key}`}>{name} · 美元 / 百万 token</label><input id={`currency-${i}-${key}`} inputMode="decimal" required={key === 'input' || key === 'output'} value={r[key]} onChange={e => updateRow(i, { [key]: e.target.value })} />
         </div>)}
@@ -134,7 +135,7 @@ function LegacyCurrencyBudgetFields({ value, resetValue, draft, resetKey, onChan
 
 export function CurrencyBudgetReview({ value }: { value: BudgetSettings }) {
   if (value.schema === 2) return <ScopedCurrencyBudgetReview value={value} />;
-  return <section aria-label="批准的金额预算"><h4>项目累计上限：${decimalAmount(value.limitUsdNanos, 9)}</h4>
+  return <section aria-label="批准的金额预算"><HelpHeading as="h4" topic="CurrencyBudgetFields">项目累计上限：${decimalAmount(value.limitUsdNanos, 9)}</HelpHeading>
     <p>包含已花费金额和未决预留；修订不会清零。按以下报价核算，未知费用不计为零。</p>
     {value.quotes.map((q, i) => <div key={i}><strong>{targetName(q.target)} · {q.requestedModel}</strong>
       <p>输入 ${decimalAmount(q.rates.input, 6)} / 输出 ${decimalAmount(q.rates.output, 6)}（每百万 token）；缓存读 {q.rates.cacheRead === null ? "未知" : "$" + decimalAmount(q.rates.cacheRead, 6)} / 写 {q.rates.cacheWrite === null ? "未知" : "$" + decimalAmount(q.rates.cacheWrite, 6)}</p>

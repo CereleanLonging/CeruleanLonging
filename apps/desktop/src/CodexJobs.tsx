@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -189,7 +190,7 @@ export function CodexJobs({
   if (!jobs.length && !unsentAssignments.length && !review) return null;
   return (
     <section className="workflow-plans codex-jobs" aria-label="编程执行记录">
-      <h2>编程执行</h2>
+      <HelpHeading as="h2" topic="CodexJobs">编程执行</HelpHeading>
       {notice && (
         <p role="status" className="codex-request-notice">
           {notice}
@@ -219,7 +220,7 @@ export function CodexJobs({
             data-codex-project={job.projectId}
           >
             <div className="section-heading">
-              <h3>{description.goal}</h3>
+              <HelpHeading as="h3" topic="CodexJobs">{description.goal}</HelpHeading>
               <span className="badge">
                 {unsent
                   ? "已分配但尚未派发"
@@ -327,7 +328,7 @@ export function CodexJobs({
             data-codex-project={item.projectId}
           >
             <div className="section-heading">
-              <h3>任务 {item.taskId}</h3>
+              <HelpHeading as="h3" topic="CodexJobs">任务 {item.taskId}</HelpHeading>
               <span className="badge">已分配但尚未派发</span>
             </div>
             <p className="secondary">
@@ -347,9 +348,9 @@ export function CodexJobs({
             if (!pending) setReview(null);
           }}
         >
-          <h2 id="unsent-assignment-title">
+          <HelpHeading as="h2" topic="CodexJobs" id="unsent-assignment-title">
             {stopping ? "确认请求停止当前任务" : "确认放弃未派发尝试"}
-          </h2>
+          </HelpHeading>
           {review.kind === "cancel" ? (
             <>
               <dl className="codex-cancellation-target">

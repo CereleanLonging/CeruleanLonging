@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import type { IntegrationDraft, RegisteredValidator } from "./contracts";
 
 export function IntegrationFields({value, validators, onChange}: {
@@ -6,7 +7,7 @@ export function IntegrationFields({value, validators, onChange}: {
   onChange: (value: IntegrationDraft | undefined) => void;
 }) {
   return <section className="panel" aria-label="项目整体验收">
-    <h3>项目整体验收</h3>
+    <HelpHeading as="h3" topic="IntegrationFields">项目整体验收</HelpHeading>
     <label className="checkbox-label"><input type="checkbox" checked={!!value} onChange={e=>onChange(e.target.checked?{taskId:"integration",artifactPaths:[],validatorId:validators[0]?.id??"",args:[],timeoutSeconds:30}:undefined)}/>单独安排最终集成任务</label>
     {value&&<>
       <p className="secondary">主指挥方案必须包含以下任务，并覆盖所有其他任务的成果。集成任务使用独立目录和下列整体检查；通过后由主指挥收口。检查脚本应验证合并后的完整功能。保存后仍需重新规划、批准并启动。</p>

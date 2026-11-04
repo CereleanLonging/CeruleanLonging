@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
@@ -45,7 +46,7 @@ export function WorkflowTemplateImport({ contextKey, disabled, onApply, reviewTe
   }
 
   return <section className="panel" aria-label="导入本地工作流">
-    <h3>导入本地工作流</h3>
+    <HelpHeading as="h3" topic="WorkflowTemplateImport">导入本地工作流</HelpHeading>
     <p className="secondary">选择工作流 JSON，预览步骤、完成标准及副指挥监督要点，再填入本项目的需求草稿。模型、工具、产物和验收方式继续使用当前配置。</p>
     <details><summary>模板格式与示例</summary><p>模板步骤用于规划，实际任务安排以最终批准的方案为准。</p><pre>{JSON.stringify(example, null, 2)}</pre></details>
     <label htmlFor="workflow-template-file">本地工作流文件</label>
@@ -54,7 +55,7 @@ export function WorkflowTemplateImport({ contextKey, disabled, onApply, reviewTe
     {reading && <p role="status">正在读取并检查工作流…</p>}
     {error && <p role="alert"><ErrorText error={error}/></p>}
     {review && <div aria-label="工作流导入预览">
-      <h4>{review.template.name}</h4>
+      <HelpHeading as="h4" topic="WorkflowTemplateImport">{review.template.name}</HelpHeading>
       <p>类型：{review.template.workflowType} · {review.template.steps.length} 个步骤</p>
       <label htmlFor="workflow-template-preview">将填入的需求</label>
       <textarea id="workflow-template-preview" rows={10} readOnly value={review.requirement} />

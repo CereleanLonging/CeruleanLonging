@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, RecheckDispositionReview, RecheckStatus, VerificationState, WorkspaceRecheckPage, WorkspaceRecheckSummary } from "./contracts";
@@ -64,14 +65,14 @@ export function WorkspaceVerificationRechecks(props: Props) {
   useEffect(() => { if (!page && !loading && !stale && !props.busy) void load(); }, [page, loading, stale, props.busy]);
   const blocked = props.busy || loading;
   return <section className="panel" aria-label="项目复验记录" aria-busy={loading}>
-    <div className="section-heading"><h3>项目 {props.projectId} 的复验记录</h3><button disabled={blocked} onClick={() => void load()}>刷新复验清单</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceVerificationRechecks">项目 {props.projectId} 的复验记录</HelpHeading><button disabled={blocked} onClick={() => void load()}>刷新复验清单</button></div>
     <p>这里保留原批准，包括尚未启动的复验。读取记录不会运行检查器或重新派发模型任务。</p>
     {loading && <p role="status">正在读取原批准…</p>}
     {error && <p role="alert">{error} 上次清单仅供核对；已选复验仍可单独刷新。</p>}
     <CurrentRecheck projectId={props.projectId} read={props.read} busy={props.busy} select={setSelected}/>
     {page && <>
       <p>共 {page.total} 条原复验批准</p>
-      {page.entries.map(e => <article className="panel" key={e.operationId}><h4>复验 {e.operationId}</h4><p>任务 {e.taskId} · 原尝试 {e.attemptId} · 原失败验收 {e.originalOperationId}</p><button disabled={blocked || stale} onClick={() => setSelected(e)}>审阅复验 {e.operationId}</button></article>)}
+      {page.entries.map(e => <article className="panel" key={e.operationId}><HelpHeading as="h4" topic="WorkspaceVerificationRechecks">复验 {e.operationId}</HelpHeading><p>任务 {e.taskId} · 原尝试 {e.attemptId} · 原失败验收 {e.originalOperationId}</p><button disabled={blocked || stale} onClick={() => setSelected(e)}>审阅复验 {e.operationId}</button></article>)}
       <nav aria-label="复验分页"><button disabled={blocked || stale || !back.length} onClick={() => void load(back.at(-1)!, page.revision, back.slice(0, -1))}>上一页</button><span>当前显示 {page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void load(page.nextOffset!, page.revision, [...back, page.offset])}>下一页</button></nav>
     </>}
     {selected && <VerificationRecheckRecord key={props.projectId + ":" + selected.operationId} {...props} selected={selected} close={() => setSelected(null)}/>}
@@ -101,7 +102,7 @@ function CurrentRecheck(props: { projectId: string; read: WorkspaceReader; busy:
     return () => { alive.current = false; generation.current++; lock.current = false; };
   }, [props.projectId]);
   useEffect(() => { if (!loaded && !loading && !error && !props.busy) void load(); }, [loaded, loading, error, props.busy]);
-  return <section className="panel" aria-label="当前复验入口"><h4>当前复验</h4><p>单独查找正在执行或尚待处理的原批准，完整历史暂不可读时也可核对。</p>
+  return <section className="panel" aria-label="当前复验入口"><HelpHeading as="h4" topic="WorkspaceVerificationRechecks">当前复验</HelpHeading><p>单独查找正在执行或尚待处理的原批准，完整历史暂不可读时也可核对。</p>
     <button className="secondary-button" disabled={props.busy || loading} onClick={() => void load()}>查找当前复验</button>
     {error && <p role="alert">{error} 旧入口仅供核对，请刷新。</p>}
     {loaded && !record && !error && <p>当前没有未决复验批准，已完成记录仍在历史清单中。</p>}
@@ -221,7 +222,7 @@ export function VerificationRecheckRecord(props: Props & { selected: WorkspaceRe
   }
   const review = status?.approval.review;
   return <section className="panel" aria-label="原复验审阅" aria-busy={loading}>
-    <div className="section-heading"><h4>原复验 {props.selected.operationId}</h4><button onClick={props.close}>关闭复验审阅</button></div>
+    <div className="section-heading"><HelpHeading as="h4" topic="WorkspaceVerificationRechecks">原复验 {props.selected.operationId}</HelpHeading><button onClick={props.close}>关闭复验审阅</button></div>
     <button disabled={blocked} onClick={() => void run(refresh)}>刷新原复验状态</button>
     {error && <p role="alert">{error} 上次内容仅供核对，操作已锁定。</p>}
     {message && <p role="status">{message}</p>}
@@ -237,7 +238,7 @@ export function VerificationRecheckRecord(props: Props & { selected: WorkspaceRe
       <p>启动前核心会核对原启动记录，已有记录不能再次执行。启动将执行一次上述本地检查；取消请求不等于已停止。核对原结果不会重新执行；结果未知时原批准仍保留。</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><button className="primary" disabled={!allowed("start")} onClick={() => act("start")}>启动这次复验</button><button className="secondary-button" disabled={!allowed("cancel")} onClick={() => act("cancel")}>请求取消这次复验</button><button className="secondary-button" disabled={!allowed("recover")} onClick={() => act("recover")}>核对原复验结果</button></div>
       {!status.disposition && <section className="panel" aria-label="处置原复验">
-        <h5>结束这次复验批准</h5>
+        <HelpHeading as="h5" topic="WorkspaceVerificationRechecks">结束这次复验批准</HelpHeading>
         <p>用于不再执行的原批准或已经中断的复验。核心会核查原记录及进程是否结束。处置保留原失败和全部证据，不会把产物标为通过，不会启动新检查；后续复验须重新审阅批准。</p>
         <label>处置原因<textarea value={reason} maxLength={2000} disabled={blocked || !!dispositionSent.current} onChange={e => { setReason(e.target.value); setDispositionReview(null); setDispositionAck(false); }}/></label>
         <button disabled={!canReviewDisposition} onClick={reviewDisposition}>只读审阅处置</button>

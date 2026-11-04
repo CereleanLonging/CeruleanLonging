@@ -5,6 +5,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 use tauri::{Emitter, Manager};
+mod access_settings;
+mod cache_monitor;
 mod experiment_workbench;
 mod maintenance;
 mod portable_archive;
@@ -616,6 +618,9 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            cache_monitor::build_cache_monitor,
+            access_settings::access_settings_load,
+            access_settings::access_setting_put,
             review_logs::open_review_logs_window,
             review_logs::review_logs_read,
             close_workbench,

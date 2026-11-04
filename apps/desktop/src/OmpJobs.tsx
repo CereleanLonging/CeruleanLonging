@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, OmpJob, OmpJobState, Snapshot, UnsentAssignmentReview } from "./contracts";
@@ -28,11 +29,11 @@ export function OmpJobs({data,send,busy,openManagement}:{data:Snapshot|null;send
     void act(command,review.kind==="cancel"?"停止请求已提交，后续调度已暂停。请等待执行结果，已有修改保留。":"本次记录已关闭，原证据保留；没有重新发送任务。");
   }
   if(!jobs.length&&!review)return null;
-  return <section className="workflow-plans" aria-label="OMP 执行记录"><h2>OMP 编程执行</h2>{message&&<p role="status">{message}</p>}
+  return <section className="workflow-plans" aria-label="OMP 执行记录"><HelpHeading as="h2" topic="OmpJobs">OMP 编程执行</HelpHeading>{message&&<p role="status">{message}</p>}
     {jobs.map(job=>{const w=data?.workflows.find(w=>w.project.id===job.projectId),task=w?.state.tasks[job.taskId],unsent=data?.unsentAssignments.find(u=>same(u,job));const live=["starting","executing"].includes(job.state),accepted=task?.attempt===job.attemptId&&task.state==="accepted";
       const goal=w?.revisionDigest===job.revisionDigest?w.revision?.workflow.tasks.find(t=>t.id===job.taskId)?.goal:null;
       return <article className="panel codex-job" data-omp-project={job.projectId} data-omp-attempt={job.attemptId} key={job.projectId+":"+job.attemptId}>
-        <div className="section-heading"><h3>{goal??`任务 ${job.taskId}`}</h3><span className="badge">{accepted?"已独立验收并收口":unsent?"已分配但尚未派发":labels[job.state]}</span></div>
+        <div className="section-heading"><HelpHeading as="h3" topic="OmpJobs">{goal??`任务 ${job.taskId}`}</HelpHeading><span className="badge">{accepted?"已独立验收并收口":unsent?"已分配但尚未派发":labels[job.state]}</span></div>
         <p>{job.worker.provider} · {job.worker.model}</p><details className="codex-record-identity"><summary>记录详情</summary><p>{w?.project.root??job.projectId}</p><p>任务：{job.taskId} · 尝试：{job.attemptId}</p>{job.worker.ompRuntimeParent&&<p>独立运行目录：{job.worker.ompRuntimeParent}</p>}<p>开始时间：{new Date(job.startedAt).toLocaleString("zh-CN")}</p>{job.managementOperation&&<p>分配记录：{job.managementOperation}</p>}</details>
         {job.message&&<p>{job.message}</p>}
         {job.state==="cancel-requested"&&<p>等待执行器确认，当前还不能认定已经停止。</p>}
@@ -50,7 +51,7 @@ export function OmpJobs({data,send,busy,openManagement}:{data:Snapshot|null;send
       </article>;
     })}
     <dialog ref={dialog} className="panel modal unsent-assignment-dialog" aria-labelledby="omp-control-title" onCancel={e=>{e.preventDefault();if(!blocked)setReview(null);}}>{review&&<>
-      <h2 id="omp-control-title">{review.kind==="cancel"?"确认停止 OMP 任务":review.kind==="startup"?"确认关闭 OMP 启动":"确认放弃 OMP 未派发尝试"}</h2>
+      <HelpHeading as="h2" topic="OmpJobs" id="omp-control-title">{review.kind==="cancel"?"确认停止 OMP 任务":review.kind==="startup"?"确认关闭 OMP 启动":"确认放弃 OMP 未派发尝试"}</HelpHeading>
       <p>{data?.workflows.find(w=>w.project.id===review.job.projectId)?.project.root??review.job.projectId}</p><p>项目 {review.job.projectId} · 任务 {review.job.taskId}</p><p>尝试 {review.job.attemptId}</p>
       <p>{review.kind==="cancel"?"将暂停后续调度并请求停止当前执行；已有修改保留，停止结果需由执行器确认。":review.kind==="startup"?"关闭已证明尚未分配的启动，保留原始记录，不代表任务完成。":"本次分配尚无派发记录。放弃后任务回到待分配，不自动恢复调度。"}</p>
       <label htmlFor="omp-control-reason">原因</label><textarea id="omp-control-reason" value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked} rows={3}/>

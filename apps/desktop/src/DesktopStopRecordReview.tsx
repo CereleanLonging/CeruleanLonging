@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, DiagnosticFile } from "./contracts";
@@ -14,7 +15,7 @@ export function DesktopStopRecordReview({file,busy,send}:{file:DiagnosticFile;bu
     {file.reviewed?<p>已复核并保留原文；重新启动后仍须通过原批准链校验。原尝试不能继续，只能核对后结束本地跟踪。</p>:file.reviewKind==="desktop-stop"&&file.reviewDigest?<button className="secondary-button" disabled={blocked} onClick={()=>{setReview(file);setReason("");setAck(false);setMessage("");}}>复核未写完整的桌面停止记录…</button>:<p>此记录尚不满足复核条件，请保留原证据继续核查。</p>}
     {message&&!review&&<p role="status">{message}</p>}
     <dialog ref={dialog} className="panel modal unsent-assignment-dialog" aria-label="桌面停止残片复核" onCancel={e=>{e.preventDefault();if(!blocked)setReview(null);}}>{review&&<>
-      <h2>复核未写完整的桌面停止记录</h2>
+      <HelpHeading as="h2" topic="DesktopStopRecordReview">复核未写完整的桌面停止记录</HelpHeading>
       <p style={{overflowWrap:"anywhere"}}>{review.relativePath}</p>
       <p>保留原文件，依据原批准、派发和有效停止前置记录另存复核凭据。复核只恢复本地管理，不会补发任务或停止动作，不代表取消成功或通过验收。重新启动校验后，原尝试仍待核对，只能在自行处理外部应用后结束本地跟踪；不能继续原尝试。</p>
       <label htmlFor="desktop-stop-reason">复核说明</label><textarea id="desktop-stop-reason" rows={3} value={reason} disabled={blocked} onChange={e=>setReason(e.target.value)}/>

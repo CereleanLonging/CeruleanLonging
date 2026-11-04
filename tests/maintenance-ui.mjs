@@ -13,10 +13,15 @@ try{
   const page=await browser.newPage({viewport:{width:1200,height:900}});page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>r.abort());
   await page.setContent(`<html lang="zh-CN"><meta charset="utf-8"><style>${await readFile('apps/desktop/src/style.css','utf8')}</style><div id="root"></div></html>`);
   await page.evaluate(()=>{
-    window.calls=[];window.pending=null;window.fail=false;
+    window.calls=[];window.pending=null;window.fail=false;window.cacheHold=false;
+    window.cacheData={projectRoot:'D:\\source',temporaryRoot:'D:\\source\\.temp\\build-cache',logDirectory:'D:\\source\\docs\\build-cache\\cleanup-logs',totalBytes:4096,availableBytes:1024,cumulativeCleanedBytes:8192,scanCount:1,pendingOperations:0,entries:[{path:'D:\\source\\.temp\\build-cache\\jobs\\123',kind:'任务临时缓存',bytes:3072,files:2,active:true},{path:'D:\\source\\target\\release\\deps',kind:'旧编译缓存',bytes:1024,files:1,active:false}],recent:[],warnings:[]};
     window.__TAURI_INTERNALS__={invoke:async(name,args)=>{
       window.calls.push({name,args});
       if(name==='maintenance_info')return {version:'0.1.3',installationDirectory:'D:\\test install',dataDirectory:'D:\\test data',holdPresent:true,bundleSchema:1};
+      if(name==='build_cache_monitor'){
+        if(window.cacheHold)return new Promise((ok,no)=>{window.cachePending={ok,no};});
+        return window.cacheData;
+      }
       if(name==='open_maintenance_window')return new Promise((ok,no)=>{window.pending={ok,no};});
       if(name==='open_review_logs_window')return new Promise((ok,no)=>{window.logsPending={ok,no};});
       throw Error('Unexpected command '+name);
@@ -26,11 +31,11 @@ try{
   const open=page.getByRole('button',{name:'打开独立维护窗口'});
   assert.equal(await open.isDisabled(),true);assert.equal(await page.evaluate(()=>window.calls.length),0);cases.push('preview-has-no-native-actions');
   assert.equal(await page.getByRole('button',{name:'打开只读日志窗口'}).isDisabled(),true);
-  await page.evaluate(()=>window.renderFixture(true,1));await page.waitForFunction(()=>window.calls.length===1);
+  await page.evaluate(()=>window.renderFixture(true,1));await page.waitForFunction(()=>window.calls.filter(x=>x.name==='maintenance_info').length===1);
   await page.getByText('已锁定，请读取原事务后恢复').waitFor();cases.push('held-data-does-not-require-core-connection');
   await open.click();assert.equal(await page.getByRole('button',{name:'正在准备维护副本…'}).isDisabled(),true);cases.push('launch-single-in-flight');
   await page.evaluate(()=>window.pending.ok({directory:'D:\\maintenance copy',sessionDigest:'a'.repeat(64),pid:1234,started:true}));
-  await page.getByRole('status').waitFor();assert.match(await page.getByRole('status').innerText(),/不会停止核心或执行升级/);cases.push('launch-result-does-not-claim-upgrade');
+  await page.getByRole('status').waitFor();assert.match(await page.getByRole('status').innerText(),/请在该窗口继续/);cases.push('launch-result-does-not-claim-upgrade');
   await open.click();await page.evaluate(()=>window.pending.no(Error('启动未确认，未重试')));await page.getByRole('alert').waitFor();
   assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='open_maintenance_window').length),2);cases.push('failure-not-retried');
   assert.equal(await page.evaluate(()=>window.calls.some(x=>x.name==='core_request')),false);cases.push('maintenance-entry-never-starts-core');
@@ -46,6 +51,30 @@ try{
   assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='open_review_logs_window').length),2);
   assert.equal(await page.evaluate(()=>window.calls.some(x=>['core_submit','workspace_read','review_logs_read'].includes(x.name))),false);
   cases.push('log-window-explicit-single-flight-launch-and-failure-does-not-retry');
+  const cache=page.getByRole('region',{name:'累计缓存监控'});
+  assert.equal(await page.locator('.maintenance-page > section').last().getAttribute('aria-label'),'累计缓存监控');
+  await cache.getByText('使用中，清理时跳过').waitFor();
+  assert.match(await cache.innerText(),/累计已清理/);cases.push('cache-panel-last-and-usage-visible');
+  await cache.screenshot({path:join(run,'cache-monitor.png')});
+  await page.evaluate(()=>{window.cacheHold=true;});
+  const scan=cache.getByRole('button',{name:'扫描全项目临时缓存'});
+  await scan.evaluate(button=>{button.click();button.click();});
+  assert.equal(await scan.isDisabled(),true);
+  assert.equal(await cache.getByRole('button',{name:'清理剩余缓存'}).isDisabled(),true);
+  assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='build_cache_monitor'&&x.args.action==='scan').length),1);
+  await page.evaluate(()=>{window.cacheData.scanCount=2;window.cachePending.ok(window.cacheData);});
+  await cache.getByText('扫描体积已记录到提炼日志。').waitFor();cases.push('cache-scan-single-flight-and-receipt');
+  await cache.getByRole('button',{name:'清理剩余缓存'}).click();
+  await page.evaluate(()=>{window.cacheData.totalBytes=3072;window.cacheData.availableBytes=0;window.cacheData.cumulativeCleanedBytes=9216;window.cacheData.recent=[{id:'clean-1',kind:'手动清理',at:'2026-11-04T14:00:00+08:00',bytesRemoved:1024,filesRemoved:1,skippedActive:1,errors:[]}];window.cachePending.ok(window.cacheData);});
+  await cache.getByText('已清理 1,024 字节，保留空目录。',{exact:true}).waitFor();
+  assert.equal(await cache.getByRole('button',{name:'清理剩余缓存'}).isDisabled(),true);cases.push('cache-clean-shows-actual-reclaimed-and-keeps-active');
+  await scan.click();await page.evaluate(()=>window.cachePending.no(Error('缓存目录身份发生变化')));
+  await cache.getByRole('alert').waitFor();
+  assert.equal(await page.evaluate(()=>window.calls.filter(x=>x.name==='build_cache_monitor'&&x.args.action==='scan').length),2);cases.push('cache-scan-failure-not-retried');
+  await page.getByLabel('工作台源码目录').fill('D:\\another-source');
+  assert.equal(await cache.getByRole('button',{name:'清理剩余缓存'}).isDisabled(),true);cases.push('cache-root-change-invalidates-old-scan');
+  await page.setViewportSize({width:940,height:700});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);cases.push('cache-panel-narrow-layout');
   await page.screenshot({path:join(run,'maintenance-entry.png')});assert.deepEqual(errors,[]);
   const result={status:'passed',run,passed:cases.length,cases,mockedTauri:true,realModelCalls:0,userDesktopActions:0};await writeFile(join(run,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }finally{await browser.close();}

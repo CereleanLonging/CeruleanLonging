@@ -2,6 +2,10 @@ node_modules/
 __pycache__/
 *.pyc
 target/
+.temp/
+docs/build-cache/
+docs/HANDOFF-LATEST.md
+media/
 dist/
 .local/
 reports/*

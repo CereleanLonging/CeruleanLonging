@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { MarkdownImport } from "./MarkdownImport";
 import type { RefinementApi } from "./MarkdownRefinement";
@@ -107,12 +108,12 @@ export function WorkspaceBrowser(props: Props) {
   }
 
   return <section className="workspace-browser" aria-label="独立工作区记录">
-    <div className="section-heading"><h2>{props.showPlans ? "本地计划记录" : "项目清单"}</h2><button className="secondary-button" disabled={blocked} onClick={() => void run(refresh)}>刷新工作区记录</button></div>
+    <div className="section-heading"><HelpHeading as="h2" topic="WorkspaceBrowser">{props.showPlans ? "本地计划记录" : "项目清单"}</HelpHeading><button className="secondary-button" disabled={blocked} onClick={() => void run(refresh)}>刷新工作区记录</button></div>
     {!props.enabled && <p>请在桌面应用中读取本地记录。</p>}
     {overview?.message && <p role="alert"><ErrorText error={overview.message}/></p>}
     {message && <p role="status">{message}</p>}
     {props.showPlans ? <>
-      <section className="panel"><h3>创建计划</h3><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
+      <section className="panel"><HelpHeading as="h3" topic="WorkspaceBrowser">创建计划</HelpHeading><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
         <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: importedTasks ?? tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>
           <div className="document-chief-configuration"><label htmlFor="document-refinement-project">文档提炼使用的项目主指挥</label><select id="document-refinement-project" value={chief?.setup.projectId??""} onChange={e=>setRefinementProject(e.target.value)} disabled={!canWrite||!props.refinementSetups?.length}><option value="">{props.refinementSetups?.length?"请选择已配置项目":"尚无已保存的项目配置"}</option>{props.refinementSetups?.map(s=><option key={s.setup.projectId} value={s.setup.projectId}>{s.setup.projectId} · {s.setup.chiefModel}</option>)}</select>
           {!props.refinementSetups?.length&&<p className="secondary">先关联项目目录并保存主指挥配置，才会在此显示。文档自动提炼需使用 API 主指挥；手工填写计划仍可继续。</p>}
@@ -124,9 +125,9 @@ export function WorkspaceBrowser(props: Props) {
         </form>
       </section>
       {pending && <div className="panel"><p>原操作待核对，输入已保留。</p><button className="secondary-button" disabled={blocked} onClick={checkPending}>读取原记录核对</button><button className="secondary-button" disabled={blocked} onClick={() => { setPending(null); setDetail(null); setStale(true); setMessage("已返回编辑。请刷新并核对原记录，再决定是否进行新的操作。"); }}>已核对，返回编辑</button></div>}
-      <h3>已保存的计划：{plans?.total ?? "尚未读取"}</h3>
+      <HelpHeading as="h3" topic="WorkspaceBrowser">已保存的计划：{plans?.total ?? "尚未读取"}</HelpHeading>
       {!plans ? <p>计划清单尚未取得。</p> : plans.total === 0 ? <p>尚未创建计划。</p> : plans.entries.map(plan => <article className="panel plan-card" key={plan.id}>
-        <h3>{plan.title}</h3><p>{plan.taskCount} 项任务 · {plan.approved ? "已批准" : "待确认"}</p>
+        <HelpHeading as="h3" topic="WorkspaceBrowser">{plan.title}</HelpHeading><p>{plan.taskCount} 项任务 · {plan.approved ? "已批准" : "待确认"}</p>
         <button className="secondary-button" disabled={blocked || stale || !!pending} onClick={() => void run(async current => {
           const reply = await latest.current.read({ type: "plan", id: plan.id, revision: plans.revision });
           if (!current()) return;
@@ -135,10 +136,10 @@ export function WorkspaceBrowser(props: Props) {
         })}>查看完整计划</button>
       </article>)}
       {plans && <nav className="workspace-pagination" aria-label="计划分页"><button className="secondary-button" disabled={blocked || stale || !planBack.length} onClick={() => planPage(planBack.at(-1)!, planBack.slice(0, -1))}>上一页</button><span>当前显示 {plans.entries.length} / {plans.total}</span><button className="secondary-button" disabled={blocked || stale || plans.nextOffset === null} onClick={() => planPage(plans.nextOffset!, [...planBack, plans.offset])}>下一页</button></nav>}
-      {detail && <section className="panel" role="dialog" aria-label="完整计划审阅"><h3>{detail.title}</h3><ol>{detail.tasks.map((task, i) => <li key={i}>{task}</li>)}</ol><p>批准仅记录对当前内容的确认，不派发模型任务。</p><button className="secondary-button" disabled={blocked || !!pending} onClick={() => setDetail(null)}>关闭</button><button className="primary" disabled={!canWrite || detail.approved} onClick={() => void run(current => submit({ type: "approvePlan", id: detail.id, digest: detail.digest }, { type: "approve", id: detail.id, digest: detail.digest }, current))}>{detail.approved ? "已批准" : "确认批准"}</button></section>}
+      {detail && <section className="panel" role="dialog" aria-label="完整计划审阅"><HelpHeading as="h3" topic="WorkspaceBrowser">{detail.title}</HelpHeading><ol>{detail.tasks.map((task, i) => <li key={i}>{task}</li>)}</ol><p>批准仅记录对当前内容的确认，不派发模型任务。</p><button className="secondary-button" disabled={blocked || !!pending} onClick={() => setDetail(null)}>关闭</button><button className="primary" disabled={!canWrite || detail.approved} onClick={() => void run(current => submit({ type: "approvePlan", id: detail.id, digest: detail.digest }, { type: "approve", id: detail.id, digest: detail.digest }, current))}>{detail.approved ? "已批准" : "确认批准"}</button></section>}
     </> : <>
       {projectError && <p role="alert"><ErrorText error={projectError}/></p>}
-      {!projects ? <p>项目清单尚未取得。</p> : projects.total === 0 ? <p>尚未登记项目。</p> : projects.entries.map(project => <article className="panel workspace-project-card" key={project.project.id}><h3>{project.project.id}</h3><p>{project.project.root}</p><p>{project.taskCount} 项任务；{project.resourceHoldingTasks} 项仍占用资源，其中 {project.unknownTasks} 项结果未知。</p></article>)}
+      {!projects ? <p>项目清单尚未取得。</p> : projects.total === 0 ? <p>尚未登记项目。</p> : projects.entries.map(project => <article className="panel workspace-project-card" key={project.project.id}><HelpHeading as="h3" topic="WorkspaceBrowser">{project.project.id}</HelpHeading><p>{project.project.root}</p><p>{project.taskCount} 项任务；{project.resourceHoldingTasks} 项仍占用资源，其中 {project.unknownTasks} 项结果未知。</p></article>)}
       {projects && <nav className="workspace-pagination" aria-label="项目分页"><button className="secondary-button" disabled={blocked || !projectBack.length} onClick={() => projectPage(projectBack.at(-1)!, projectBack.slice(0, -1))}>上一页</button><span>当前显示 {projects.entries.length} / {projects.total}</span><button className="secondary-button" disabled={blocked || projects.nextOffset === null} onClick={() => projectPage(projects.nextOffset!, [...projectBack, projects.offset])}>下一页</button></nav>}
     </>}
   </section>;

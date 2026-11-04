@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, CurrencyHistoryGap, CurrencyHistoryReason, HistoricalAccounting, HistoricalAccountingPage, HistoricalAccountingSummary, HistoricalSourcePage, ProjectCurrencyBudget, HistoricalResult } from "./contracts";
@@ -78,7 +79,7 @@ export function HistoricalPages({ sources, accounting, accounts, query, busy }: 
     finally { inFlight.current = false; if (active.current) setReading(false); }
   }
   return <>
-    <section className="panel currency-history" aria-label="历史来源清单"><h2>历史费用来源</h2>
+    <section className="panel currency-history" aria-label="历史来源清单"><HelpHeading as="h2" topic="HistoricalPages">历史费用来源</HelpHeading>
       {notice && <p role="status">{notice}</p>}
       <p>原记录保留 {source.page?.total ?? "待核对"} 条，待核算 {source.page?.pendingTotal ?? "待核对"} 条。这些条目不是收费请求数量，也不代表免费。</p>
       {!source.page && <p role="status">历史来源清单暂不可用，请保留原数据并核对核心状态。</p>}
@@ -92,12 +93,12 @@ export function HistoricalPages({ sources, accounting, accounts, query, busy }: 
       </li>)}</ol>{source.controls}
     </section>
     {selected && query && <HistoricalChargeForm key={`${selected.projectId}:${selected.sourceId}:${selected.reference}`} gap={selected} accounts={accounts} busy={busy} query={query} close={saved => { setSelected(null); if (saved) setNotice("历史金额已记录，原始来源继续保留。"); }}/>} 
-    <section className="panel currency-history" aria-label="历史核算清单"><h2>已确认历史金额</h2>
+    <section className="panel currency-history" aria-label="历史核算清单"><HelpHeading as="h2" topic="HistoricalPages">已确认历史金额</HelpHeading>
       {!amounts.page && <p role="status">历史核算清单暂不可用，请保留原数据并核对核心状态。</p>}
       {amounts.changed && <p role="status">历史核算记录已变化，已显示当前首页。</p>}
       {amounts.error && <p role="alert"><ErrorText error={amounts.error}/></p>}{error && <p role="alert"><ErrorText error={error}/></p>}
       {amounts.page?.entries.map(r => <article key={r.userEventDigest}>
-        <h3>项目 {r.projectId} · ${decimalAmount(r.amountUsdNanos, 9)}</h3>
+        <HelpHeading as="h3" topic="HistoricalPages">项目 {r.projectId} · ${decimalAmount(r.amountUsdNanos, 9)}</HelpHeading>
         <p>{r.state === "accounted" ? "已核算" : "用户已确认，金额发布待核对"}；原结果不确定项：{r.uncertainOutcomes}</p>
         <p>原范围：{r.scope.kind === "management" ? r.scope.operationId : r.scope.attemptId}</p>
         <button disabled={busy || reading || !query} onClick={() => void readDetail(r)}>查看原确认 {r.scope.kind === "management" ? r.scope.operationId : r.scope.attemptId}</button>

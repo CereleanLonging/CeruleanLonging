@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { TaskState, WorkspaceTaskDetail, WorkspaceTaskEvidencePage, WorkspaceTaskPage } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -54,20 +55,20 @@ export function WorkspaceTasks(props: Props) {
     });
   }
   return <section className="panel" aria-label="项目任务记录">
-    <div className="section-heading"><h3>项目 {props.projectId} 的任务</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新任务首页</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceTasks">项目 {props.projectId} 的任务</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新任务首页</button></div>
     <p>读取原任务状态和证据引用；本页不会派发、取消或批准任务。</p>
     {error && <p role="alert">{error} 上次内容仅供核对，请刷新后继续读取。</p>}
     {!tasks ? <p>任务记录尚未取得。</p> : <>
       <p>原项目共 {tasks.total} 项任务 · {tasks.approved ? "当前方案已批准" : "当前方案尚未批准"}</p>
       {tasks.total === 0 ? <p>原项目尚无任务。</p> : tasks.entries.map(task => <article className="panel" key={task.id}>
-        <h4>{task.id} · {task.goal}</h4><p>{labels[task.state]} · 执行者 {task.worker ?? "尚未分配"} · 尝试 {task.attempt ?? "尚无"}</p>
+        <HelpHeading as="h4" topic="WorkspaceTasks">{task.id} · {task.goal}</HelpHeading><p>{labels[task.state]} · 执行者 {task.worker ?? "尚未分配"} · 尝试 {task.attempt ?? "尚无"}</p>
         <p>{task.evidenceCount} 条证据引用 · {task.verified ? "独立检查通过" : "尚无通过的独立检查"}</p>
         {task.state === "unknown" && <p>结果未知，仍占用原资源；不能据此重发或认定已取消。</p>}
         <button disabled={blocked || stale} onClick={() => readDetail(task.id)}>查看任务 {task.id}</button>
       </article>)}
       <nav aria-label="任务分页"><button disabled={blocked || stale || !back.length} onClick={() => void run(current => readPage(back.at(-1)!, tasks.revision, back.slice(0, -1), current))}>上一页</button><span>当前显示 {tasks.entries.length} / {tasks.total}</span><button disabled={blocked || stale || tasks.nextOffset === null} onClick={() => void run(current => readPage(tasks.nextOffset!, tasks.revision, [...back, tasks.offset], current))}>下一页</button></nav>
     </>}
-    {detail && <section className="panel" aria-label="原任务详情"><h4>任务 {detail.task.id} 的原记录</h4><p>{detail.task.goal}</p><p>状态：{labels[detail.run.state]}；尝试：{detail.run.attempt ?? "尚无"}；执行代次：{detail.run.fence}</p><p>前置任务：{detail.task.dependencies.join("、") || "无"}；资源声明：{detail.task.resourceKeys?.join("、") || "无"}</p><p>取消请求：{detail.run.cancellationRequested === true ? "已请求，不等于已取消" : detail.run.cancellationRequested === false ? "未请求" : "原记录未记载"}</p>
+    {detail && <section className="panel" aria-label="原任务详情"><HelpHeading as="h4" topic="WorkspaceTasks">任务 {detail.task.id} 的原记录</HelpHeading><p>{detail.task.goal}</p><p>状态：{labels[detail.run.state]}；尝试：{detail.run.attempt ?? "尚无"}；执行代次：{detail.run.fence}</p><p>前置任务：{detail.task.dependencies.join("、") || "无"}；资源声明：{detail.task.resourceKeys?.join("、") || "无"}</p><p>取消请求：{detail.run.cancellationRequested === true ? "已请求，不等于已取消" : detail.run.cancellationRequested === false ? "未请求" : "原记录未记载"}</p>
       <button disabled={blocked || stale} onClick={() => readEvidence(0, [])}>读取原证据引用</button>
       {!evidence ? <p>证据引用尚未读取，共 {detail.run.evidenceCount} 条。</p> : <><p>原证据共 {evidence.total} 条；引用存在不等于执行或验收成功。</p><ol start={evidence.offset + 1}>{evidence.entries.map((entry, i) => <li key={evidence.offset + i}><code>{entry}</code></li>)}</ol><nav aria-label="任务证据分页"><button disabled={blocked || stale || !evidenceBack.length} onClick={() => readEvidence(evidenceBack.at(-1)!, evidenceBack.slice(0, -1))}>上一页</button><span>当前显示 {evidence.entries.length} / {evidence.total}</span><button disabled={blocked || stale || evidence.nextOffset === null} onClick={() => readEvidence(evidence.nextOffset!, [...evidenceBack, evidence.offset])}>下一页</button></nav></>}
     </section>}

@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -60,12 +61,12 @@ export function PortableEvidence({ desktop, client = api }: { desktop: boolean; 
   }
   const repeated = attempted.current.has(pathKey(create.destination));
   return <section className="panel" aria-label="便携证据归档">
-    <h2>便携证据归档</h2>
+    <HelpHeading as="h2" topic="PortableEvidence">便携证据归档</HelpHeading>
     <p>按已冻结的文件清单封存证据，并在其他目录核对内容是否完整。归档只保存在本机；请把清单摘要另行保存，以便之后核验。</p>
     <p>这不是工作台恢复备份。核验通过仅表示所选文件与摘要一致，不代表真实模型调用、费用或正式验收通过。文件可能包含原路径和用户内容，尚未做全文脱敏。</p>
     {!desktop && <p>请在桌面应用中使用。</p>}
     <fieldset disabled={!desktop || busy}>
-      <legend>创建新归档</legend>
+      <HelpHeading as="legend" topic="PortableEvidence">创建新归档</HelpHeading>
       <label>源证据根目录<input aria-label="源证据根目录" value={create.root} onChange={e => editCreate("root", e.target.value)} /></label>
       <label>冻结索引文件<input aria-label="冻结索引文件" value={create.index} onChange={e => editCreate("index", e.target.value)} /></label>
       <label>索引预期 SHA256<input aria-label="索引预期 SHA256" value={create.indexSha256} onChange={e => editCreate("indexSha256", e.target.value)} /></label>
@@ -75,7 +76,7 @@ export function PortableEvidence({ desktop, client = api }: { desktop: boolean; 
       <button disabled={repeated || ![create.root, create.index, create.destination].every(absolute) || !digest(create.indexSha256)} onClick={() => void run({ ...create })}>创建证据归档</button>
     </fieldset>
     <fieldset disabled={!desktop || busy}>
-      <legend>核验已有归档</legend>
+      <HelpHeading as="legend" topic="PortableEvidence">核验已有归档</HelpHeading>
       <label>待核验归档目录<input aria-label="待核验归档目录" value={verify.archive} onChange={e => editVerify("archive", e.target.value)} /></label>
       <label>清单预期 SHA256<input aria-label="清单预期 SHA256" value={verify.manifestSha256} onChange={e => editVerify("manifestSha256", e.target.value)} /></label>
       <p>使用创建时另行保存的清单摘要；不从待核验包自身取得预期值。核验不需要原工作区，也不执行归档文件。</p>

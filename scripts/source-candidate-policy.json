@@ -49,7 +49,11 @@
     "third-party/THIRD-PARTY-NOTICES.txt",
     "third-party/THIRD-PARTY-SOURCES.zip",
     "apps/desktop/src-tauri/installer/LICENSE-MIT.tauri",
-    "apps/desktop/src/workflow-template-example.json"
+    "apps/desktop/src/workflow-template-example.json",
+    "scripts/cache-task.mjs",
+    "scripts/frontend.mjs",
+    "scripts/lint.ps1",
+    "docs/BUILD-CACHE-MANAGEMENT.md"
   ],
   "trees": {
     "crates": [
@@ -86,7 +90,8 @@
       ".json",
       ".mjs",
       ".cjs",
-      ".cs"
+      ".cs",
+      ".tsx"
     ]
   },
   "fixtureMarkers": [
@@ -107,12 +112,12 @@
     },
     {
       "path": "crates/adapters/src/openai.rs",
-      "sourceSha256": "cca6e303d616a018d8a0e0eb3f197b15fdaeefbb2c85704a107f710114c59776",
+      "sourceSha256": "4547e9b7a7d1411bfb1b9086f1516858ea98cd0b1672ce4486ce9502766cb28e",
       "markerSha256": "7182947bef9fa04963deabbaed71c232f970c01c4e9a7c13bc336670482aed0f"
     },
     {
       "path": "crates/adapters/src/openai.rs",
-      "sourceSha256": "cca6e303d616a018d8a0e0eb3f197b15fdaeefbb2c85704a107f710114c59776",
+      "sourceSha256": "4547e9b7a7d1411bfb1b9086f1516858ea98cd0b1672ce4486ce9502766cb28e",
       "markerSha256": "ac09ea1898b4b55777e16216521761ab93d26906862b8039477958470b8dc262"
     },
     {
@@ -137,17 +142,17 @@
     },
     {
       "path": "crates/core/src/api_currency_host_tests.rs",
-      "sourceSha256": "74d50f6cad739c3cf2b972f142bfc86c974154e70e96c79792a63d44996bb601",
+      "sourceSha256": "62a047f8af15c864717b59e315a408a1f01a2bc68d941f94f423daf39c21d77b",
       "markerSha256": "746c2d1bf06c3e6a12bb993d253e67a8e565f67f0d0ebb64c6fbc662b3f4c759"
     },
     {
       "path": "crates/core/src/api_host_tests.rs",
-      "sourceSha256": "4d11b85b3fd14d681d4c6b9cbfd2df14eacddea25d77744a3fd306f44a53220c",
+      "sourceSha256": "8220496a386e48d8f16b00819c8450c0ef74a03dc5208df1e107ad93e5b1a579",
       "markerSha256": "08e40b27c92a9f4fcdbd57377411335bfc1a1ea320a8f8658c4f1a9bdbd52a23"
     },
     {
       "path": "crates/core/src/api_host_tests.rs",
-      "sourceSha256": "4d11b85b3fd14d681d4c6b9cbfd2df14eacddea25d77744a3fd306f44a53220c",
+      "sourceSha256": "8220496a386e48d8f16b00819c8450c0ef74a03dc5208df1e107ad93e5b1a579",
       "markerSha256": "3d217b2ab6e9a4d51aa6fdccf0dd7a0568b2cf553245e73863f51c397e253b6a"
     },
     {
@@ -217,7 +222,7 @@
     },
     {
       "path": "crates/core/src/desktop_run_tests.rs",
-      "sourceSha256": "7e3babbadfc35c948379b1bb298db075ac9b81fdb2574fa20ba2917d6e70bc53",
+      "sourceSha256": "e9f1cc4a89b04da944c206280484ea8153cce5c8f5fb6415879a5b783e910a36",
       "markerSha256": "7be6b4df2aa4266c50a0325538aa958afe42467095c65e8b9d4359a30078fc90"
     },
     {

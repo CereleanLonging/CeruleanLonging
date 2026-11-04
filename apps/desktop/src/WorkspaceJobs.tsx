@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { Command, WorkspaceJobDetail, WorkspaceJobKind, WorkspaceJobPage, WorkspaceJobSummary } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -61,7 +62,7 @@ export function WorkspaceJobs(props: Props) {
     });
   }
   return <section className="panel" aria-label="项目作业记录" aria-busy={loading}>
-    <div className="section-heading"><h3>项目 {props.projectId} 的作业</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新作业首页</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceJobs">项目 {props.projectId} 的作业</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新作业首页</button></div>
     <p>Codex、OMP、API 和独立验收的原作业记录。桌面会话任务仍在原入口查看。</p>
     <p>这里只读取；取消请求、已提交和检查成功都不等于项目收口。资源占用请核对项目任务状态，未知结果不能据此重发。</p>
     {loading && <p role="status">正在读取原作业记录…</p>}
@@ -69,7 +70,7 @@ export function WorkspaceJobs(props: Props) {
     {!page ? <p>作业记录尚未取得。</p> : <>
       <p>原项目共 {page.total} 条作业记录</p>
       {page.total === 0 ? <p>原项目尚无上述作业。</p> : page.entries.map(job => <article className="panel" key={job.status.type + ":" + job.id}>
-        <h4>{kinds[job.status.type]} · {job.id}</h4><p>任务 {job.taskId} · 尝试 {job.attemptId} · {states[job.status.value] ?? job.status.value}</p>
+        <HelpHeading as="h4" topic="WorkspaceJobs">{kinds[job.status.type]} · {job.id}</HelpHeading><p>任务 {job.taskId} · 尝试 {job.attemptId} · {states[job.status.value] ?? job.status.value}</p>
         <p>开始于 {job.startedAt}{job.updatedAt ? `；更新于 ${job.updatedAt}` : ""}{job.hasMessage ? "；有原说明待查看" : ""}</p>
         <button disabled={blocked || stale} onClick={() => readDetail(job)}>查看 {kinds[job.status.type]} 作业 {job.id}</button>
         {job.status.type === "codex" && <button className="secondary-button" disabled={blocked || stale} onClick={() => setObservation(job)}>查看尝试 {job.attemptId} 的执行观察</button>}
@@ -78,7 +79,7 @@ export function WorkspaceJobs(props: Props) {
       </article>)}
       <nav aria-label="作业分页"><button disabled={blocked || stale || !back.length} onClick={() => void run(current => readPage(back.at(-1)!, page.revision, back.slice(0, -1), current))}>上一页</button><span>当前显示 {page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void run(current => readPage(page.nextOffset!, page.revision, [...back, page.offset], current))}>下一页</button></nav>
     </>}
-    {detail && <section className="panel" aria-label="原作业详情"><h4>{kinds[detail.record.type]} 的原作业</h4><p>任务 {detail.record.value.taskId} · 尝试 {detail.record.value.attemptId} · {states[detail.record.value.state] ?? detail.record.value.state}</p><p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detail.record.value.message ?? "原记录没有附加说明。"}</p><p>恢复或结束操作须回到相应入口重新审阅；本页不会执行这些操作。</p><p>这里是完整原作业记录。任务证据引用在项目任务入口单独分页读取；请核对任务 {detail.record.value.taskId} 和原尝试，引用存在不等于独立验收通过。</p><button disabled={blocked || stale} onClick={props.onTaskEvidence}>查看项目 {detail.projectId} 的任务与证据引用</button><details><summary>查看原记录字段</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(detail.record,null,2)}</pre></details></section>}
+    {detail && <section className="panel" aria-label="原作业详情"><HelpHeading as="h4" topic="WorkspaceJobs">{kinds[detail.record.type]} 的原作业</HelpHeading><p>任务 {detail.record.value.taskId} · 尝试 {detail.record.value.attemptId} · {states[detail.record.value.state] ?? detail.record.value.state}</p><p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detail.record.value.message ?? "原记录没有附加说明。"}</p><p>恢复或结束操作须回到相应入口重新审阅；本页不会执行这些操作。</p><p>这里是完整原作业记录。任务证据引用在项目任务入口单独分页读取；请核对任务 {detail.record.value.taskId} 和原尝试，引用存在不等于独立验收通过。</p><button disabled={blocked || stale} onClick={props.onTaskEvidence}>查看项目 {detail.projectId} 的任务与证据引用</button><details><summary>查看原记录字段</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(detail.record,null,2)}</pre></details></section>}
     {observation && observation.projectId === props.projectId && <WorkerObservations key={observation.projectId + ":" + observation.attemptId} projectId={observation.projectId} taskId={observation.taskId} attemptId={observation.attemptId} read={props.read} busy={blocked || stale} close={() => setObservation(null)}/>}
     {verification && verification.projectId === props.projectId && <WorkspaceVerificationResult key={verification.projectId + ":" + verification.id} projectId={verification.projectId} operationId={verification.id} taskId={verification.taskId} attemptId={verification.attemptId} read={props.read} busy={blocked || stale} close={() => setVerification(null)}/>}
     {prepareRecheck && prepareRecheck.projectId === props.projectId && <VerificationRecheckPrepare key={prepareRecheck.projectId + ":" + prepareRecheck.id} projectId={prepareRecheck.projectId} originalOperationId={prepareRecheck.id} taskId={prepareRecheck.taskId} attemptId={prepareRecheck.attemptId} read={props.read} send={props.send} busy={blocked || stale} close={() => setPrepareRecheck(null)}/>}

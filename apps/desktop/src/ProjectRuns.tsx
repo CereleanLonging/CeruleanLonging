@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useState } from "react";
 import { managementKeyMissing } from "./ManagementProviders";
@@ -99,7 +100,7 @@ export function ProjectRuns({
     )?.digest === review.setupDigest;
   return (
     <section className="workflow-plans" aria-label="项目持续执行">
-      <h2>项目持续执行</h2>
+      <HelpHeading as="h2" topic="ProjectRuns">项目持续执行</HelpHeading>
       <p className="secondary">
         启动后，核心会按已批准方案调用副指挥、编程模型、独立验收与主指挥收口。执行端只能访问各自绑定目录，评审只读取批准片段。桌面任务会等待你审阅并确认发送。退出工作台会按确认流程正常停止后台；暂停会阻止后续调度，已发送任务继续收集结果。
       </p>
@@ -119,7 +120,7 @@ export function ProjectRuns({
           return (
             <article className="panel" key={w.project.id}>
               <div className="section-heading">
-                <h3>{w.project.root.split(/[\\/]/).at(-1)}</h3>
+                <HelpHeading as="h3" topic="ProjectRuns">{w.project.root.split(/[\\/]/).at(-1)}</HelpHeading>
                 <span className="badge">
                   {run ? labels[run.state] : "已批准，尚未启动"}
                 </span>
@@ -178,7 +179,7 @@ export function ProjectRuns({
             aria-modal="true"
             aria-labelledby="run-review-title"
           >
-            <h2 id="run-review-title">启动持续项目执行</h2>
+            <HelpHeading as="h2" topic="ProjectRuns" id="run-review-title">启动持续项目执行</HelpHeading>
             <p>{review.root}</p>
             <p>
               主指挥：{review.chief}；副指挥：{review.deputy}。

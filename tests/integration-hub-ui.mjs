@@ -1,3 +1,4 @@
+import {openConfiguredConnections,openConnectionMethod} from "./connection-ui-helpers.mjs";
 // Offline UI checks for role grouping, credential boundaries, and path-action layout.
 import { writeFile, mkdtemp } from "node:fs/promises";
 import { resolve, join } from "node:path";
@@ -30,20 +31,20 @@ try {
   await page.screenshot({path:join(dir,"role-overview.png"),fullPage:true});
   cases.push("Three separate role headings; API/Key/CLI/desktop groups start collapsed without requests");
 
-  await chief.getByLabel("主指挥接入方式").selectOption("key");
+  await openConnectionMethod(page,'主指挥','key');
   assert.equal(await chief.locator('input[type="password"]').count(),1);
   assert.equal(await chief.getByRole("button",{name:"检查官方 API 连接",exact:true}).count(),0);
   await chief.getByLabel("OpenAI API Key",{exact:true}).fill("synthetic-test-value-12345");
-  await chief.getByLabel("主指挥接入方式").selectOption("api");
-  await chief.getByLabel("主指挥接入方式").selectOption("key");
+  await openConnectionMethod(page,'主指挥','api');
+  await openConnectionMethod(page,'主指挥','key');
   assert.equal(await chief.getByLabel("OpenAI API Key",{exact:true}).inputValue(),"");
-  await chief.getByLabel("主指挥接入方式").selectOption("desktop");
+  await openConnectionMethod(page,'主指挥','desktop');
   assert.equal(await chief.locator('input[type="password"]').count(),0);
   assert.equal(await chief.getByRole("button",{name:"扫描本地 Codex",exact:true}).count(),0);
-  assert.equal(await chief.locator('option[value="cli"]').isDisabled(),true);
-  cases.push("Chief has one selected entry; Key and API operations are separate, unsupported CLI stays disabled");
 
-  await chief.getByLabel("主指挥接入方式").selectOption("api");
+  cases.push("Chief method panels are collapsed and exclusive; Key and API operations remain separate");
+
+  await openConnectionMethod(page,'主指挥','api');
   await chief.getByLabel("API 服务",{exact:true}).selectOption("a6api");
   assert.equal(await chief.getByLabel("中转站地址（须与 Key 来源一致）").inputValue(),"a6ApiVip");
   await chief.getByRole("button",{name:"读取 A6API 模型列表",exact:true}).click();

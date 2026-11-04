@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import type { RegisteredValidator, WorktreeSetupDraft } from "./contracts";
 import { IntegrationFields } from "./IntegrationFields";
 
@@ -9,7 +10,7 @@ export function WorktreeFields({value, disabled, onChange, validators=[], disabl
   onChange: (value: WorktreeSetupDraft | undefined) => void;
 }) {
   return <section className="panel" aria-label="任务工作目录">
-    <h3>任务工作目录</h3>
+    <HelpHeading as="h3" topic="WorktreeFields">任务工作目录</HelpHeading>
     <label className="checkbox-label"><input type="checkbox" disabled={disabled} checked={!!value}
       onChange={e => onChange(e.target.checked ? {baseCommit:"", poolRoot:"", gitExecutable:""} : undefined)} />
       为每次编程尝试使用独立 Git 工作目录

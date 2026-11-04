@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import type { Command, DiagnosticFile } from "./contracts";
@@ -22,7 +23,7 @@ export function StartupIntentReview({file,busy,send}:{file:DiagnosticFile;busy:b
     {file.reviewed?<p>{closure?"已复核并保留原文；重启后请重新审阅关闭操作。":"已复核并保留原文。尝试编号禁止复用；仍需重新启动并校验。"}</p>:file.reviewDigest?<button className="secondary-button" disabled={blocked} onClick={()=>{setReview(file);setReason("");setAck(false);setMessage("");}}>{closure?"复核半写关闭记录…":"复核半写启动意图…"}</button>:<p>此记录不能直接复核，请保留原证据继续核查。</p>}
     {message&&!review&&<p role="status">{message}</p>}
     <dialog ref={dialog} className="panel modal unsent-assignment-dialog" aria-labelledby="startup-intent-review-title" onCancel={e=>{e.preventDefault();if(!blocked)setReview(null);}}>{review&&<>
-      <h2 id="startup-intent-review-title">{closure?"确认复核半写关闭记录":"确认复核半写启动意图"}</h2>
+      <HelpHeading as="h2" topic="StartupIntentReview" id="startup-intent-review-title">{closure?"确认复核半写关闭记录":"确认复核半写启动意图"}</HelpHeading>
       <p style={{overflowWrap:"anywhere"}}>{review.relativePath}</p>
       <p>{closure?"将保留关闭残片与有效启动身份，另存本次复核说明。重新启动后仍须使用原关闭入口再次审阅，复核本身不会关闭启动或改变任务结果。已有分配或执行证据冲突时仍会停在诊断模式。":"将保留原文件、另存本次说明，并永久禁止复用此尝试编号。无法还原的启动内容不会被补造，任务不会被标为完成或取消。若发现已有分配或执行证据，重启后仍会停在诊断模式。"}</p>
       <label htmlFor="startup-intent-review-reason">本次复核说明</label><textarea id="startup-intent-review-reason" value={reason} onChange={e=>setReason(e.target.value)} disabled={blocked} rows={3}/>

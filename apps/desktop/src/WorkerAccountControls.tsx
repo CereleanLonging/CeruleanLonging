@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import type { Command, SavedProjectSetup, Snapshot } from './contracts';
 
 export function WorkerAccountControls({saved,data,disabled,send}:{saved:SavedProjectSetup;data:Snapshot;disabled:boolean;send:(c:Command)=>Promise<boolean>}) {
@@ -11,7 +12,7 @@ export function WorkerAccountControls({saved,data,disabled,send}:{saved:SavedPro
   const names:Record<string,string>={pending:'等待本次 Windows 设置',ready:'账户设置完成；执行前会重新检查权限',failed:'账户设置未完成'};
   const choices=[{id:null,adapter:saved.setup.workerAdapter??'codex',model:saved.setup.worker?.model??saved.setup.desktopWorker?.modelLabel},...(saved.setup.profiles??[]).map(p=>({id:p.id,adapter:p.workerAdapter,model:p.worker?.model??p.desktopWorker?.modelLabel}))].filter(p=>['codex','qoder'].includes(p.adapter));
   return <section className="panel" aria-label="执行账户隔离">
-    <h3>Windows 执行账户</h3>
+    <HelpHeading as="h3" topic="WorkerAccountControls">Windows 执行账户</HelpHeading>
     <p>目录隔离项目的独立客观检查，以及 CLI 和桌面接入，使用各自绑定的普通账户。可先手动设置，或在审阅方案时勾选授权，由工作台自动发起一次准备。尚无管理员权限时，Windows 会请求 UAC。系统与公开运行依赖仍可读取。登录凭证分别保存，不复制当前用户的登录。</p>
     {authorized&&!setup&&<p role="status">方案已记录管理授权，尚未取得准备回执。不会自动补发；核对后可明确点击下方按钮发起一次。</p>}
     {setup&&<p role="status">{names[setup.state]??setup.state}{setup.message&&`：${setup.message}`}</p>}

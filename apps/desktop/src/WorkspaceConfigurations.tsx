@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceConfigurationDetail, WorkspaceConfigurationPage, WorkspaceConfigurationSummary } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -43,23 +44,23 @@ export function WorkspaceConfigurations(props: Props) {
     });
   }
   return <section className="panel" aria-label="已保存项目配置">
-    <div className="section-heading"><h3>已保存项目配置</h3><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新配置首页</button></div>
+    <div className="section-heading"><HelpHeading as="h3" topic="WorkspaceConfigurations">已保存项目配置</HelpHeading><button disabled={blocked} onClick={() => void run(current => readPage(0, null, [], current))}>刷新配置首页</button></div>
     <p>读取本地保存的原执行方案与摘要。查看配置不会启动规划、派发任务或授权执行。</p>
     {error && <p role="alert">{error} 上次内容仅供核对，请刷新后继续。</p>}
     {!page ? <p>配置清单尚未取得。</p> : <>
       <p>共 {page.total} 项已保存配置</p>
       {page.total === 0 ? <p>尚无已保存项目配置。</p> : page.entries.map(summary => <article className="panel" key={summary.projectId}>
-        <h4>项目 {summary.projectId}</h4><p style={{overflowWrap:"anywhere"}}>配置摘要：{summary.digest}</p>
+        <HelpHeading as="h4" topic="WorkspaceConfigurations">项目 {summary.projectId}</HelpHeading><p style={{overflowWrap:"anywhere"}}>配置摘要：{summary.digest}</p>
         <button disabled={blocked || stale} onClick={() => readDetail(summary)}>查看项目 {summary.projectId} 的原配置</button>
       </article>)}
       <nav aria-label="配置分页"><button disabled={blocked || stale || !back.length} onClick={() => void run(current => readPage(back.at(-1)!, page.revision, back.slice(0, -1), current))}>上一页</button><span>当前显示 {page.entries.length} / {page.total}</span><button disabled={blocked || stale || page.nextOffset === null} onClick={() => void run(current => readPage(page.nextOffset!, page.revision, [...back, page.offset], current))}>下一页</button></nav>
     </>}
     {detail && <section className="panel" aria-label="原项目配置详情">
-      <h4>项目 {detail.projectId} 的原配置</h4>
+      <HelpHeading as="h4" topic="WorkspaceConfigurations">项目 {detail.projectId} 的原配置</HelpHeading>
       <p style={{overflowWrap:"anywhere"}}>原配置摘要：{detail.saved.digest}</p>
       <p>配置版本 {detail.saved.setup.version} · 主指挥 {detail.saved.setup.chiefModel} · 副指挥 {detail.saved.setup.deputyModel}</p>
       <p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detail.saved.setup.requirement}</p>
-      <h5>完整原保存方案</h5><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(detail.saved.setup,null,2)}</pre>
+      <HelpHeading as="h5" topic="WorkspaceConfigurations">完整原保存方案</HelpHeading><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(detail.saved.setup,null,2)}</pre>
     </section>}
   </section>;
 }

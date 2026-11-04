@@ -10,6 +10,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 cerulean-domain = { path = "../../../crates/domain" }
 cerulean-core = { path = "../../../crates/core" }
+cerulean-cache = { path = "../../../crates/cache" }
 serde_json.workspace = true
 serde.workspace = true
 sha2.workspace = true

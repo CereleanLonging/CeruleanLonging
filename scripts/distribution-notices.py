@@ -35,7 +35,7 @@ def dependency_fingerprint(root):
     npm['packages']['']['version'] = '<product-version>'
     manifests = {}
     for name in ('Cargo.toml', 'crates/core/Cargo.toml', 'crates/adapters/Cargo.toml',
-                 'crates/domain/Cargo.toml', 'apps/desktop/src-tauri/Cargo.toml'):
+                 'crates/domain/Cargo.toml', 'crates/cache/Cargo.toml', 'apps/desktop/src-tauri/Cargo.toml'):
         value = tomllib.loads((root / name).read_text('utf-8'))
         if 'package' in value:
             value['package']['version'] = '<product-version>'

@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useState } from "react";
 import type { BudgetSettings, PriceBand, ProjectSetupDraft, RequestedService, ScopedPriceQuote } from "./contracts";
 import { decimalAmount, parseDecimal, type CurrencyBudgetProps } from "./CurrencyBudgetFields";
@@ -77,16 +78,16 @@ export function ScopedCurrencyBudgetFields({ value, resetValue, draft, resetKey,
   }
   const update = (i: number, patch: Partial<QuoteRow>) => publish(amount, rows.map((r, j) => j === i ? { ...r, ...patch } : r));
   return <section className="panel" aria-label="项目分档金额预算">
-    <h3>服务档位与上下文报价</h3>
+    <HelpHeading as="h3" topic="ScopedCurrencyBudgetFields">服务档位与上下文报价</HelpHeading>
     <label className="checkbox-label"><input id="scoped-currency-enabled" type="checkbox" checked={!!value} onChange={() => { onChange(undefined); onInvalid(undefined); }} />设置整个项目累计限额</label>
     <p role="status">配置可保存供审阅；当前版本尚不能执行使用金额预算的项目。保存不会调用模型。</p>
     <label htmlFor="scoped-currency-limit">累计上限（美元）</label><input id="scoped-currency-limit" inputMode="decimal" value={amount} onChange={e => publish(e.target.value, rows)} />
     <p>输入区间包含普通输入、缓存读取和缓存写入，起点和终点均包含。价格按整次请求计算；会话累计重定价需另外核对。省略的价格或用量不能当作零。</p>
     <button type="button" onClick={() => { try { publish(amount, [...rows, ...models(draft).filter(model => !rows.some(r => r.model === model)).map(newRow)]); } catch (e) { setNotice(e instanceof Error ? e.message : "配置不支持"); } }}>补充当前模型的分档报价</button>
-    {rows.map((r, i) => <fieldset className="panel" key={i}><legend>OpenAI · {r.model}</legend>
+    {rows.map((r, i) => <fieldset className="panel" key={i}><HelpHeading as="legend" topic="ScopedCurrencyBudgetFields">OpenAI · {r.model}</HelpHeading>
       <p>请求档位：{r.requested.kind === "explicit" ? r.requested.tier : "未指定，随项目设置"}。实际档位以响应为准。</p>
       {([['models', '允许返回的具体模型（每行一个）'], ['services', '允许返回的实际服务档位（每行一个）']] as const).map(([key, label]) => <div key={key}><label htmlFor={`scoped-${i}-${key}`}>{label}</label><textarea id={`scoped-${i}-${key}`} value={r[key]} onChange={e => update(i, { [key]: e.target.value })} /></div>)}
-      {r.bands.map((b, k) => <fieldset key={k}><legend>价格区间 {k + 1}</legend>{([['model', '实际模型'], ['service', '实际档位'], ['from', '输入起点（token）'], ['through', '输入终点（token）'], ['input', '普通输入 · 美元/百万 token'], ['output', '输出 · 美元/百万 token'], ['read', '缓存读取（未知留空）'], ['write', '缓存写入（未知留空）']] as const).map(([key, label]) => <div key={key}><label htmlFor={`scoped-${i}-band-${k}-${key}`}>{label}</label><input id={`scoped-${i}-band-${k}-${key}`} value={b[key]} onChange={e => update(i, { bands: r.bands.map((v, index) => index === k ? { ...v, [key]: e.target.value } : v) })} /></div>)}
+      {r.bands.map((b, k) => <fieldset key={k}><HelpHeading as="legend" topic="ScopedCurrencyBudgetFields">价格区间 {k + 1}</HelpHeading>{([['model', '实际模型'], ['service', '实际档位'], ['from', '输入起点（token）'], ['through', '输入终点（token）'], ['input', '普通输入 · 美元/百万 token'], ['output', '输出 · 美元/百万 token'], ['read', '缓存读取（未知留空）'], ['write', '缓存写入（未知留空）']] as const).map(([key, label]) => <div key={key}><label htmlFor={`scoped-${i}-band-${k}-${key}`}>{label}</label><input id={`scoped-${i}-band-${k}-${key}`} value={b[key]} onChange={e => update(i, { bands: r.bands.map((v, index) => index === k ? { ...v, [key]: e.target.value } : v) })} /></div>)}
         <button type="button" className="secondary-button" onClick={() => update(i, { bands: r.bands.filter((_, j) => j !== k) })}>移除区间 {k + 1}</button></fieldset>)}
       <button type="button" onClick={() => update(i, { bands: [...r.bands, newBand(r.models.split(/\r?\n/)[0].trim(), r.services.split(/\r?\n/)[0].trim())] })}>添加价格区间</button>
       {([['from', '生效时间（例如 2026-10-16T00:00:00+08:00）'], ['until', '失效时间（带时区）'], ['source', '报价来源'], ['countFee', '单次计数费用上限（美元，未知留空）'], ['countBody', '计数请求大小上限（字节）'], ['countSource', '计数费用独立来源']] as const).map(([key, label]) => <div key={key}><label htmlFor={`scoped-${i}-${key}`}>{label}</label><input id={`scoped-${i}-${key}`} value={r[key]} onChange={e => update(i, { [key]: e.target.value })} /></div>)}
@@ -98,7 +99,7 @@ export function ScopedCurrencyBudgetFields({ value, resetValue, draft, resetKey,
 }
 
 export function ScopedCurrencyBudgetReview({ value }: { value: BudgetSettings }) {
-  return <section className="scoped-price-review" aria-label="批准的金额预算"><h4>项目累计上限：${decimalAmount(value.limitUsdNanos, 9)}</h4><p>主副指挥和执行者共用额度。按原批准报价核算；未知费用保留预留。以下条款按每次请求计算。</p>
+  return <section className="scoped-price-review" aria-label="批准的金额预算"><HelpHeading as="h4" topic="ScopedCurrencyBudgetFields">项目累计上限：${decimalAmount(value.limitUsdNanos, 9)}</HelpHeading><p>主副指挥和执行者共用额度。按原批准报价核算；未知费用保留预留。以下条款按每次请求计算。</p>
     {(value.scopedQuotes ?? []).map((q, i) => <div key={i}><strong>OpenAI · {q.requestedModel}</strong><p>请求档位：{q.requestedService.kind === "explicit" ? q.requestedService.tier : "未指定"}；允许实际档位：{q.reportedServices.join("、")}；允许实际模型：{q.reportedModels.join("、")}</p>
       <div className="table-scroll"><table><thead><tr><th>实际模型/档位</th><th>完整输入 token</th><th>输入/输出（美元/百万）</th><th>缓存读/写（美元/百万）</th></tr></thead><tbody>{q.bands.map((b, k) => <tr key={k}><td>{b.actualModel} / {b.actualService}</td><td>{b.input.from} 至 {b.input.through}（含两端）</td><td>{decimalAmount(b.rates.input, 6)} / {decimalAmount(b.rates.output, 6)}</td><td>{b.rates.cacheRead === null ? "未知" : decimalAmount(b.rates.cacheRead, 6)} / {b.rates.cacheWrite === null ? "未知" : decimalAmount(b.rates.cacheWrite, 6)}</td></tr>)}</tbody></table></div>
       <p>有效期：{q.validFrom} 至 {q.validUntil}；来源：{q.source}</p><p>计数费用：{q.countPrice ? `$${decimalAmount(q.countPrice.maximumUsdNanos, 9)} / 次；请求不超过 ${q.countPrice.maximumBodyBytes} 字节；来源：${q.countPrice.source}；成功后仍待账单核销。` : "未知，不代表免费。"}</p>

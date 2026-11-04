@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceHistoryPage, WorkspaceHistoryDetail } from "./contracts";
 import type { WorkspaceReader } from "./WorkspaceBrowser";
@@ -116,7 +117,7 @@ export function WorkspaceHistory({
   const blocked = busy || loading || !enabled;
   return (
     <section className="panel" aria-label="独立历史记录">
-      <h2>{projectId ? `项目 ${projectId} 的执行账本` : "本地操作记录"}</h2>
+      <HelpHeading as="h2" topic="WorkspaceHistory">{projectId ? `项目 ${projectId} 的执行账本` : "本地操作记录"}</HelpHeading>
       <button disabled={blocked} onClick={() => void load(0, null, [])}>
         刷新历史首页
       </button>

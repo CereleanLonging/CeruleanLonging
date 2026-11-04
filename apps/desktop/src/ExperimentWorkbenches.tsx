@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -41,7 +42,7 @@ export function ExperimentWorkbenches({ desktop, client = api, inline = false }:
     <p style={{ overflowWrap: "anywhere" }}>{desktop ? current : "浏览器预览"}</p>
     {!inline && <button className="secondary-button" disabled={!desktop} onClick={() => setVisible(true)}>实验工作台</button>}
     {(inline || visible) && <div className={inline ? undefined : "modal-backdrop"}><section className={inline ? "panel" : "modal panel experiment-workbench-dialog"} role={inline ? "region" : "dialog"} aria-modal={inline ? undefined : true} aria-label={inline ? "独立实验工作台管理" : "独立实验工作台"} style={inline ? undefined : { maxHeight: "85vh", overflow: "auto" }}>
-      <h2>实验工作台管理</h2>
+      <HelpHeading as="h2" topic="ExperimentWorkbenches">实验工作台管理</HelpHeading>
       <p>实验在独立窗口和数据目录中运行。打开其他工作台会保留当前窗口及后台任务；退出时按所属窗口的流程核对并停止后台。</p>
       <p style={{ overflowWrap: "anywhere" }}>当前：{catalog?.currentDirectory ?? "未读取"}</p>
       <p>新建时会保存空目录冷备份并启用实验数据保护。凭证需在新窗口的接入管理中单独配置；创建和打开均不派发模型任务。</p>
@@ -70,7 +71,7 @@ export function ExperimentWorkbenches({ desktop, client = api, inline = false }:
       <button className="secondary-button" disabled={busy} onClick={() => void action(async () => { await client.open("main"); setNotice("已打开日常工作台窗口。"); })}>打开日常工作台</button>
       </div>
       {catalog?.entries.map(entry => <article key={entry.id} className="panel">
-        <h3>{entry.id} · {entry.ready ? "可打开" : "需核查"}</h3>
+        <HelpHeading as="h3" topic="ExperimentWorkbenches">{entry.id} · {entry.ready ? "可打开" : "需核查"}</HelpHeading>
         <p style={{ overflowWrap: "anywhere" }}>{entry.directory}</p>
         {entry.error && <p role="alert">{entry.error}。原目录保留，不自动修复或重建。</p>}
         <button className="secondary-button" disabled={busy || !entry.ready} onClick={() => void action(async () => { await client.open(entry.id); setNotice(`已打开 ${entry.id} 窗口，当前工作台保持。`); })}>打开 {entry.id}</button>

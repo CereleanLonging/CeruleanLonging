@@ -1,20 +1,20 @@
 {
   "name": "cerulean-longing",
-  "version": "0.1.43",
+  "version": "0.1.44",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "dev": "node scripts/cache-task.mjs frontend dev",
+    "build": "node scripts/cache-task.mjs frontend build",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
     "desktop:dev": "node scripts/desktop.mjs dev",
     "desktop:build": "node scripts/desktop.mjs build",
     "desktop:package": "node scripts/desktop.mjs package",
-    "contracts": "cargo run -p cerulean-domain --bin export-contracts",
+    "contracts": "node scripts/cache-task.mjs contracts",
     "test:ipc": "node --test tests/core-ipc.test.mjs",
     "test:service": "node --test tests/resident-service.test.mjs"
   },

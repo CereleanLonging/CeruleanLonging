@@ -1,3 +1,4 @@
+import { HelpHeading } from "./HelpHeading";
 import { useEffect, useRef, useState } from "react";
 import { ErrorText } from "./ErrorText";
 import type { SavedProjectSetup } from "./contracts";
@@ -204,7 +205,7 @@ export function MarkdownImport({
       )}
       {review && (
         <div className="panel" aria-label="主指挥文档提炼预览">
-          <h4>{review.filename} · 待确认</h4>
+          <HelpHeading as="h4" topic="MarkdownImport">{review.filename} · 待确认</HelpHeading>
           {mode === "plan" && (
             <label>
               提炼后的计划名称
