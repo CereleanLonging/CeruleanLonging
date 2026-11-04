@@ -9,6 +9,7 @@
 - 常规 `npm run build`、`npm run dev`、`npm run contracts`、桌面构建及 `scripts/check.ps1`、`scripts/lint.ps1` 使用受管作业。
 - 每个作业的Rust、Vite及临时文件落在源码工程 `.temp/build-cache/jobs/<作业标识>`。
 - 作业结束后清理缓存文件，保留全部空目录。构建失败也进入收尾。强制终止或系统中断后留下的缓存可在维护页重新扫描并清理。
+- 构建主任务结束后，超时未退出的所属子进程由本次任务进程组收尾，确认退出后再删除缓存，并保留主任务退出结果。
 - 直接运行Cargo时，默认编译目录为 `.temp/build-cache/manual/cargo`，可在维护页清理。需要任务结束自动收尾时，使用上述受管入口。
 - 最终程序保存在 `target/debug`、`target/release`，打包流程将安装器和配套载荷复制到这些输出目录后再清理临时编译文件。
 
@@ -28,6 +29,7 @@ This feature manages compiler and build caches belonging to the CeruleanLonging 
 
 - Standard frontend, desktop, contract-export, check and lint entry points allocate a managed job under `.temp/build-cache/jobs/<job-id>`.
 - Rust, Vite and temporary outputs share that job directory. Cleanup runs after success or failure and preserves empty directories. Interrupted jobs can be reviewed and cleaned from Maintenance.
+- After the main task exits, its private process group reaps lingering descendants after a grace period. Cache deletion waits for their exit, preserving the main task result.
 - Direct Cargo commands use `.temp/build-cache/manual/cargo`. Use the managed entry points for automatic end-of-task cleanup.
 - Final program files and installer outputs are staged outside disposable compiler-cache subdirectories before cleanup.
 - The bottom Maintenance panel shows current, reclaimable and cumulatively reclaimed bytes, scan counts, active jobs and recent operations. Explicit scans save measurements.

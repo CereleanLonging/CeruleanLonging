@@ -36,4 +36,6 @@ if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run test:ipc
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run test:service
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
+node tests/cache-runner.mjs
 exit $LASTEXITCODE

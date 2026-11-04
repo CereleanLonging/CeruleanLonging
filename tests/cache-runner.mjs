@@ -54,6 +54,19 @@ for (const job of jobs) assert((await readdir(join(root, ".temp/build-cache/jobs
 assert.equal(query("status").cumulativeCleanedBytes, 29);
 assert.equal(query("status").pendingOperations, 0);
 cases.push("empty job directories and final output remain, persisted totals do not double count");
+
+if (process.platform === "win32") {
+  const leftoverScript = `const fs=require('fs'),path=require('path'),{spawn}=require('child_process');fs.writeFileSync(path.join(process.env.CERULEAN_CACHE_SESSION,'leftover.tmp'),'leftover');const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{windowsHide:true,detached:true,stdio:'ignore'});console.log(child.pid);child.unref();`;
+  const leftover = spawnSync(manager, ["run", root, process.execPath, "-e", leftoverScript], { encoding: "utf8", windowsHide: true, timeout: 70000 });
+  assert.equal(leftover.status, 0, leftover.stderr);
+  const descendantPid = Number(leftover.stdout.trim());
+  assert(Number.isInteger(descendantPid) && descendantPid > 0);
+  assert.throws(() => process.kill(descendantPid, 0), { code: "ESRCH" });
+  assert.match(leftover.stderr, /收尾本次任务残留/);
+  assert.equal(query("status").totalBytes, 0);
+  assert.equal(query("status").cumulativeCleanedBytes, 37);
+  cases.push("successful task reaps its lingering owned descendant before cleaning the cache");
+}
 const result = { status: "passed", cases, run, providerCalls: 0, terminatedOwnedTestRunner: true };
 await writeFile(join(run, "result.json"), JSON.stringify(result, null, 2));
 console.log(JSON.stringify(result));

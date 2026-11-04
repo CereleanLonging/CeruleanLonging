@@ -66,7 +66,8 @@ pub fn run(command: &mut Command) -> Result<ExitStatus, String> {
             return Err("构建进程绑定完成，但启动线程未能恢复".into());
         }
         let status = child.wait().map_err(|e| e.to_string())?;
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let mut deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let mut stopped_descendants = false;
         loop {
             let mut accounting: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = std::mem::zeroed();
             if QueryInformationJobObject(
@@ -83,8 +84,21 @@ pub fn run(command: &mut Command) -> Result<ExitStatus, String> {
                 return Ok(status);
             }
             if std::time::Instant::now() >= deadline {
-                // Closing our Job ends only descendants started by this build task.
-                return Err("构建主程序已退出，附属构建进程收尾超时，缓存待再次核对".into());
+                if stopped_descendants {
+                    return Err("附属构建进程停止后仍未确认退出，缓存待再次核对".into());
+                }
+                // The task entry point has finished and reported its result. Reap
+                // only descendants still held by this task's private Job, then
+                // confirm their exit before allowing cache deletion.
+                if TerminateJobObject(job.0, 1) == 0 {
+                    return Err(std::io::Error::last_os_error().to_string());
+                }
+                eprintln!(
+                    "构建主程序已退出，正在收尾本次任务残留的 {} 个附属进程",
+                    accounting.ActiveProcesses
+                );
+                stopped_descendants = true;
+                deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
