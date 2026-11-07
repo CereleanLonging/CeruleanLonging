@@ -43,3 +43,5 @@ finally {
     $record|ConvertTo-Json -Compress|Write-Host
 }
 if(-not $record.passed){exit 1}
+cargo test -p cerulean-core --lib --locked windows_worker_account::acl_tests::parent_acl_accepts_attributes_and_rejects_listing_writes_or_inheritance -- --exact --test-threads=1
+exit $LASTEXITCODE

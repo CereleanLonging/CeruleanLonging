@@ -25,7 +25,7 @@ fn parent_acl_accepts_attributes_and_rejects_listing_writes_or_inheritance() {
         (0x1000a0, "CI", false),
     ] {
         let sddl: Vec<u16> = format!(
-            "D:P(A;OICI;FA;;;{owner})(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;{flags};0x{mask:x};;;{worker})\0"
+            "O:{owner}D:P(A;OICI;FA;;;{owner})(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;{flags};0x{mask:x};;;{worker})\0"
         )
         .encode_utf16()
         .collect();
@@ -44,16 +44,19 @@ fn parent_acl_accepts_attributes_and_rejects_listing_writes_or_inheritance() {
         let result = unsafe {
             SetFileSecurityW(
                 path.as_ptr(),
-                DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+                OWNER_SECURITY_INFORMATION
+                    | DACL_SECURITY_INFORMATION
+                    | PROTECTED_DACL_SECURITY_INFORMATION,
                 descriptor,
             )
         };
         unsafe { LocalFree(descriptor) };
         assert_ne!(result, 0, "{}", std::io::Error::last_os_error());
+        let checked = check_acl(directory.path(), &owner, None, true);
         assert_eq!(
-            check_acl(directory.path(), &owner, None, true).is_ok(),
+            checked.is_ok(),
             accepted,
-            "mask={mask:x}, flags={flags}"
+            "mask={mask:x}, flags={flags}, result={checked:?}"
         );
         assert!(check_acl(directory.path(), &owner, None, false).is_err());
     }
