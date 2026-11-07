@@ -15,6 +15,7 @@ jobs:
       - run: ./scripts/check.ps1
         env:
           CERULEAN_RUN_NATIVE_ACCOUNT_TESTS: '1'
+          CERULEAN_CI_CORE_TEST_MEMORY_GIB: '4'
       - name: Check generated contract drift
         run: git diff --exit-code -- apps/desktop/src/contracts.ts
       - name: Build core and desktop

@@ -28,6 +28,10 @@ cargo build -p cerulean-checker --locked
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 # Process fixtures enforce wall-clock and process-tree boundaries. Serialize
 # them so concurrent hashing and native launches do not consume each other's budgets.
+if ($env:GITHUB_ACTIONS -eq 'true' -and $env:CERULEAN_CI_CORE_TEST_MEMORY_GIB -eq '4') {
+    & (Join-Path $ceruleanRoot '.github/scripts/precompile-core-tests.ps1')
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+}
 cargo test --workspace --exclude cerulean-desktop --locked -- --test-threads=1
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 if ($env:CERULEAN_RUN_NATIVE_ACCOUNT_TESTS -eq '1') {

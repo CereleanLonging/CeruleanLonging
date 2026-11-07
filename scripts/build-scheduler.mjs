@@ -43,7 +43,7 @@ const complete={at:new Date().toISOString(),program,workload,...record,exitCode:
   memoryBasis:rust?'Lowest successful full-release budget so far: 3 GiB; 2.17 GiB failed. Not an absolute minimum.':'A 1 GiB budget for lightweight frontend tasks; revalidated by each completed command.',
   previousSuccessfulMeasurement:prior??null};
 writeFileSync(report,JSON.stringify(complete,null,2));
-if(result.status===0&&record?.state==='completed'&&Number.isSafeInteger(record.peakJobMemoryBytes)&&record.peakJobMemoryBytes>0){
+if(result.status===0&&record?.state==='completed'&&Number.isSafeInteger(record.peakJobMemoryBytes)&&record.peakJobMemoryBytes>0&&record.peakJobMemoryBytes<=memoryBytes){
   const entry={at:complete.at,budgetBytes:memoryBytes,peakJobMemoryBytes:record.peakJobMemoryBytes,requiredAvailableBytes:record.requiredAvailableBytes,receipt:report};
   calibration.profiles[workload]={...entry,highestSuccessfulPeakBytes:Math.max(prior?.highestSuccessfulPeakBytes??0,entry.peakJobMemoryBytes)};
   try{writeFileSync(calibrationPath,JSON.stringify(calibration,null,2));}catch(error){console.error('内存测量汇总未保存；完整回执仍在：'+report+' ('+error.message+')');}
