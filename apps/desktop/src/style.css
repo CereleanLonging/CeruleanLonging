@@ -415,99 +415,12 @@ h3 {
 .stats strong small {
   font-size: 18px;
 }
-.hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 40px;
-  align-items: center;
-  background: linear-gradient(112deg, #edf3f6, #e9f1f3);
-  border: 1px solid #dae5e9;
-  border-radius: 12px;
-  padding: 30px 34px;
-  margin-bottom: 26px;
-  overflow: hidden;
-}
 .section-tag {
   font-size: 10px;
   letter-spacing: 1px;
   color: #61838e;
   display: block;
   margin-bottom: 14px;
-}
-.hero h2 {
-  font-size: 28px;
-  font-weight: 500;
-  line-height: 1.6;
-  letter-spacing: -0.6px;
-  margin-bottom: 10px;
-}
-.hero p {
-  font-size: 11px;
-  line-height: 2;
-}
-.team-map {
-  flex: 0 0 270px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3px 0;
-}
-.node {
-  text-align: center;
-  padding: 12px 20px;
-  border: 1px solid #cbdbe1;
-  border-radius: 8px;
-  background: #f9fcfd;
-  width: 180px;
-  box-shadow: 0 5px 14px #24566b08;
-  font-size: 12px;
-  color: #3d5d6b;
-}
-.node span {
-  display: block;
-  font-size: 9px;
-  color: #839ba6;
-  margin-top: 5px;
-}
-.user-node {
-  width: 132px;
-  padding: 9px;
-  font-size: 11px;
-}
-.chief-node {
-  border-color: #a6c9d2;
-  background: #e0eef2;
-}
-.connector {
-  height: 15px;
-  width: 1px;
-  background: #b3cbd3;
-}
-.branches {
-  display: flex;
-  gap: 8px;
-  position: relative;
-  padding-top: 23px;
-}
-.branches:before {
-  content: "";
-  position: absolute;
-  left: 35px;
-  right: 35px;
-  top: 10px;
-  height: 10px;
-  border: 1px solid #bdced4;
-  border-bottom: 0;
-}
-.branches span {
-  position: relative;
-  display: block;
-  border: 1px solid #d1e0e5;
-  border-radius: 5px;
-  padding: 8px 10px;
-  background: #f7fafb;
-  font-size: 9px;
-  color: #6e8b98;
 }
 .panel {
   background: #fff;
@@ -817,16 +730,6 @@ form .primary {
   }
   .content {
     padding: 28px 25px;
-  }
-  .hero {
-    padding: 25px;
-    gap: 20px;
-  }
-  .team-map {
-    flex-basis: 230px;
-  }
-  .hero h2 {
-    font-size: 25px;
   }
   .page-heading h1 {
     font-size: 23px;

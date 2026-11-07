@@ -9,6 +9,7 @@ import type { Command, Snapshot, HistoricalResult, CommandResult, WorkspaceOverv
 import { submitAndRead } from "./commandSubmission";
 import { WorkspaceBrowser } from "./WorkspaceBrowser";
 import { WorkspaceHistory } from "./WorkspaceHistory";
+import { WorkflowMap } from "./WorkflowMap";
 import { ManagementCountPanel } from "./ManagementCountPanel";
 import { ApiCountPanel } from "./ApiCountPanel";
 import { ApiGenerationPanel } from "./ApiGenerationPanel";
@@ -300,46 +301,7 @@ export function App() {
                   <small>连接状态与可用能力请在接入管理中核对</small>
                 </div>
               </section>
-              <section className="hero">
-                <div>
-                  <span className="section-tag">从计划到交付</span>
-                  <HelpHeading as="h2" topic="App">
-                    你决定方向，
-                    <br />
-                    工作台记录每一步。
-                  </HelpHeading>
-                  <p>
-                    主指挥制定方案，用户确认后交由副指挥分派。
-                    <br />
-                    配置模型与执行者，审阅计划后批准执行，并核对产物与验收结果。
-                  </p>
-                  <button
-                    className="primary"
-                    disabled={!workspace || busy}
-                    onClick={() => configure("chief")}
-                  >
-                    创建第一份计划 <span>↗</span>
-                  </button>
-                </div>
-                <div className="team-map">
-                  <div className="node user-node">
-                    你<span>需求 · 确认</span>
-                  </div>
-                  <div className="connector" />
-                  <div className="node chief-node">
-                    主指挥<span>OpenAI · 方案与收口</span>
-                  </div>
-                  <div className="connector" />
-                  <div className="node deputy-node">
-                    副指挥<span>OpenAI · 调度与监督</span>
-                  </div>
-                  <div className="branches">
-                    <span>编程 Agent</span>
-                    <span>桌面 Agent</span>
-                    <span>API 模型</span>
-                  </div>
-                </div>
-              </section>
+              <WorkflowMap />
               <section className="panel">
                 <div className="section-heading">
                   <HelpHeading as="h2" topic="App">最近记录</HelpHeading>

@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="1756" viewBox="0 0 1180 1756" role="img" aria-labelledby="title description" lang="zh">
+<title id="title">CeruleanLonging 工作台完整流程</title>
+<desc id="description">0.1.48 · 计划、执行、逐任务检查、整体盲评与交付</desc>
+<defs><marker id="forward" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 1 L7 4.5 L0 8" fill="none" stroke="#28778a" stroke-width="1.5"/></marker><marker id="return" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 1 L7 4.5 L0 8" fill="none" stroke="#a76536" stroke-width="1.5"/></marker></defs>
+<style>text {font-family:Inter,'Segoe UI','Microsoft YaHei',sans-serif;fill:#263c4b} .heading {font-size:22px;font-weight:600} .body {font-size:18px} .note-title {font-size:18px;font-weight:600} .note-body {font-size:16px} .edge-label {font-size:15px;fill:#965b30}</style>
+<rect width="1180" height="1756" rx="16" fill="#f8fafc"/>
+<text x="40" y="39" font-size="26" font-weight="600">CeruleanLonging 工作台完整流程</text>
+<text x="40" y="66" font-size="16" fill="#627681">0.1.48 · 计划、执行、逐任务检查、整体盲评与交付</text>
+<path d="M550 188 V222" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 330 V364" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 468 V502" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 610 V644" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 760 V794" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 910 V944" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 1062 V1096" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 1240 V1278" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 1382 V1420" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M760 704 H820" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M962 648 V558 H760" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M962 762 V840" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M1104 892 H1148 V278 H760" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M760 1174 H962 V986" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M760 1332 H1118 V936 H1104" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M760 1476 H1118 V1332" fill="none" stroke="#a76536" stroke-width="2"/>
+<g><rect x="340" y="96" width="420" height="92" rx="12" fill="#edf6f6" stroke="#cddce3"/><text class="heading" x="550" y="125" text-anchor="middle">配置项目与接入</text>
+<text class="body" x="550" y="151" text-anchor="middle">关联项目与主指挥目录，保存模型与会话配置</text>
+<text class="body" x="550" y="174" text-anchor="middle">主指挥 1 个 · 副指挥 1 个 · 执行身份最多 5 个</text>
+</g>
+<g><rect x="340" y="226" width="420" height="104" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="255" text-anchor="middle">需求整理与主指挥问答</text>
+<text class="body" x="550" y="281" text-anchor="middle">文本、MD 提炼、工作流导入，经确认形成草稿</text>
+<text class="body" x="550" y="304" text-anchor="middle">主指挥澄清需求，拟定任务、交付与客观测试</text>
+</g>
+<g><rect x="340" y="368" width="420" height="100" rx="12" fill="#edf6f6" stroke="#cddce3"/><text class="heading" x="550" y="397" text-anchor="middle">用户审阅方案 → 批准 → 明确启动</text>
+<text class="body" x="550" y="423" text-anchor="middle">核对执行范围、目录、检查标准与本次权限</text>
+<text class="body" x="550" y="446" text-anchor="middle">需要隔离账户时，按批准范围准备 Windows 环境</text>
+</g>
+<g><rect x="340" y="506" width="420" height="104" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="535" text-anchor="middle">副指挥分配 → 执行端完成与提交</text>
+<text class="body" x="550" y="561" text-anchor="middle">按已批准方案分派任务，核对各执行端边界</text>
+<text class="body" x="550" y="584" text-anchor="middle">执行端提交稳定成果，副指挥监督并记录反馈</text>
+</g>
+<g><rect x="340" y="648" width="420" height="112" rx="12" fill="#f3f0fa" stroke="#cddce3"/><text class="heading" x="550" y="677" text-anchor="middle">独立检查工具逐任务核验</text>
+<text class="body" x="550" y="703" text-anchor="middle">cerulean-checker.exe</text>
+<text class="body" x="550" y="726" text-anchor="middle">核对交付完整性，在封存副本运行批准测试</text>
+<text class="body" x="550" y="749" text-anchor="middle">记录真实断言、失败、超时与缺失证据</text>
+</g>
+<g><rect x="340" y="798" width="420" height="112" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="827" text-anchor="middle">主指挥接受任务 → 核心汇总交付</text>
+<text class="body" x="550" y="853" text-anchor="middle">全部任务检查合格并被接受后形成只读汇总</text>
+<text class="body" x="550" y="876" text-anchor="middle">独立盲评工具核验报告归档，核心持久保存</text>
+</g>
+<g><rect x="340" y="948" width="420" height="114" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="977" text-anchor="middle">用户批准评审 → 副指挥确认就绪</text>
+<text class="body" x="550" y="1003" text-anchor="middle">独立工具准备脱敏源码分片与检查摘要</text>
+<text class="body" x="550" y="1026" text-anchor="middle">用户审阅材料、参评名册、判据和请求额度</text>
+</g>
+<g><rect x="340" y="1100" width="420" height="140" rx="12" fill="#f3f0fa" stroke="#cddce3"/><text class="heading" x="550" y="1129" text-anchor="middle">各席独立投票 → 独立验收核验</text>
+<text class="body" x="550" y="1155" text-anchor="middle">主指挥、副指挥、各执行身份，每席一票</text>
+<text class="body" x="550" y="1178" text-anchor="middle">cerulean-verifier.exe 核验评分过程与票据</text>
+<text class="body" x="550" y="1201" text-anchor="middle">各票密封，收齐后揭晓原名册的完整结果</text>
+<text class="body" x="550" y="1224" text-anchor="middle">全票通过 · 每席 ≥80% · 全体平均 ≥90%</text>
+</g>
+<g><rect x="340" y="1282" width="420" height="100" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="1311" text-anchor="middle">主指挥整体功能测试</text>
+<text class="body" x="550" y="1337" text-anchor="middle">盲评达标后开放，执行批准的整体检查</text>
+<text class="body" x="550" y="1360" text-anchor="middle">使用只读交付与独立测试临时目录，核对结果</text>
+</g>
+<g><rect x="340" y="1424" width="420" height="104" rx="12" fill="#edf6f6" stroke="#cddce3"/><text class="heading" x="550" y="1453" text-anchor="middle">用户核对交付 → 确认最终验收</text>
+<text class="body" x="550" y="1479" text-anchor="middle">核对整体产物与功能测试证据</text>
+<text class="body" x="550" y="1502" text-anchor="middle">确认后完成验收，交接与原始过程记录落本地</text>
+</g>
+<g><rect x="24" y="96" width="264" height="174" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="125">日常与独立实验台</text>
+<text class="note-body" x="40" y="155">两者沿用相同项目流程。</text>
+<text class="note-body" x="40" y="178">实验窗口、数据、凭证独立。</text>
+<text class="note-body" x="40" y="201">创建实验后，再明确启动任务。</text>
+<text class="note-body" x="40" y="224">按实际接入能力提供执行通道。</text>
+</g>
+<g><rect x="24" y="506" width="264" height="196" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="535">执行目录边界</text>
+<text class="note-body" x="40" y="565">主指挥使用独立需求目录。</text>
+<text class="note-body" x="40" y="588">副指挥经核心只读核对需求。</text>
+<text class="note-body" x="40" y="611">执行端各自绑定固定子目录。</text>
+<text class="note-body" x="40" y="634">模型只读写分配给自己的目录。</text>
+<text class="note-body" x="40" y="657">副指挥分配互不重叠的源码。</text>
+<text class="note-body" x="40" y="680">已登记身份复用原目录。</text>
+</g>
+<g><rect x="24" y="798" width="264" height="132" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="827">交付衔接</text>
+<text class="note-body" x="40" y="857">报告单向交给独立盲评工具。</text>
+<text class="note-body" x="40" y="880">发现冲突或成果改变时停止。</text>
+<text class="note-body" x="40" y="903">显式集成任务沿批准方案执行。</text>
+</g>
+<g><rect x="24" y="1100" width="264" height="258" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="1129">独立评审与证据分</text>
+<text class="note-body" x="40" y="1159">模型只接收批准的脱敏分片。</text>
+<text class="note-body" x="40" y="1182">材料通道封闭，投票保持密封。</text>
+<text class="note-body" x="40" y="1205">工具调用或过程无法核验时，</text>
+<text class="note-body" x="40" y="1228">该票按未通过处理，证据分为 0。</text>
+<text class="note-body" x="40" y="1251">指令遵循与独立检查各占 50%。</text>
+<text class="note-body" x="40" y="1274">按全部原席位计算整体平均。</text>
+<text class="note-body" x="40" y="1297">这些是初始证据分，尚未校准。</text>
+<text class="note-body" x="40" y="1320">云端模型推理仍需联网。</text>
+</g>
+<g><rect x="820" y="648" width="284" height="114" rx="10" fill="#fff4e9"/><text class="note-title" x="836" y="677">检查未通过 → 副指挥返工</text>
+<text class="note-body" x="836" y="707">保留原提交、失败与检查记录。</text>
+<text class="note-body" x="836" y="730">原范围内修正，以新尝试重交。</text>
+</g>
+<g><rect x="820" y="844" width="284" height="142" rx="10" fill="#fff4e9"/><text class="note-title" x="836" y="873">主指挥修订 → 用户重新批准</text>
+<text class="note-body" x="836" y="903">核对遗漏、争议与修改要求。</text>
+<text class="note-body" x="836" y="926">主指挥向用户问答，重新拟案。</text>
+<text class="note-body" x="836" y="949">批准新方案后，再启动执行。</text>
+</g>
+<text class="edge-label" x="866" y="546" text-anchor="middle">同范围返工</text>
+<text class="edge-label" x="1050" y="806" text-anchor="middle">需修订方案</text>
+<text class="edge-label" x="967" y="1199" text-anchor="middle">未达标 · 副指挥分析后提请修订</text>
+<text class="edge-label" x="898" y="1318" text-anchor="middle">未通过</text>
+<text class="edge-label" x="898" y="1464" text-anchor="middle">需修改</text>
+<text class="edge-label" x="584" y="1267" text-anchor="middle">达标</text>
+<text class="edge-label" x="584" y="1411" text-anchor="middle">通过</text>
+<g><rect x="24" y="1580" width="360" height="136" rx="10" fill="#eaf0f3"/><text class="note-title" x="40" y="1612">中断与结果未知</text>
+<text class="note-body" x="40" y="1644">先核对原请求、进程与记录，再决定后续。</text>
+<text class="note-body" x="40" y="1669">暂停后续调度，原结果与失败证据持续保留。</text>
+</g>
+<g><rect x="408" y="1580" width="360" height="136" rx="10" fill="#eaf0f3"/><text class="note-title" x="424" y="1612">检查方式需要更正</text>
+<text class="note-body" x="424" y="1644">审阅并批准原提交的新复验，单独启动。</text>
+<text class="note-body" x="424" y="1669">复验通过后，仍由主指挥核对并接受任务。</text>
+</g>
+<g><rect x="792" y="1580" width="360" height="136" rx="10" fill="#eaf0f3"/><text class="note-title" x="808" y="1612">本地记录与维护</text>
+<text class="note-body" x="808" y="1644">计划、尝试、检查、投票、交接均可追溯。</text>
+<text class="note-body" x="808" y="1669">支持备份恢复、升级、缓存清理与退出收尾。</text>
+</g>
+</svg>

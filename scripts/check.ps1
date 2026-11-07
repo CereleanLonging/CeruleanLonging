@@ -68,6 +68,8 @@ cargo run -p cerulean-domain --bin export-contracts --locked
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run build
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+node tests/workflow-map-ui.mjs
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run test:ipc
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run test:service
