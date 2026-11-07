@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn reader23_preserves_history_and_rejects_missing_or_foreign_guard() {
-        assert!(crate::DATA_READER_GENERATION >= GENERATION);
+        const { assert!(crate::DATA_READER_GENERATION >= GENERATION) };
         {
             let folder = "planned-artifacts-v1";
             let temp = tempfile::tempdir().unwrap();

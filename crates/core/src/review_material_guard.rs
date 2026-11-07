@@ -126,7 +126,7 @@ mod tests {
     }
     #[test]
     fn reader24_is_idempotent_and_rejects_foreign_and_corrupt_markers() {
-        assert!(crate::DATA_READER_GENERATION >= GENERATION);
+        const { assert!(crate::DATA_READER_GENERATION >= GENERATION) };
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
         drop(crate::Store::open(root).unwrap());
