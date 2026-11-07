@@ -34,11 +34,20 @@ fn evidence(root: &Path, op: &str) -> std::path::PathBuf {
 fn acl_has_sid(path: &Path, sid: &str) -> bool {
     use std::os::windows::process::CommandExt;
     let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command",
-            "$ErrorActionPreference='Stop'; (Get-Acl -LiteralPath $env:CERULEAN_ACL_TEST_PATH).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)"])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            concat!(
+                "$ErrorActionPreference='Stop'; ",
+                "Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1') -ErrorAction Stop; ",
+                "(Get-Acl -LiteralPath $env:CERULEAN_ACL_TEST_PATH).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)",
+            ),
+        ])
         .env("CERULEAN_ACL_TEST_PATH", path)
         .creation_flags(0x08000000)
-        .output().unwrap();
+        .output()
+        .unwrap();
     assert!(
         output.status.success(),
         "{}",

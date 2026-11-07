@@ -36,12 +36,12 @@ if ($env:GITHUB_ACTIONS -eq 'true' -and $env:CERULEAN_CI_CORE_TEST_MEMORY_GIB -e
     & (Join-Path $ceruleanRoot '.github/scripts/precompile-core-tests.ps1')
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
 }
-cargo test --workspace --exclude cerulean-desktop --locked -- --test-threads=1
-if ($LASTEXITCODE) { exit $LASTEXITCODE }
 if ($env:CERULEAN_RUN_NATIVE_ACCOUNT_TESTS -eq '1') {
     & (Join-Path $PSScriptRoot 'test-recheck-accounts.ps1')
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
 }
+cargo test --workspace --exclude cerulean-desktop --locked -- --test-threads=1
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
 node tests/independent-checks-native.mjs (Join-Path $env:CARGO_TARGET_DIR 'debug/cerulean-verifier.exe')
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo build -p cerulean-core --locked
