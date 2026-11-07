@@ -87,6 +87,9 @@ try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Administrator consent required' }
+    # A PowerShell 7 parent can leave its module directories in PSModulePath.
+    # Load the Windows PowerShell ACL module from this process's own PSHOME.
+    Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1') -ErrorAction Stop
     $script:plan = [IO.File]::ReadAllText((Filesystem-Path $planFile), [Text.Encoding]::UTF8) | ConvertFrom-Json
     if ($plan.schemaVersion -ne 1 -or $plan.ownerSid -ne $identity.User.Value) { throw 'Setup owner mismatch' }
     if (@($plan.slots).Count -lt 1 -or @($plan.slots).Count -gt 5) { throw 'One to five slots required' }
