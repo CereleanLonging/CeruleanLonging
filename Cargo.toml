@@ -1,10 +1,10 @@
 [workspace]
-members = ["crates/domain", "crates/core", "crates/adapters", "crates/cache", "apps/desktop/src-tauri"]
+members = ["crates/domain", "crates/core", "crates/adapters", "crates/cache", "crates/checker", "apps/desktop/src-tauri"]
 default-members = ["crates/domain", "crates/core", "crates/adapters"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.45"
+version = "0.1.48"
 edition = "2021"
 
 [workspace.dependencies]

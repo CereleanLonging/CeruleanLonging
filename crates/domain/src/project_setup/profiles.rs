@@ -259,7 +259,7 @@ impl ProjectSetup {
         execution: &TaskExecution,
     ) -> Result<Option<&crate::supervision::SupervisionPolicy>, String> {
         require(
-            self.execution_for(&execution.task_id, execution.profile_id.as_deref())? == *execution,
+            crate::objective_checker::matches_setup(self, execution)?,
             "监督执行配置与原任务不符",
         )?;
         self.supervision_for(execution.profile_id.as_deref())

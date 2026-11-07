@@ -37,7 +37,7 @@ fn fixed_path() -> Result<PathBuf, String> {
     };
     Ok(parent.join("cerulean-verifier.exe"))
 }
-fn pin(path: &Path, expected: Option<&str>) -> Result<(File, String), String> {
+pub(crate) fn pin(path: &Path, expected: Option<&str>) -> Result<(File, String), String> {
     let file = OpenOptions::new()
         .read(true)
         .share_mode(1)
@@ -78,9 +78,17 @@ fn call_native(
     expected: Option<&str>,
     operation: Operation,
 ) -> Result<Output, String> {
+    call_bound(path, expected, TOOL_PROTOCOL, operation)
+}
+pub(crate) fn call_bound(
+    path: &Path,
+    expected: Option<&str>,
+    protocol: &str,
+    operation: Operation,
+) -> Result<Output, String> {
     let (_guard, _sha) = pin(path, expected)?;
     let request = Request {
-        protocol: TOOL_PROTOCOL.into(),
+        protocol: protocol.into(),
         operation,
     };
     let key = digest(&request)?;
@@ -105,7 +113,7 @@ fn call_native(
     let response: Response =
         serde_json::from_slice(&outcome.stdout).map_err(|_| "独立验收响应格式无效")?;
     require(
-        response.protocol == TOOL_PROTOCOL
+        response.protocol == protocol
             && response.version == env!("CARGO_PKG_VERSION")
             && response.request_digest == key
             && response.process_id != std::process::id()
@@ -143,6 +151,21 @@ pub(crate) fn prepare(
             Ok(material)
         }
         _ => Err("独立验收材料响应类型不符".into()),
+    }
+}
+pub(crate) fn attach_check_evidence(
+    material: ReviewMaterial,
+    archive: &cerulean_domain::independent_checks::CheckArchive,
+) -> Result<ReviewMaterial, String> {
+    match call(Operation::AttachCheckEvidence {
+        material,
+        archive: archive.clone(),
+    })? {
+        Output::Prepared { material } => {
+            material.validate()?;
+            Ok(material)
+        }
+        _ => Err("独立检查摘要响应类型不符".into()),
     }
 }
 pub(crate) fn check_ballot(
@@ -225,6 +248,7 @@ mod tests {
         let seats = ["chief", "deputy", "worker"]
             .into_iter()
             .map(|role| ReviewSeat {
+                max_output_tokens: None,
                 id: role.into(),
                 role: role.into(),
                 target: Some(cerulean_domain::api_worker::ApiTarget::OpenAi {}),

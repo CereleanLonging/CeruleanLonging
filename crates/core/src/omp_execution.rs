@@ -73,6 +73,7 @@ pub(crate) fn scope(
         .ok_or("OMP approved worker selection missing")?;
     worker.validate()?;
     let prompt = approved_prompt(&plan, task)?;
+    let prompt = crate::task_rework::append_prompt(prompt, store.history(), task, id)?;
     let intent = DispatchIntent {
         version: 1,
         task_id: task.into(),

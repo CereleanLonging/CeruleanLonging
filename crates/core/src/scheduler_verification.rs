@@ -2,7 +2,7 @@
 //! revalidate the same task's evidence before publishing the existing Verify.
 use super::*;
 use crate::verifier::{verify_with_retirements, PinnedCheck, VerificationInput};
-use cerulean_domain::execution::{digest, identifier, ExecutionReceipt};
+use cerulean_domain::execution::{digest, identifier, AcceptanceCheck, ExecutionReceipt};
 use std::sync::atomic::AtomicBool;
 
 #[derive(Serialize)]
@@ -18,10 +18,15 @@ pub(crate) struct PreparedVerification {
     core: String,
     evidence: PathBuf,
     retired_rechecks: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    functional_checks: Option<Vec<AcceptanceCheck>>,
 }
 impl PreparedVerification {
     pub(crate) fn checks(&self) -> Result<&[cerulean_domain::execution::AcceptanceCheck], String> {
-        Ok(&self.plan.task(&self.attempt.task_id)?.checks)
+        Ok(self
+            .functional_checks
+            .as_deref()
+            .unwrap_or(&self.plan.task(&self.attempt.task_id)?.checks))
     }
     pub(crate) fn functional_run(
         &self,
@@ -46,13 +51,14 @@ impl PreparedVerification {
             &self.operation,
             cancel,
             source,
+            self.checks()?,
         )
     }
     pub(crate) fn require_functional_pass(
         &self,
         report: &VerificationReport,
     ) -> Result<(), String> {
-        report.require_pass(&self.plan, &self.manifest, &self.core)
+        report.require_pass_with_checks(&self.plan, &self.manifest, &self.core, self.checks()?)
     }
     pub(crate) fn require_scope(
         &self,
@@ -137,6 +143,7 @@ impl DurableWorkflow {
         operation: &str,
         task: &str,
         attempt: &str,
+        checks: Vec<AcceptanceCheck>,
     ) -> Result<PreparedVerification, String> {
         require(
             !self.poisoned
@@ -163,9 +170,27 @@ impl DurableWorkflow {
             "尚未通过当前项目盲评，不能准备整体功能测试",
         )?;
         identifier(operation)?;
+        let record = round
+            .check_archive
+            .as_ref()
+            .and_then(|a| {
+                a.records
+                    .iter()
+                    .find(|r| r.task_id == task && r.attempt_id == attempt)
+            })
+            .ok_or("整体功能测试缺少本轮独立检查归档")?;
+        require(
+            record.report_digest == digest(self.verified_report(task, attempt)?)?
+                && record.checks.len() == checks.len()
+                && record.checks.iter().zip(&checks).all(|(fact, check)| {
+                    fact.passed && digest(check).is_ok_and(|hash| hash == fact.command_digest)
+                }),
+            "整体功能测试未绑定当前有效检查标准",
+        )?;
         let mut prepared = self.capture_verification(operation, task, attempt)?;
         prepared.evidence = self.root.join("functional-verification");
         prepared.retired_rechecks.clear();
+        prepared.functional_checks = Some(checks);
         Ok(prepared)
     }
     fn capture_verification(
@@ -197,6 +222,7 @@ impl DurableWorkflow {
             core: self.config.core_id.clone(),
             evidence: self.root.join("verification"),
             retired_rechecks: self.retired_recheck_operations()?,
+            functional_checks: None,
         })
     }
     pub(crate) fn finish_prepared_verification(

@@ -76,6 +76,7 @@ function CapabilityKey($info) {
         dataFormatGuardSchema=$info.dataFormatGuardSchema;readableDataSchemas=@($info.readableDataSchemas)
         maintenanceInterlockSchema=$info.maintenanceInterlockSchema;dataRecoverySchema=$info.dataRecoverySchema
         dataReaderGeneration=$info.dataReaderGeneration
+        objectiveCheckerSchema=$info.objectiveCheckerSchema;objectiveCheckerSha256=$info.objectiveCheckerSha256
         independentVerifierSchema=$info.independentVerifierSchema;independentVerifierSha256=$info.independentVerifierSha256
     } | ConvertTo-Json -Depth 8 -Compress)
 }
@@ -91,6 +92,12 @@ function PackageResources($manifest) {
         if($manifest.coreBuildInfo.independentVerifierSchema -ne 1 -or $manifest.coreBuildInfo.independentVerifierSha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'Independent verifier build binding missing'}
         $tool=@($entries | Where-Object path -ceq 'cerulean-verifier.exe')
         if($tool.Count -ne 1 -or $tool[0].sha256 -cne $manifest.coreBuildInfo.independentVerifierSha256){throw 'Verifier and core binding differ'}
+    }
+    if([version]$manifest.version -ge [version]'0.1.46'){
+        $expected+=@('cerulean-checker.exe');$limits['cerulean-checker.exe']=33554432
+        if($manifest.coreBuildInfo.objectiveCheckerSchema -ne 1 -or $manifest.coreBuildInfo.objectiveCheckerSha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'Independent checker build binding missing'}
+        $tool=@($entries | Where-Object path -ceq 'cerulean-checker.exe')
+        if($tool.Count -ne 1 -or $tool[0].sha256 -cne $manifest.coreBuildInfo.objectiveCheckerSha256){throw 'Checker and core binding differ'}
     }
     if($entries.Count -ne $expected.Count){throw 'Required notice resource missing or unexpected'}
     foreach($name in $expected){

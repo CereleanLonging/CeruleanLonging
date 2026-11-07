@@ -181,6 +181,7 @@ public partial class DesktopObserver {
             else if(request.op=="reviewread")result=ReadReview(request.taskReview);
             else if(request.op=="taskread")result=ReadTask(request.taskReview);
             else if(request.op=="taskprogress")result=ReadTaskProgress(request.taskReview);
+            else if(request.op=="reviewprepare")result=PrepareReview(request.window);
             else if(request.op=="taskprepare")result=PrepareTask(request.window,request.taskReview);
             else if(request.op=="taskstopprepare")result=PrepareStop(request.taskReview);
             else if(request.op=="taskstop")result=StopTask(request.taskReview,request.stopObservation);

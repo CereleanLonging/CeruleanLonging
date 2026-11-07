@@ -1,3 +1,4 @@
+import {confirmConnectionContinue} from './connection-ui-helpers.mjs';
 // Native UI, encrypted synthetic credential and durable selections. Only the
 // provider catalogue is a synthetic fixture, intercepted before any native send.
 import assert from "node:assert/strict";
@@ -118,6 +119,32 @@ try {
   await page.locator("#planning-chief").waitFor({state:"attached"});
   assert.equal(await page.locator("#planning-chief").inputValue(),"DeepSeek-R1");assert.equal(await page.locator("#planning-deputy").inputValue(),"claude-sonnet-4-5");
   assert.equal(await page.locator("#planning-worker").inputValue(),"qwen3-32b");
+  await openConnectionMethod(page,"执行端","api");
+  await role("执行端").getByRole("button",{name:"将API 连接设为默认执行端",exact:true}).click();
+  const ompKey=page.getByRole('dialog',{name:'补充 OMP API Key',exact:true});
+  await ompKey.waitFor();
+  assert.equal(await page.locator('#planning-adapter').inputValue(),'omp');
+  const checksBefore=await page.evaluate(()=>window.catalogChecks.length);
+  await ompKey.getByLabel('DeepSeek API Key',{exact:true}).fill('synthetic-omp-credential-gate');
+  await ompKey.getByRole('button',{name:'加密保存 DeepSeek Key',exact:true}).click();
+  await ompKey.getByRole('status').filter({hasText:'Key 已加密保存'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.catalogChecks.length),checksBefore);
+  const ompEnvelope=await readFile(join(data,'credentials/deepseek.dpapi'));
+  assert(!ompEnvelope.includes(Buffer.from('synthetic-omp-credential-gate')));
+  await ompKey.getByRole('button',{name:'返回配置',exact:true}).click();await ompKey.waitFor({state:'hidden'});
+  await openConnectionMethod(page,"执行端","key");
+  await role("执行端").getByRole("button",{name:"将Key 管理设为默认执行端",exact:true}).click();
+  await modal().waitFor();await modal().getByRole('button',{name:'稍后选择',exact:true}).click();await modal().waitFor({state:'hidden'});
+  await page.locator('#planning-adapter').selectOption('a6api');
+  await page.locator('#planning-api-relay-origin').selectOption('a6ApiVip');
+  await choose('qwen3-32b','qw3 32b');
+  assert.equal(await page.locator('#planning-executable').count(),0);
+  await page.getByRole('button',{name:'下一步：设置需求与计划',exact:true}).click();await confirmConnectionContinue(page);
+  await page.getByRole('button',{name:'修改接入配置',exact:true}).click();
+  await openConnectionMethod(page,"执行端","key");
+  assert.equal(await page.locator('#planning-adapter').inputValue(),'a6api');
+  assert(await role('执行端').getByLabel('A6API API Key',{exact:true}).isVisible());
+  cases.push('Native OMP missing-Key dialog saves only encrypted credentials; switching to Key direct avoids OMP paths through Next/Back');
   await page.screenshot({path:join(run,"native-role-defaults.png")});await close();
   cases.push("A newly registered real project inherits the selected role models before normal shutdown");
   await launch();

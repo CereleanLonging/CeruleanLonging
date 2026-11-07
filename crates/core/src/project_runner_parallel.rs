@@ -25,9 +25,8 @@ impl RuntimeHost {
             "原任务中断或取消，停止新调度并核对原尝试",
         )?;
         let statuses = self.management.statuses();
-        require(
-            !self.jobs.values().any(|j| {
-                j.project_id == *project
+        if self.jobs.values().any(|j| {
+            j.project_id == *project
                     // Historical failures remain in the journal after an
                     // approved revision or successful corrected check. Only
                     // the current, still-unverified attempt blocks admission.
@@ -39,9 +38,11 @@ impl RuntimeHost {
                         j.state,
                         VerificationState::Running | VerificationState::Succeeded
                     )
-            }),
-            "并行独立验收已停止或失败，请核对原结果；不会自动重跑",
-        )?;
+        }) {
+            // Let already dispatched peers reach their terminal state. The
+            // exclusive path then sends the failed report to the deputy.
+            return Ok(());
+        }
         if let Some(pending) = statuses
             .iter()
             .find(|s| s.project_id == *project && !s.state.resolved())

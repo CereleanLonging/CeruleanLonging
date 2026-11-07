@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn reader21_preserves_history_and_rejects_missing_or_foreign_guard() {
-        assert_eq!(crate::DATA_READER_GENERATION, GENERATION);
+        const { assert!(crate::DATA_READER_GENERATION >= GENERATION) };
         for folder in ["independent-check-archive", "desktop-supervision-v1"] {
             let temp = tempfile::tempdir().unwrap();
             let root = temp.path();

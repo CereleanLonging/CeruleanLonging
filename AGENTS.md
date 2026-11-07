@@ -1,4 +1,16 @@
+# Current core regression allowance (2026-11-07)
+
+The user explicitly authorizes the remaining core regression tests for this acceptance update to use a 4 GiB Job memory cap, serial execution, CPU 20%, and a monitored system reserve of at least 1 GiB. This supersedes the earlier single-attempt core-test allowance. Restore the normal 3 GiB cap after each core-test phase. Other builds retain their existing limits. Do not exceed 4 GiB or change user applications to make room.
+
 # Active development workspace
+
+## Current desktop upgrade and publication request (2026-11-07)
+
+The user explicitly requested desktop-client upgrade compatibility before final packaging, followed by one GitHub update. Cover the currently connected Codex and Qoder integrations, preserve original attempts and isolation boundaries, and verify the completed update before publishing. This authorizes the current source/README/package update and supersedes older handoff statements that this update has no publication authorization. Future updates still require explicit authorization.
+
+## Build scheduling: minimum validated budget (user instruction, 2026-11-05)
+
+The user requests checking the minimum supported memory before each compilation and avoiding full CPU utilization. Use the managed scheduler: one Cargo job, at most two logical processors, BelowNormal and a 20% hard CPU cap. Full Rust builds use the lowest successful full-release budget observed so far, 3 GiB (an earlier approximately 2.17 GiB attempt failed), plus a monitored 1 GiB system reserve. The startup reference is 4 GiB, but the latest user instruction accepts a shortfall up to 1 GiB without another prompt: start at 3 GiB or more available physical and commit memory, keeping the full 3 GiB Job cap. Frontend builds separately passed at a 1 GiB cap; their 2 GiB startup reference has the same 1 GiB admission tolerance. The runtime 1 GiB reserve stop remains in effect. Never describe these as absolute minima or increase the cap just because more RAM is free. Consult `docs/build-cache/build-memory-calibration.json` and scheduling receipts; record kernel Job peaks and observed reserve minima. Stop this build if system reserve falls below 1 GiB; do not end user applications or automatically retry/increase limits. The latest user instruction is: “直接进编译，其他的我都有用，下次这种差距在1g以内的不用报了”. Record small startup shortfalls in local receipts without asking the user to close useful apps or repeatedly authorizing compilation. This supersedes earlier strict 4/5 GiB startup rules; it does not remove runtime memory protection or authorize higher CPU use. It does not authorize GitHub publishing.
 
 ## Source cache management and one authorized GitHub update (2026-11-04)
 

@@ -219,6 +219,7 @@ pub fn verify(
 struct RunPolicy<'a> {
     retired: &'a [String],
     functional_source: Option<&'a str>,
+    functional_checks: Option<&'a [AcceptanceCheck]>,
 }
 pub(crate) fn verify_functional(
     input: VerificationInput<'_>,
@@ -227,6 +228,7 @@ pub(crate) fn verify_functional(
     operation_id: &str,
     cancel: &AtomicBool,
     source: &str,
+    checks: &[AcceptanceCheck],
 ) -> Result<VerificationReport, String> {
     sha256(source)?;
     execute(
@@ -239,6 +241,7 @@ pub(crate) fn verify_functional(
         RunPolicy {
             retired: &[],
             functional_source: Some(source),
+            functional_checks: Some(checks),
         },
     )
 }
@@ -263,6 +266,7 @@ pub(crate) fn verify_with_retirements(
         RunPolicy {
             retired,
             functional_source: None,
+            functional_checks: None,
         },
     )
 }
@@ -287,6 +291,7 @@ pub(crate) fn verify_recheck(
         RunPolicy {
             retired: authority.retired_operations,
             functional_source: None,
+            functional_checks: None,
         },
     )
 }
@@ -390,10 +395,25 @@ fn execute(
     };
     let specs = if let Some(recheck) = recheck {
         &recheck.approval.review.replacement_checks
+    } else if let Some(checks) = policy.functional_checks {
+        checks
     } else {
         &input.plan.task(&input.attempt.task_id)?.checks
     };
     require(pins.len() == specs.len(), "validator bindings missing")?;
+    for spec in specs {
+        if spec
+            .args
+            .first()
+            .is_some_and(|a| a == cerulean_domain::objective_checker::ARGUMENT)
+        {
+            crate::objective_checker::require_approved(spec)?;
+            require(
+                isolated_account.is_some(),
+                "客观测试源码必须在已配置的隔离账户中运行",
+            )?;
+        }
+    }
     for pin in pins {
         for (path, _) in &pin.files {
             let canonical = fs::canonicalize(path).map_err(|e| e.to_string())?;
@@ -512,6 +532,51 @@ fn execute(
                 "attemptId":input.attempt.id,"sid":account.record.sid,"ownerSid":account.record.owner_sid,
                 "identity":account.record.identity,"mode":"windows-account-job-v1"
             })).map_err(|e|e.to_string())?)?;
+        }
+        let missing = input
+            .plan
+            .task(&input.attempt.task_id)?
+            .artifact_paths
+            .iter()
+            .filter(|path| {
+                !input
+                    .manifest
+                    .artifacts
+                    .iter()
+                    .any(|file| &file.path == *path)
+            })
+            .collect::<Vec<_>>();
+        if !missing.is_empty() {
+            // A completed response with missing deliverables is a definitive
+            // rejection. Record unexecuted checks without inventing exit codes.
+            let reason = format!(
+                "交付完整性检查未通过，缺少 {} 个文件，首项为 {}",
+                missing.len(),
+                missing[0]
+            );
+            let empty_digest = format!("{:x}", Sha256::digest([]));
+            for spec in specs {
+                let observation = CheckObservation {
+                    check_id: spec.id.clone(),
+                    command_digest: digest(spec)?,
+                    exit_code: None,
+                    timed_out: false,
+                    assertions: vec![],
+                    assertion_error: Some(reason.clone()),
+                    stdout_sha256: empty_digest.clone(),
+                    stderr_sha256: empty_digest.clone(),
+                };
+                save(&dir.join(format!("{}.stdout", spec.id)), &[])?;
+                save(&dir.join(format!("{}.stderr", spec.id)), &[])?;
+                save(
+                    &dir.join(format!("{}.json", spec.id)),
+                    &serde_json::to_vec(&observation).map_err(|e| e.to_string())?,
+                )?;
+                report.checks.push(observation);
+            }
+            observer.require_unchanged(input.manifest)?;
+            snapshot.require_unchanged()?;
+            return Ok(report);
         }
         for (spec, pin) in specs.iter().zip(pins) {
             observer.require_unchanged(input.manifest)?;

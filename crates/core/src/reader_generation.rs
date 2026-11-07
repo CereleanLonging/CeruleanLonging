@@ -60,7 +60,10 @@ pub(crate) fn observe(root: &Path, status: &mut Status) -> Result<(), String> {
     crate::verification_recheck_guard::observe(root, status)?;
     crate::blind_review_guard::observe(root, status)?;
     crate::worker_account_guard::observe(root, status)?;
-    crate::review_checks_guard::observe(root, status)
+    crate::review_checks_guard::observe(root, status)?;
+    crate::objective_checker_guard::observe(root, status)?;
+    crate::planned_artifacts_guard::observe(root, status)?;
+    crate::review_material_guard::observe(root, status)
 }
 fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
     match fs::read_dir(root.join("events")) {
@@ -86,7 +89,11 @@ fn observe_legacy(root: &Path, status: &mut Status) -> Result<(), String> {
                     && name != crate::rejected_usage_guard::FILE_NAME
                     && name != crate::verification_recheck_guard::FILE_NAME
                     && name != crate::blind_review_guard::FILE_NAME
+                    && name != crate::objective_checker_guard::FILE_NAME
+                    && name != crate::planned_artifacts_guard::FILE_NAME
                     && name != crate::review_checks_guard::FILE_NAME
+                    && name != crate::review_material_guard::FILE_NAME
+                    && name != crate::review_material_guard::API_LIMITS_FILE_NAME
                     && name != crate::worker_account_guard::FILE_NAME
                     && name != crate::experiment_guard::FILE_NAME
                     && name != crate::experiment_guard::LEGACY_FILE_NAME

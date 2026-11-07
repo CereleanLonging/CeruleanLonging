@@ -34,6 +34,11 @@ impl RuntimeHost {
         }
         for d in desktops {
             d.binding.observation.window.app.require_available()?;
+            cerulean_domain::desktop_upgrade::require_upgrade_trial(
+                &d.binding,
+                &desktop_sessions::load_trials(&self.root)?,
+                &desktop_sessions::fingerprint(),
+            )?;
             crate::desktop_execution::validate_task_window(&d.binding.observation.window)?;
             require(
                 d.binding.bridge_sha256 == desktop_sessions::fingerprint(),
@@ -111,7 +116,7 @@ impl RuntimeHost {
             .desktop_worker
             .as_ref()
             .ok_or("任务桌面配置缺失")?;
-        self.validate_desktop_selection(&project, d)?;
+        self.validate_active_desktop_selection(&project, d)?;
         require(
             worker_id == &format!("worker-{}", d.adapter_id()),
             "副指挥选择与批准桌面执行器不符",

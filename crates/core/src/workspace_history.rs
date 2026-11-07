@@ -31,6 +31,14 @@ pub(crate) fn query(
         .as_ref()
         .ok_or("原项目范围不存在")?
         .project;
+    if let WorkspaceQuery::ProjectActivity {
+        project_id,
+        after,
+        before,
+    } = query
+    {
+        return crate::project_activity::query(store, project_id, after.as_ref(), before.as_ref());
+    }
     let entries = store.history();
     let revision = version(&(
         "workspace-project-history-v1",

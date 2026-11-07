@@ -1,3 +1,4 @@
+import { qoderUpgradeBlock } from "./qoderUpgrade";
 import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useEffect, useRef, useState } from "react";
@@ -125,6 +126,8 @@ function DesktopSessionFields({ data, projectId, app, worker, onChange, idPrefix
     </div>
     {worker && <>
       <p>已绑定模型 · {worker.modelLabel}</p>
+      {qoderUpgradeBlock(worker.binding, data.desktopAccess?.trials ?? [], data.desktopAccess?.bridgeSha256 ?? "") &&
+        <p role="status">{qoderUpgradeBlock(worker.binding, data.desktopAccess?.trials ?? [], data.desktopAccess?.bridgeSha256 ?? "")}</p>}
       <p className="secondary desktop-bound-directory">执行目录 · {worker.projectRoot}</p>
       {isolationEnabled && <p className="secondary">执行时使用本项目的独立 Windows 账户及已分配目录。登录执行账户后，在该账户的 Qoder 中重新绑定会话。</p>}
       <label className="checkbox-label"><input type="checkbox" required disabled={disabled}

@@ -66,10 +66,8 @@ impl RuntimeHost {
                     })
                 })
                 && revision.execution.iter().all(|e| {
-                    setup
-                        .setup
-                        .execution_for(&e.task_id, e.profile_id.as_deref())
-                        .is_ok_and(|wanted| wanted == *e)
+                    cerulean_domain::objective_checker::matches_setup(&setup.setup, e)
+                        .unwrap_or(false)
                 }),
             "执行方案与已选运行配置不符",
         )
@@ -510,6 +508,9 @@ impl RuntimeHost {
                         format!("指挥请求补充信息：{reason}"),
                     );
                 }
+                decision @ ManagementDecision::Advise { .. } => {
+                    self.apply_rework_decision(&pending.operation_id, decision)?;
+                }
                 _ => return Err("持续运行返回了用途不匹配的指挥决定".into()),
             }
             return Ok(());
@@ -593,6 +594,16 @@ impl RuntimeHost {
             "任务中断或取消，先处理原尝试；不会自动重新派发",
         )?;
         let setup = self.project_setups[project].setup.clone();
+        if self.rework_feedback(project)?.is_some() {
+            let operation = format!("{}-{}", run.id, all_count + 1);
+            return self.start_management_decision(
+                project,
+                &operation,
+                Purpose::Advise,
+                &setup.deputy_model,
+                &setup.requirement,
+            );
+        }
         let purpose = if let Some((task, attempt)) = tasks
             .iter()
             .find(|(_, t)| t.state == TaskState::Submitted)

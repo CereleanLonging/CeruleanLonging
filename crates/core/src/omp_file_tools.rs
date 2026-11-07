@@ -187,10 +187,35 @@ fn file_root(
 fn file_definitions(root: &Root) -> Vec<HostToolDefinition> {
     let mut result = Vec::new();
     if root.read {
-        result.push(HostToolDefinition{name:"cerulean_read_file".into(),description:"Read a UTF-8 project file in chunks. Returns content, next byte offset, total bytes and full-file SHA-256. Offset must be a UTF-8 boundary.".into(),parameters:json!({"type":"object","properties":{"path":{"type":"string"},"offset":{"type":"integer","minimum":0}},"required":["path","offset"],"additionalProperties":false})});
+        result.push(HostToolDefinition {
+            name: "cerulean_read_file".into(),
+            description: "Read one UTF-8 file in the assigned execution directory in chunks. The host has already selected the directory. Use the task's relative file path directly, such as count.mjs. Returns content, next byte offset, total bytes and full-file SHA-256. Offset must be a UTF-8 boundary.".into(),
+            parameters: json!({
+                "type":"object",
+                "properties":{
+                    "path":{"type":"string","description":"File path relative to the assigned execution directory, using the exact task artifact path when reading a deliverable."},
+                    "offset":{"type":"integer","minimum":0}
+                },
+                "required":["path","offset"],
+                "additionalProperties":false
+            }),
+        });
     }
     if root.write {
-        result.push(HostToolDefinition{name:"cerulean_write_file".into(),description:"Write UTF-8 project content (up to 48 KiB). expectedSha256 must match the current file, or be 'absent' for a new file. A conflict never overwrites the file. Missing parent directories may be created.".into(),parameters:json!({"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"},"expectedSha256":{"type":"string"}},"required":["path","content","expectedSha256"],"additionalProperties":false})});
+        result.push(HostToolDefinition {
+            name: "cerulean_write_file".into(),
+            description: "Write UTF-8 content (up to 48 KiB) in the assigned execution directory. The host has already selected the directory. Use the task's relative file path directly, such as count.mjs. expectedSha256 must match the current file, or be 'absent' for a new file. A conflict preserves the existing file. Missing parent directories may be created.".into(),
+            parameters: json!({
+                "type":"object",
+                "properties":{
+                    "path":{"type":"string","description":"File path relative to the assigned execution directory, using the exact task artifact path for a deliverable."},
+                    "content":{"type":"string"},
+                    "expectedSha256":{"type":"string"}
+                },
+                "required":["path","content","expectedSha256"],
+                "additionalProperties":false
+            }),
+        });
         if let Some(paths) = &root.write_paths {
             let definition = result.last_mut().unwrap();
             definition.parameters["properties"]["path"]["enum"] = json!(paths);

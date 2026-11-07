@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-adapters"
-version = "0.1.45"
+version = "0.1.48"
 dependencies = [
  "base64 0.22.1",
  "cerulean-domain",
@@ -300,7 +300,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-cache"
-version = "0.1.45"
+version = "0.1.48"
 dependencies = [
  "chrono",
  "serde",
@@ -310,8 +310,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cerulean-checker"
+version = "0.1.48"
+dependencies = [
+ "cerulean-domain",
+ "serde_json",
+ "sha2",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "cerulean-core"
-version = "0.1.45"
+version = "0.1.48"
 dependencies = [
  "cerulean-adapters",
  "cerulean-domain",
@@ -329,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "cerulean-desktop"
-version = "0.1.45"
+version = "0.1.48"
 dependencies = [
  "cerulean-cache",
  "cerulean-core",
@@ -341,11 +351,12 @@ dependencies = [
  "tauri-build",
  "tempfile",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "cerulean-domain"
-version = "0.1.45"
+version = "0.1.48"
 dependencies = [
  "chrono",
  "chrono-tz",

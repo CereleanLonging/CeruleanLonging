@@ -170,6 +170,7 @@ mod tests {
             }],
         };
         let archive = CheckArchive {
+            assembled: None,
             schema_version: 1,
             project_id: record.project_id.clone(),
             revision: record.revision.clone(),
@@ -178,6 +179,7 @@ mod tests {
             records: vec![record],
         };
         let material = ReviewMaterial {
+            independent_check_evidence: None,
             protocol: PROTOCOL.into(),
             requirement: "Approved synthetic task".into(),
             criteria: (1..=10).map(|i| format!("requirement {i}")).collect(),
@@ -192,6 +194,7 @@ mod tests {
         let seats: Vec<_> = ["chief", "deputy", "worker"]
             .iter()
             .map(|role| ReviewSeat {
+                max_output_tokens: None,
                 id: (*role).into(),
                 role: (*role).into(),
                 target: Some(ApiTarget::OpenAi {}),

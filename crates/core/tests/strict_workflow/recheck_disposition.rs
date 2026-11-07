@@ -1,6 +1,6 @@
 use super::*;
 use std::time::{Duration, Instant};
-fn setup(checker: &str) -> (tempfile::TempDir, RuntimeHost, RecheckApproval) {
+fn setup(checker: &str) -> (FixtureRoot, RuntimeHost, RecheckApproval) {
     let (root, store, a) = runner::corrected(checker);
     drop(store);
     let mut host = RuntimeHost::open(&root.path().join("data")).unwrap();
@@ -31,9 +31,24 @@ fn finish(host: &mut RuntimeHost, op: &str) {
 fn evidence(root: &Path, op: &str) -> std::path::PathBuf {
     root.join("data/workflows/project/verification").join(op)
 }
+fn acl_has_sid(path: &Path, sid: &str) -> bool {
+    use std::os::windows::process::CommandExt;
+    let output = std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command",
+            "$ErrorActionPreference='Stop'; (Get-Acl -LiteralPath $env:CERULEAN_ACL_TEST_PATH).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::Access)"])
+        .env("CERULEAN_ACL_TEST_PATH", path)
+        .creation_flags(0x08000000)
+        .output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap().contains(sid)
+}
 fn next(host: &mut RuntimeHost, a: &RecheckApproval) -> String {
     let mut checks = a.review.replacement_checks.clone();
-    checks[0].args[2] = "recheck_ledger::runner::corrected_checker".into();
+    checks[0] = fixed_check(&checks[0], "corrected_checker");
     let r = host
         .review_verification_recheck(&RecheckRequest {
             project_id: "project".into(),
@@ -54,6 +69,7 @@ fn next(host: &mut RuntimeHost, a: &RecheckApproval) -> String {
     op
 }
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn unstarted_disposition_is_user_event_preserves_submission_and_allows_only_new_approval() {
     let (root, mut host, a) = setup("corrected_checker");
     let before = host.snapshot().workflows[0].state.clone();
@@ -96,6 +112,7 @@ fn unstarted_disposition_is_user_event_preserves_submission_and_allows_only_new_
     );
 }
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn cancelled_disposition_rejects_active_stale_and_wrong_authority_then_replays() {
     let (root, mut host, a) = setup("slow_checker");
     let unstarted = host
@@ -236,6 +253,7 @@ fn cancelled_disposition_rejects_active_stale_and_wrong_authority_then_replays()
     assert!(!dir.join("check-temp/validator-count").exists());
 }
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn crashed_owner_without_receipt_can_be_disposed_without_restarting_original_checker() {
     let (root, host, a) = setup("slow_checker");
     drop(host);
@@ -284,8 +302,87 @@ fn crashed_owner_without_receipt_can_be_disposed_without_restarting_original_che
         .unwrap();
     assert!(r.launch.is_some());
     let intent = fs::read(dir.join("intent.json")).unwrap();
-    host.retire_verification_recheck(&r, "dispose-crashed")
+    let isolation_path = dir.join("check-isolation.json");
+    let isolation = fs::read(&isolation_path).unwrap();
+    let proof: serde_json::Value = serde_json::from_slice(&isolation).unwrap();
+    let account = root
+        .path()
+        .join("data/worker-accounts/project")
+        .join(proof["identity"].as_str().unwrap());
+    let lease_path = account.join("check-active-lease.json");
+    let lease = fs::read(&lease_path).unwrap();
+    let original: serde_json::Value = serde_json::from_slice(&lease).unwrap();
+    let sid = proof["sid"].as_str().unwrap();
+    assert!(acl_has_sid(&dir.join("work"), sid));
+    assert!(acl_has_sid(&dir.join("check-temp/validator-started"), sid));
+    // Read-only opening and reviewing retained the original lease and ACLs.
+    // An authenticated retirement must still reject unrelated/tampered leases.
+    for (field, value) in [
+        ("sid", serde_json::json!("S-1-5-21-1-2-3-9999")),
+        (
+            "paths",
+            serde_json::json!([dir.join("work"), root.path().join("chief")]),
+        ),
+    ] {
+        let mut changed = original.clone();
+        changed[field] = value;
+        fs::write(&lease_path, serde_json::to_vec(&changed).unwrap()).unwrap();
+        assert!(host
+            .retire_verification_recheck(&r, "dispose-crashed")
+            .is_err());
+        assert!(!dir.join("check-access-retirement.json").exists());
+        assert!(acl_has_sid(&dir.join("work"), sid));
+    }
+    fs::write(&lease_path, &lease).unwrap();
+    let mut changed = proof.clone();
+    changed["operationId"] = serde_json::json!("another-operation");
+    fs::write(&isolation_path, serde_json::to_vec(&changed).unwrap()).unwrap();
+    assert!(host
+        .retire_verification_recheck(&r, "dispose-crashed")
+        .is_err());
+    fs::write(&isolation_path, &isolation).unwrap();
+    let quarantine = account.join("check-quarantine.json");
+    fs::write(
+        &quarantine,
+        br#"{"reason":"check-workspace-permission-cleanup-failed"}"#,
+    )
+    .unwrap();
+    let retired = host
+        .retire_verification_recheck(&r, "dispose-crashed")
         .unwrap();
+    assert!(!lease_path.exists());
+    assert!(!quarantine.exists());
+    for path in [
+        "work",
+        "work/result.txt",
+        "check-temp",
+        "check-temp/validator-started",
+    ] {
+        assert!(!acl_has_sid(&dir.join(path), sid), "{path}");
+    }
+    let recovery = fs::read(dir.join("check-access-retirement.json")).unwrap();
+    assert!(dir.join("check-access-retired.json").exists());
+    // Resume a crash after lease deletion but before the final cleanup receipt.
+    fs::remove_file(dir.join("check-access-retired.json")).unwrap();
+    assert_eq!(
+        host.retire_verification_recheck(&r, "dispose-crashed")
+            .unwrap(),
+        retired
+    );
+    // Replaying an old completed retirement cannot touch a later lease.
+    fs::write(&lease_path, br#"{"newOperation":true}"#).unwrap();
+    assert_eq!(
+        host.retire_verification_recheck(&r, "dispose-crashed")
+            .unwrap(),
+        retired
+    );
+    assert_eq!(fs::read(&lease_path).unwrap(), br#"{"newOperation":true}"#);
+    fs::remove_file(&lease_path).unwrap();
+    assert_eq!(
+        fs::read(dir.join("check-access-retirement.json")).unwrap(),
+        recovery
+    );
+    assert_eq!(fs::read(&isolation_path).unwrap(), isolation);
     assert_eq!(state(&host, &a.operation_id), VerificationState::Abandoned);
     next(&mut host, &a);
     assert_eq!(fs::read(dir.join("intent.json")).unwrap(), intent);

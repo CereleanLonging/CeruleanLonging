@@ -4,6 +4,30 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceActivityEntry {
+    pub anchor: crate::execution::EventAnchor,
+    pub at: String,
+    pub principal: String,
+    pub model: Option<String>,
+    pub task_id: Option<String>,
+    pub attempt_id: Option<String>,
+    pub title: String,
+    pub detail: String,
+    pub files: Vec<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceActivityPage {
+    pub project_id: String,
+    pub entries: Vec<WorkspaceActivityEntry>,
+    pub head: Option<crate::execution::EventAnchor>,
+    pub has_older: bool,
+    pub has_newer: bool,
+    pub total: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -11,6 +35,11 @@ use ts_rs::TS;
     deny_unknown_fields
 )]
 pub enum WorkspaceQuery {
+    ProjectActivity {
+        project_id: String,
+        after: Option<crate::execution::EventAnchor>,
+        before: Option<crate::execution::EventAnchor>,
+    },
     CurrentVerificationRecheck {
         project_id: String,
     },
@@ -647,6 +676,8 @@ pub struct WorkspaceVerificationResultDetail {
     pub message: Option<String>,
     pub recovery: Option<crate::verification_detail::VerificationRecoveryReview>,
     pub recovery_error: Option<String>,
+    #[serde(default)]
+    pub can_retry_start: bool,
     pub revision: String,
     pub artifact_count: u32,
     pub stage_count: u32,
@@ -795,6 +826,7 @@ pub struct WorkspaceApiPublicationReviewDetail {
     deny_unknown_fields
 )]
 pub enum WorkspaceResult {
+    ProjectActivity(WorkspaceActivityPage),
     CurrentVerificationRecheck(Option<Box<crate::verification_recheck::RecheckStatus>>),
     VerificationRecheckInputs(Box<WorkspaceRecheckInputs>),
     RegisteredValidator(Box<crate::execution::RegisteredValidator>),

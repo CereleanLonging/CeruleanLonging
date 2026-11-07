@@ -12,6 +12,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
         Purpose::Plan => ManagementDecision::Plan {
             tasks: vec![
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "a".into(),
                     goal: "OMP_DAG_FIRST: create result.txt".into(),
@@ -20,6 +22,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
                     validator_id: "tests".into(),
                 },
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "b".into(),
                     goal: "OMP_DAG_SECOND: update result.txt after A acceptance".into(),

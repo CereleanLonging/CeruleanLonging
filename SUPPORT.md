@@ -1,31 +1,26 @@
-# 0.1.43 接入与能力说明 / Integration and capability notes
-
-简化工作总览，项目任务、作业、运行、配置及管理审阅等详细记录入口收回后台，保留项目清单和状态摘要；原记录与受限查询能力继续保留。正常的需求规划、方案审批、执行与验收流程不变，交接页及维护只读日志仍可使用。退出确认改用顶层模态窗口，修复“上一页／下一页”穿透遮罩的问题，并阻止底层鼠标与键盘操作；Esc 走原取消流程，停止后台期间不能绕过等待。
-
-Simplifies the overview by removing detailed task, job, run, configuration and management-review record links, retaining project summaries and status. Original records and bounded backend queries remain available. Planning, approval, execution and verification flows are unchanged, as are handoff history and maintenance logs. Exit confirmation now uses a top-layer modal dialog so pagination cannot appear above its backdrop or receive mouse or keyboard input. Escape follows the existing cancel flow and cannot bypass a pending backend stop.
-
-0.1.42 新增默认关闭的独立实验功能页，集中管理实验工作台和效率对照；并将全局 API 中断与管理复核记录移入“维护与升级”的独立只读日志窗口，使用所属工作台的现有核心连接，不增加模型调用或修改权限。
-
-0.1.42 adds an opt-in experiment page for workbench management and efficiency comparisons, and moves global API interruption and management review records into a separate read-only log window under Maintenance & Upgrade. It uses the owning workbench’s existing core connection without model calls or mutation authority.
-
+# 0.1.48 接入与能力说明 / Integration and capability notes
 
 [简体中文](#zh-support) · [English](#en-support)
 
-0.1.41 新增默认关闭的方案管理授权，仅自动准备普通隔离账户及项目目录 ACL；取消或失败不自动重弹 UAC，执行模型不会成为管理员。首次使用授权启用 reader20，需 0.1.41 或更新的兼容核心。继续强制正常执行目录绑定并检查跨执行端文件归属；旧未隔离方案必须重新规划批准。本版为公开预览，改善首次项目与主指挥桌面绑定的配置引导、退出按钮布局；沿用由已保存 API 主指挥提炼 .md 文档、审阅确认后读入草稿，长文档分段处理。下表继承 0.1.34 已完成的约定范围实测记录，不表示全部供应商已在本版重测。0.1.35 引入的隔离与盲评使用本地合成回包及真实 Windows 账户验证；本版扫描只发现候选位置，登录和执行需分别确认，延期项保持原状态。
+0.1.48 补齐逐执行端独立检查、失败返工、核心只读汇总和独立盲评之间的交接。每项成果合格并接受后才进入整体评审；全票与证据分达标后开放主指挥整体功能测试，最后由用户核对交付。检查器和盲评验收程序分别随工作台分发，固定关联并校验摘要。
 
-0.1.41 adds default-off plan authorization for ordinary isolated account and project ACL preparation. Cancellation or failure never automatically repeats UAC, and workers do not become administrators. First use enables reader20, requiring 0.1.41 or a newer compatible core. Normal dispatch still enforces directory bindings and declared cross-worker file ownership. Legacy unisolated plans require replanning and approval. It retains desktop-chief setup, exit confirmation, .md refinement by the saved API chief, segmented document processing, and user confirmation before draft insertion. The table retains live-test records from the agreed 0.1.34 scope; it does not claim every provider was retested in this version. Isolation and review introduced in 0.1.35 use local synthetic responses and real Windows accounts. Discovery only lists candidate paths; login and execution require separate checks. Deferred items remain deferred.
+Version 0.1.48 connects per-executor objective checks, correction of failed submissions, read-only delivery assembly and independent blind review. Every submission must pass and be accepted before whole-project review. Unanimity and evidence-score thresholds open the chief’s functional testing stage, followed by user confirmation. The objective checker and blind-review verifier ship as separately executed, hash-bound programs.
 
-桌面主指挥使用绑定的外部 Codex 聊天领取并回填方案与收口；配置引导不会创建聊天、发送消息、批准或启动任务。Markdown 自动提炼仍只支持已保存的 API 主指挥。Windows 程序须保留同目录核心及配套资源；单独复制 GUI EXE 不能独立运行。
+本轮 Codex 使用沿用当前账号的专用后台会话。已由桌面占用写入权的聊天需要先处理会话竞争，或选择专用后台会话。
 
-The desktop chief uses a bound external Codex chat to claim and return plans and closure decisions. Setup guidance does not create chats, send messages, approve or start tasks. Automatic Markdown refinement still requires a saved API chief. Keep the Windows runtime and bundled resources beside the GUI; a copied GUI executable alone cannot run the workbench.
+The Codex experiment used a dedicated backend session with the current account. A chat held by an active desktop writer requires resolving writer ownership or choosing a dedicated backend session.
 
-- 新增随工作台分发的独立验收程序，固定绑定并核对摘要，实际承担脱敏分片、核票和全票判定；项目客观测试与最终用户确认保持。项目专用检查配置收进高级设置。
-- 编程项目初始目录为 `D:\test\coding`，可自行修改；验收工具留在工作台程序目录，不迁移已关联项目。
+Markdown 导入使用内置本地提炼工具，按结构分段整理并保留原文行号，确认后读入草稿。管理员主窗口通过当前账户的普通权限导入窗口接收拖拽文件。独立实验台使用单独的数据目录和深色侧栏，日常工作台使用浅色侧栏。
 
-- A separately executed verifier ships with the workbench, with a fixed, hash-checked binding. It prepares redacted fragments, validates ballots and checks unanimity; objective project tests and final user confirmation remain. Project-specific checking tools are advanced settings.
-- Project registration starts at `D:\test\coding` and remains editable. The verifier stays in the program directory; existing projects are not relocated.
+Markdown import uses built-in local, segmented extraction with source-line references and confirmation before insertion. A standard-privilege import window supports file drops for the administrator main window. Experiment workbenches use separate data directories and a dark sidebar; the daily workbench uses a light sidebar.
 
-独立工具说明 / [Independent verifier details](docs/INDEPENDENT-VERIFIER.md)。新增资源布局需使用完整安装器升级。
+桌面升级适配覆盖 Codex 程序重新定位和 Qoder 同协议版本验证。已选定且仍有效的 Codex 路径优先；原路径消失后可选唯一有效候选或唯一运行中 CLI，歧义时需明确选择。Qoder 0.4.3.0、0.4.8.0 有实测记录，后续 0.4 同协议候选需先通过本机固定消息验证，再重新绑定。其他协议系列需适配。版本、进程、路径、模型或桥摘要变化后需要重新核验。
+
+Desktop upgrade handling covers Codex executable rediscovery and Qoder protocol-family validation. A valid explicit Codex path takes priority. A missing path can resolve to one unambiguous candidate or running CLI. Qoder 0.4.3.0 and 0.4.8.0 have actual test records. Later 0.4 candidates require a successful local fixed-message check and a fresh binding; other protocol families require adapter work. Changes to versions, processes, paths, models or bridge digests require renewed verification.
+
+新检查材料启用 reader24，绑定 API 执行端评审输出额度的轮次启用 reader25。升级前请使用维护页备份，更新后的数据需由兼容阅读器打开。Windows GUI、核心与配套资源一起分发。编程项目默认目录为 `D:\test\coding`，可在项目设置调整。
+
+New check material enables reader24. Rounds with configured API worker review output limits enable reader25. Back up through Maintenance before upgrading and use a compatible reader for updated data. The Windows GUI, runtime and resources are distributed together. Project registration defaults to `D:\test\coding`, adjustable in project settings.
 
 <a id="zh-support"></a>
 
@@ -48,7 +43,7 @@ CeruleanLonging 面向 Windows x64，桌面界面需要可用的 Microsoft Edge 
 | Qwen API / 中转 | 本轮实际验证 `api.a6api.vip/v1`、`qwen3.8-flash` 的编程修订和本地取消恢复。此配置为第三方中转，不能代替官方百炼或 Token Plan 的实测。 |
 | Kimi API | 本轮按用户安排延期。 |
 | Grok API | 本轮按用户安排延期。 |
-| Qoder / Qwen Token Plan 桌面 | 保留指定旧版本和界面配置的实验结果。应用升级、会话竞争和现场异常需要另行核对；界面模型标签不独立证明上游模型身份。 |
+| Qoder / Qwen Token Plan 桌面 | Qoder 0.4.8.0 的指定 BYOK 配置完成隔离账户编程、独立检查及六包盲评收发。界面所选模型为 Qwen-3.8-Flash（中）。发送期间需要保持目标窗口前台，焦点变化会停止当前操作并保留原记录。升级与接入配置变化须重新核对，模型身份依据该配置和界面标签记录。 |
 | WorkBuddy 桌面 | 已移除新接入与执行支持；旧记录只读保留，历史测试不代表当前支持。 |
 | 统一工作台 CLI | 与桌面共用本地核心，提供项目配置、计划批准、执行、检查、恢复与维护入口。各供应商的实际能力以对应路线为准。 |
 | 其他厂商原生 CLI | 除已列出的 Codex、OMP 外，本轮未新增其他原生 CLI 接入承诺。 |
@@ -57,12 +52,12 @@ CeruleanLonging 面向 Windows x64，桌面界面需要可用的 Microsoft Edge 
 
 - 主指挥需求目录独立；副指挥经核心只读核对。执行总目录内最多五个身份目录，新身份才新建，已登记身份复用；执行工具受各自目录和已批准操作约束。
 - CLI、桌面和新隔离任务的检查器需要绑定的普通 Windows 账户；账户建立可能需要 UAC。API 编程的文件访问仍由核心工具限定，客观检查也需检查账户。
-- 项目盲评仅接受全名册无工具 API：主副指挥各一票，1—5 个执行身份各一票。同一执行身份去重；副指挥就绪确认不计票。Codex、OMP、桌面和外部当前聊天暂不能作为盲评席位，缺少支持时整轮拒绝。
-- 用户先批准冻结材料和名册；各席只能收到核心提供的脱敏源码片段与批准的要求，不能调用文件工具或检索他人票据。完整收票后统一揭晓；全票后仍需用户确认同一交付版本。客观失败、缺票或技术错误均不能由多数票覆盖。
+- 项目盲评支持无工具 API、受支持的 CLI 和已绑定桌面会话。主副指挥各一票，1—5 个去重执行身份各一票；副指挥先确认就绪。各通道均需提供完整的评分过程核验记录，工具调用或缺失证据会将该席判为未通过。
+- 用户先批准冻结材料和名册。各席接收核心提供的脱敏源码片段、批准要求与匿名检查摘要，评分过程核验会拒绝工具调用。完整收票后统一揭晓，全票与证据分达标后开放主指挥整体功能测试，通过后由用户确认同一交付版本。客观失败、缺票及技术错误均保留具体原因。
 - 不通过后副指挥可提交一次失败分析，再由用户审阅进入既有主指挥问答与修订流程。重开不自动重发未决请求。
-- 完整材料上限 96 KiB，最多 128 个源码文件，每片最多 2,048 UTF-8 字节；超限拒绝，不截断后宣称整库覆盖。最多 3—7 席、每轮席位数加 2 次请求，每次最多输出 4,096 tokens、90 秒，整轮 15 分钟；不是金额封顶。
-- 启用后要求 reader19；同一数据目录不能继续使用旧宿主权限执行路径或新接入外部主指挥聊天。推荐先用独立实验工作台，升级前备份。旧版本不能读取新格式，恢复不会自动联网。
-- 本机验证覆盖密封投票、全票与最终确认、恢复、票库/管道拒绝、子进程身份和检查目录权限回收。模型回包是合成数据，尚不能证明真实模型质量、供应商内部隔离或完全消除暗号。
+- 完整材料上限 96 KiB，最多 128 个源码文件，每片最多 2,048 UTF-8 字节，超限时要求调整审阅范围。每轮 3—7 席，请求数按通道与实际材料计算并在批准前展示。Codex 分包载荷上限 6,000 字节，Qoder 为 1,500 字节，另有最终投票请求。API 执行端投票沿用该模型已批准的输出额度，同身份有多个任务时取其中最低额度，其他 API 席位和历史轮次默认 4,096 tokens。额度逐席展示并绑定本轮批准摘要。每个请求 90 秒，整轮 15 分钟，费用按所选服务计收。
+- 新检查材料使用 reader24，绑定 API 执行端评审输出额度的轮次使用 reader25。执行模型使用分配的工作目录，评分接收批准的材料。恢复已有轮次先核对记录，再按该轮状态提供操作。
+- 合成回归覆盖密封投票、全票与最终确认、恢复、票库和管道拒绝、子进程身份及检查目录权限回收。23 项真实 Windows 普通账户测试验证了检查隔离与权限回收。另以双模块合成项目完成真实服务实验，覆盖 Codex 专用后台会话、A6API 副指挥、DeepSeek 执行端和 Qoder BYOK 桌面，四席通过盲评后完成主指挥功能测试与测试交付确认。此前轮次中的人工桌面协助、一次旧核心受控终止及失败记录均纳入实验历史。证据分仍待校准，结论限于这些配置和场景。
 
 ### 使用时需要了解
 
@@ -91,7 +86,7 @@ CeruleanLonging targets Windows x64 and requires an available Microsoft Edge Web
 | Qwen API / relay | This acceptance scope has validated coding revisions and local cancellation/recovery using `api.a6api.vip/v1` with `qwen3.8-flash`. This is a third-party relay, not validation of official DashScope or Token Plan access. |
 | Kimi API | Deferred for this acceptance scope at the user's request. |
 | Grok API | Deferred for this acceptance scope at the user's request. |
-| Qoder / Qwen Token Plan desktop | Experimental results for selected older versions and UI configurations are retained. Upgrades, session competition, and on-site failures need separate checks. A displayed model label does not independently authenticate the upstream model. |
+| Qoder / Qwen Token Plan desktop | The selected Qoder 0.4.8.0 BYOK configuration completed isolated-account coding, independent checks and six-packet blind review. The UI model was Qwen-3.8-Flash (medium). Sending requires the target window to retain foreground focus. Focus changes stop the operation and preserve its records. Upgrades and configuration changes require renewed verification. Model identity is recorded from the selected configuration and displayed label. |
 | WorkBuddy desktop | New integrations and execution support have been removed. Historical records remain readable; past tests do not imply current support. |
 | Unified workbench CLI | Shares the local core with the desktop and provides project configuration, plan approval, execution, checks, recovery, and maintenance. Actual provider capabilities follow the corresponding route. |
 | Other vendor-native CLIs | No additional native CLI integration is promised in this scope beyond the listed Codex and OMP integrations. |
@@ -100,12 +95,12 @@ CeruleanLonging targets Windows x64 and requires an available Microsoft Edge Web
 
 - Lead requirements live separately and the coordinator reads them through the core. The worker root holds at most five identity directories: new identities allocate a directory; registered identities reuse theirs. Tools follow directory and approved-operation boundaries.
 - CLI, desktop, and checking processes for new isolated tasks require bound standard Windows accounts. Creating accounts may require UAC. API coding still uses core-scoped file tools, with an account required for objective checks.
-- Every reviewer must support tool-free API review: one vote each for lead and coordinator, plus 1–5 distinct worker identities. Coordinator readiness is not a vote. Codex, OMP, desktop, and external current-chat roles cannot be reviewers in this version; an unsupported roster rejects the whole round.
-- Users approve frozen material and the roster first. Reviewers receive core-provided redacted code fragments and approved requirements, with no file tools or access to other votes. Complete results are revealed together; unanimous approval still requires user confirmation of the same delivery. Objective failures, missing votes, and technical errors cannot be overruled by a majority.
+- Blind review supports tool-free API requests, supported CLI transports and bound desktop sessions. The chief, deputy and 1–5 distinct executor identities each hold one vote, following deputy readiness. Each transport must supply a complete process audit; tool calls or missing evidence fail the corresponding seat.
+- Users approve frozen material and the roster first. Reviewers receive core-provided redacted fragments, approved requirements and anonymous check facts. Process audits reject tool calls. Complete results are revealed together. Unanimity and evidence-score thresholds open chief functional testing, followed by user confirmation of the same delivery. Objective failures, missing votes and technical errors retain their specific causes.
 - After rejection, the coordinator can submit one analysis for user review before the existing lead-planner question/revision flow. Reopening does not resend unresolved requests.
-- Material is limited to 96 KiB, 128 source files, and 2,048 UTF-8 bytes per fragment. Oversized inputs are rejected, not silently truncated. Rounds have 3–7 seats and at most the seat count plus 2 requests, each capped at 4,096 output tokens and 90 seconds, with 15 minutes per round. These are not spending caps.
-- Enabling review requires reader19. The same data directory cannot continue using legacy host-account execution paths or add an external current-chat lead. Use an experiment workbench first and back up before upgrading. Older versions cannot read the new format; restoring data does not initiate network calls.
-- Local checks cover sealed votes, unanimity and final confirmation, recovery, private-store/pipe denials, child identity, and check-directory permission revocation. Model responses are synthetic, so these checks do not establish live-model quality, provider-internal isolation, or elimination of all covert signals.
+- Material is limited to 96 KiB, 128 source files and 2,048 UTF-8 bytes per fragment. Oversized inputs require a revised review scope. Rounds have 3–7 seats. Request counts depend on the transport and material and appear before approval. Codex packet payloads allow up to 6,000 bytes and Qoder up to 1,500 bytes, followed by a final voting request. API worker votes inherit the approved output limit, using the lowest limit when one identity spans multiple tasks. Other API seats and historical rounds default to 4,096 tokens. Per-seat limits appear before approval and are bound to the round digest. Requests have a 90-second timeout and rounds a 15-minute deadline. Provider charges apply.
+- New check material uses reader24. Rounds with configured API executor review output limits use reader25. Executors use their assigned directories, and review receives approved material. Reopening a round first reconciles its records and exposes actions permitted by its recorded state.
+- Synthetic regressions cover sealed votes, unanimity, final confirmation, recovery, private-store and pipe denials, child identity and permission revocation. Twenty-three real Windows standard-account tests validate checking isolation and permission recovery. A separate live-service experiment used a synthetic two-module project with a dedicated Codex backend session, an A6API deputy, DeepSeek and Qoder BYOK. Four passing votes opened chief functional testing and test delivery confirmation. Earlier rounds included manual desktop assistance and one controlled old-core termination. Failed attempts remain part of the history. Evidence weights await calibration, and conclusions apply to these configurations and scenarios.
 
 ### Before using an integration
 
@@ -125,6 +120,6 @@ The fixed 72-run efficiency study recorded 50 passes and 22 non-passes. Team mod
 
 ## 文档提炼 / Document refinement
 
-导入只支持 UTF-8 `.md`；选择文档即可能发送给所配置 API 主指挥并计费。外部 Codex 聊天尚不支持后台自动提炼。用户确认前不会改写草稿，模型引用能定位不代表摘要完整正确；请对照原文审阅。文件和正文不设固定上限，但仍受本机资源、供应商能力及项目调用额度约束。保存大文档不代表模型一定能接受整个规划上下文。
+文档导入支持 UTF-8 `.md`，由内置本地工具按结构分段提炼，保留原文与行号。预览中确认后读入需求草稿，后续请求主指挥时采用当前项目的接入配置。导入与提炼在本机完成，长文档处理受可用内存约束。规划请求仍需符合所选模型的上下文与项目调用额度。
 
-Import supports UTF-8 `.md` only. Selection may send segments to the configured API chief and incur charges. External Codex chats cannot refine automatically in the background. Drafts remain unchanged until confirmation; locatable citations do not prove completeness or correctness. Review against the source. No fixed file/text import cap is imposed, but local resources, provider capabilities and project request budgets apply. Saving a large document does not guarantee the model can accept the complete planning context.
+Document import accepts UTF-8 `.md`. The built-in local tool extracts structured segments and preserves source text and line references. Confirmation in the preview applies the content to the requirements draft. A later planning request uses the current project connection. Import and extraction run locally, with long-document processing constrained by available memory. Planning requests must fit the selected model's context and project request budget.

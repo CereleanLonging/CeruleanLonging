@@ -91,12 +91,15 @@ pub(crate) fn annotate(mut context: Value, purpose: Purpose) -> Result<Value, St
     };
     context["executionBoundaries"] = json!({"schemaVersion":1,"tasks":rows(&tasks,&snapshot.project.root)?,
         "rule":"Normal execution can read and write only its bound model directory. Never assign another model's source path, a parent/shared directory, or a repository-wide scan. Different executor identities must have disjoint source-file ownership (case-insensitive, including parent/child path overlap). Same-model tasks remain serialized by the host. A missing directory blocks dispatch. Review uses only approved read-only source fragments delivered by the independent verifier through the core; review never expands directory ACLs or exposes file tools. If boundaries conflict, ask the chief to revise the plan and obtain user approval before dispatch."});
+    let bytes = serde_json::to_vec(&context)
+        .map_err(|e| e.to_string())?
+        .len();
     require(
-        serde_json::to_vec(&context)
-            .map_err(|e| e.to_string())?
-            .len()
-            <= 64 * 1024,
-        "指挥请求的任务边界超过容量，请拆分方案；不会截断边界后分配",
+        bytes <= purpose.context_limit_bytes(),
+        &format!(
+            "指挥请求含任务边界共 {bytes} 字节，超过本次 {} KiB 容量，请拆分需求后保存配置",
+            purpose.context_limit_bytes() / 1024
+        ),
     )?;
     Ok(context)
 }

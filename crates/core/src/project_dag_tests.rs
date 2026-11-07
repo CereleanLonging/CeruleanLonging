@@ -14,6 +14,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
         Purpose::Plan => ManagementDecision::Plan {
             tasks: vec![
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "a".into(),
                     goal: "DAG_STEP_A: write alpha to result.txt".into(),
@@ -22,6 +24,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
                     validator_id: "dag-validator".into(),
                 },
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "b".into(),
                     goal: "DAG_STEP_B: extend alpha to alpha beta in result.txt".into(),

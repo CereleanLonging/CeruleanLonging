@@ -13,8 +13,14 @@ function stable(value: unknown): string {
 }
 export const accessContents = (draft: ProjectSetupDraft) => stable(accessSelection(draft));
 export const accessKey = (draft: ProjectSetupDraft) => {
-  const {artifactPaths: _artifacts,...selection} = accessSelection(draft);
-  return stable(selection);
+  const {artifactPaths: _artifacts, resourceKeys: _resources, supervision: _supervision, profiles, ...selection} = accessSelection(draft);
+  // Task allocation is reviewed with the plan. Editing it does not invalidate a
+  // checked model connection or send the user back to connection setup.
+  return stable({...selection, profiles:profiles?.map(profile => ({
+    id:profile.id, workerAdapter:profile.workerAdapter, workerModel:profile.workerModel,
+    codexExecutable:profile.codexExecutable, apiWorker:profile.apiWorker,
+    desktopWorker:profile.desktopWorker, ompRuntimeParent:profile.ompRuntimeParent,
+  }))});
 };
 type DesktopReference = {bindingId:string;projectRoot:string;modelLabel:string};
 type StoredProfile = Omit<WorkerProfileDraft,"desktopWorker"> & {desktopWorker?:DesktopReference | null};

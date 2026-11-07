@@ -231,6 +231,12 @@ impl RuntimeHost {
                     }
                 };
                 let mut detail = crate::verification_detail::read(&self.root, job, &basis)?;
+                #[cfg(windows)]
+                {
+                    detail.can_retry_start = self
+                        .verification_start_retry_available(project_id, operation_id)
+                        .is_ok();
+                }
                 if job.state == VerificationState::Unknown {
                     match self.verification_recovery_review(job) {
                         Ok(review) => detail.recovery = Some(review),

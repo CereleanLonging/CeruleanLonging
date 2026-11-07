@@ -23,7 +23,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const MAX_BYTES: usize = 256 * 1024;
+// An external planning record contains both the intent and handoff context.
+// Keep enough bounded space for two 256 KiB contexts plus journal metadata.
+pub(crate) const MAX_BYTES: usize = 1024 * 1024;
 const MAX_OPERATIONS: usize = 1000;
 mod decision_source;
 mod deputy;
@@ -290,10 +292,18 @@ impl ApplicationTarget {
                                 .map_err(|_| "invalid saved execution setup")?;
                         saved.setup.resources_for(proposed.profile_id.as_deref())?
                             == task.resource_keys
-                            && saved
-                                .setup
-                                .execution_for(&proposed.id, proposed.profile_id.as_deref())?
-                                == *spec
+                            && cerulean_domain::objective_checker::bind_execution(
+                                &saved.setup,
+                                proposed,
+                                &serde_json::from_value(
+                                    intent
+                                        .context
+                                        .get("objectiveRuntimes")
+                                        .cloned()
+                                        .unwrap_or_else(|| serde_json::json!({})),
+                                )
+                                .map_err(|_| "客观测试运行时上下文无效")?,
+                            )? == *spec
                             && saved
                                 .setup
                                 .validator_for(&proposed.id, proposed.profile_id.as_deref())?
@@ -352,6 +362,34 @@ impl ApplicationTarget {
                 require(
                     principal == "chief" && task == task_id && attempt == attempt_id,
                     "acceptance differs from chief decision",
+                )?;
+            }
+            (
+                D::Advise {
+                    task_id,
+                    suggestion: proposed,
+                    ..
+                },
+                C::ReturnForRework {
+                    task,
+                    attempt,
+                    verification_operation,
+                    report_digest,
+                    suggestion,
+                },
+            ) => {
+                let feedback = &intent.context["rework"];
+                require(
+                    intent.purpose == Purpose::Advise
+                        && principal == "deputy"
+                        && feedback["requiresPlanRevision"] == false
+                        && task == task_id
+                        && suggestion == proposed
+                        && feedback["taskId"] == *task
+                        && feedback["attemptId"] == *attempt
+                        && feedback["verificationOperation"] == *verification_operation
+                        && feedback["reportDigest"] == *report_digest,
+                    "rework differs from original deputy decision or checker feedback",
                 )?;
             }
             (

@@ -300,7 +300,7 @@ pub fn compose(request: &TeamRequest) -> Result<TeamBlueprint, String> {
                 ),
             });
         }
-        tasks.push(ProposedTask { id: id.into(), dependencies, profile_id, worker_id: adapter.worker_id(), validator_id: validator,
+        tasks.push(ProposedTask { artifact_paths: None, objective_test: None, id: id.into(), dependencies, profile_id, worker_id: adapter.worker_id(), validator_id: validator,
             goal: format!("{}\nFixed task: {id}. Modify only: {}. Preserve other files; use accepted dependency inputs.", template.plan.workflow.tasks[0].goal, files.join(", ")) });
     }
     let mut policy = worktree.clone();

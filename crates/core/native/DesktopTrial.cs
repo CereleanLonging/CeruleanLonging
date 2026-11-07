@@ -7,9 +7,10 @@ using System.Threading;
 using System.Windows.Automation;
 
 public partial class DesktopObserver {
+    const int QoderDraftWaitMilliseconds = 30000;
     public class TrialReview {public string id,bindingId,marker,prompt,bridgeSha256;public Observation observation;public string[] baseline;}
     public class TaskReview:TrialReview {public string promptSha256;public int maxWaitSeconds;}
-    class Round {public string[] user;public string reply;public bool completed,cancelled;[System.Web.Script.Serialization.ScriptIgnore]public string richBodyDigest;}
+    class Round {public string[] user;public string reply;public bool completed,cancelled;[System.Web.Script.Serialization.ScriptIgnore]public string richBodyDigest;[System.Web.Script.Serialization.ScriptIgnore]public string messageText;}
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
     [StructLayout(LayoutKind.Sequential)] struct KeyboardInput {public ushort vk,scan;public uint flags,time;public IntPtr extra;}
@@ -88,14 +89,38 @@ public partial class DesktopObserver {
             var actions=Enumerable.Range(0,part.Length).Where(i=>Group(part[i],"回复操作")).ToArray();
             var states=part.Where(n=>n.Cached.ControlType==ControlType.Group&&(n.Cached.Name??"").StartsWith("状态：")).ToArray();
             if(agent.Length!=1||actions.Length!=1||actions[0]<=agent[0]||states.Length!=1)throw new InvalidOperationException("trial_history_unavailable");
+            var summaries=Enumerable.Range(0,part.Length).Where(i=>Group(part[i],"本轮文件修改摘要")).ToArray();
+            string[] summaryDescendants=null;
+            if(summaries.Length==1)summaryDescendants=part[summaries[0]].FindAll(TreeScope.Descendants,Automation.ControlViewCondition).Cast<AutomationElement>().Select(Runtime).ToArray();
+            int replyEnd=QoderReplyEnd(part.Select(CachedRuntime).ToArray(),agent[0],actions[0],summaries,summaryDescendants);
             rounds.Add(new Round{user=part.Take(agent[0]).Where(n=>n.Cached.ControlType==ControlType.Text).Select(n=>n.Cached.Name).ToArray(),
                 reply=String.Concat(part.Skip(agent[0]+1).Take(actions[0]-agent[0]-1).Where(n=>n.Cached.ControlType==ControlType.Text).Select(n=>n.Cached.Name)).Trim(),
+                messageText=String.Concat(part.Skip(agent[0]+1).Take(replyEnd-agent[0]-1).Where(n=>n.Cached.ControlType==ControlType.Text).Select(n=>n.Cached.Name)).Trim(),
                 completed=Regex.IsMatch(states[0].Cached.Name,@"^状态：成功(?:，|$)"),cancelled=Regex.IsMatch(states[0].Cached.Name,@"^状态：(已取消|取消|已停止|停止|已中断|中断)(?:，|$)")});
         }
         return rounds.ToArray();
     }
+    static int QoderReplyEnd(string[] snapshot,int agent,int actions,int[] summaries,string[] descendants) {
+        if(agent<0||actions<=agent||actions>=snapshot.Length||summaries.Length>1)throw new InvalidOperationException("trial_history_unavailable");
+        if(summaries.Length==0)return actions;
+        int summary=summaries[0];
+        // The observed product card is the final, contiguous subtree before
+        // reply actions. A matching name elsewhere cannot truncate the reply.
+        if(summary<=agent||summary>=actions||QoderHistoryEnd(snapshot,summary,new int[0],descendants)!=actions)throw new InvalidOperationException("trial_history_unavailable");
+        return summary;
+    }
+    static string ReplyText(Round round){return round.messageText??round.reply;}
+    // Preserve the historical full UI text for baseline and proof digests.
+    // The separate message boundary is used only to interpret the completion.
     static string[] Baseline(Round[] rounds){return rounds.Select(r=>Hash(r.richBodyDigest==null?json.Serialize(r):json.Serialize(new{user=r.user,reply=r.reply,completed=r.completed,cancelled=r.cancelled,richBodyDigest=r.richBodyDigest}))).ToArray();}
-    static void Enabled(Window window){if(window==null||window.app!="qoder"||window.version!="0.4.3.0")throw new InvalidOperationException("trial_app_not_enabled");}
+    static bool QoderCandidate(string version) {
+        if(version==null)return false;
+        var parts=version.Split('.');ushort patch,build;
+        return parts.Length==4&&parts[0]=="0"&&parts[1]=="4"&&
+            parts.Skip(2).All(p=>p.Length>0&&p.All(c=>c>='0'&&c<='9'))&&
+            UInt16.TryParse(parts[2],out patch)&&patch>=3&&UInt16.TryParse(parts[3],out build);
+    }
+    static void Enabled(Window window){if(window==null||window.app!="qoder"||!QoderCandidate(window.version))throw new InvalidOperationException("trial_app_not_enabled");}
     static bool WorkBuddyReadable(Window window){return window!=null&&window.app=="workbuddy"&&(window.version=="5.7.7.0"||window.version=="5.8.3.0");}
     static void RequireDesktopActionVersion(Window window){if(window!=null&&window.app=="workbuddy"&&!WorkBuddyReadable(window))throw new InvalidOperationException("trial_app_not_enabled");}
     static string WorkBuddyListPath(string document,string version) {
@@ -114,6 +139,46 @@ public partial class DesktopObserver {
         Enabled(window);var view=ReadView(window,true);var rounds=Rounds(view);
         if(rounds.Length<2||rounds.Length>128||rounds.Any(r=>!r.completed&&!r.cancelled))throw new InvalidOperationException("trial_history_unavailable");
         return new{observation=view.observation,baseline=Baseline(rounds)};
+    }
+    // Approved review delivery may focus and scroll the original empty composer.
+    // Ordinary task preparation stays read-only. Capture the newest history only
+    // after the virtualized list is at its end and two read-only samples agree.
+    static object PrepareReview(Window window) {
+        Enabled(window);
+        using(var mutex=new Mutex(false,@"Local\CeruleanDesktopTrialActionV1")) {
+            bool acquired=false;
+            try {
+                try {acquired=mutex.WaitOne(0);} catch(AbandonedMutexException) {acquired=true;}
+                if(!acquired)throw new InvalidOperationException("trial_lease_busy");
+                var initial=ReadView(window,true);
+                if(String.IsNullOrWhiteSpace(initial.observation.modelLabel))throw new InvalidOperationException("trial_history_unavailable");
+                var anchor=new TrialReview{observation=initial.observation};
+                var hwnd=new IntPtr(Int64.Parse(window.hwnd));
+                SetForegroundWindow(hwnd);Thread.Sleep(100);Foreground(hwnd,window);
+                FocusComposer(initial,hwnd);Thread.Sleep(100);
+                var focused=ReadView(window,true);Continuity(focused,anchor);
+                if(focused.observation.modelLabel!=initial.observation.modelLabel)throw new InvalidOperationException("trial_view_changed");
+                var lists=focused.nodes.Where(n=>Group(n,"消息列表")).ToArray();
+                object pattern;
+                if(lists.Length!=1||!lists[0].TryGetCurrentPattern(ScrollPattern.Pattern,out pattern))throw new InvalidOperationException("trial_history_unavailable");
+                Foreground(hwnd,window);
+                var scroll=(ScrollPattern)pattern;
+                if(scroll.Current.VerticallyScrollable)scroll.SetScrollPercent(ScrollPattern.NoScroll,100);
+                string[] baseline=null;bool settled=false;
+                var current=WaitForDraft(()=>{
+                    var view=ReadView(window,true);Continuity(view,anchor);Foreground(hwnd,window);
+                    if(view.observation.modelLabel!=initial.observation.modelLabel)throw new InvalidOperationException("trial_view_changed");
+                    return view;
+                },view=>{
+                    var rounds=Rounds(view);
+                    if(rounds.Length<2||rounds.Length>128||rounds.Any(r=>!r.completed&&!r.cancelled))throw new InvalidOperationException("trial_history_unavailable");
+                    var next=Baseline(rounds);
+                    settled=baseline!=null&&baseline.SequenceEqual(next);baseline=next;return settled;
+                },5000,200);
+                if(!settled||current==null)throw new InvalidOperationException("trial_history_unavailable");
+                return new{observation=current.observation,baseline=baseline};
+            } finally {if(acquired)mutex.ReleaseMutex();}
+        }
     }
     static object PrepareTask(Window window,TaskReview previous) {
         // RuntimeHost binds this native contract to the persisted approved attempt.
@@ -341,17 +406,23 @@ public partial class DesktopObserver {
     }
     static object WaitSentReply(TrialReview review,bool task) {
         SendStage("read-reply");
+        return WaitForReply(()=>task?ReadTask((TaskReview)review):ReadTrial(review),
+            (task?((TaskReview)review).maxWaitSeconds:50)*1000,500);
+    }
+    // Every callback is read-only. A transient UIA refresh can be sampled again
+    // after the single send, while identity failures propagate immediately.
+    static object WaitForReply(Func<object> read,int timeoutMs,int intervalMs) {
+        if(read==null||timeoutMs<=0||intervalMs<=0)throw new InvalidOperationException("reply_wait_invalid");
         // Monotonic elapsed time includes UIA reads. An individual blocked COM
         // call is still bounded by the outer owned process timeout.
         var watch=System.Diagnostics.Stopwatch.StartNew();
-        long budget=(task?((TaskReview)review).maxWaitSeconds:50)*1000L;
-        while(watch.ElapsedMilliseconds<budget) {
-            Thread.Sleep((int)Math.Max(1,Math.Min(500,budget-watch.ElapsedMilliseconds)));
-            if(watch.ElapsedMilliseconds>=budget)break;
-            try {return task?ReadTask((TaskReview)review):ReadTrial(review);}
+        while(watch.ElapsedMilliseconds<timeoutMs) {
+            try {return read();}
             catch(ElementNotAvailableException){}
             catch(COMException){}
             catch(InvalidOperationException e){if(e.Message!="trial_reply_unverified"&&e.Message!="trial_history_unavailable")throw;}
+            int pause=(int)Math.Min(intervalMs,timeoutMs-watch.ElapsedMilliseconds);
+            if(pause>0)Thread.Sleep(pause);
         }
         throw new InvalidOperationException("trial_reply_unverified");
     }
@@ -360,8 +431,15 @@ public partial class DesktopObserver {
         if(read==null||ready==null||timeoutMs<=0||intervalMs<=0)throw new InvalidOperationException("draft_wait_invalid");
         var timer=System.Diagnostics.Stopwatch.StartNew();T last=null;
         while(timer.ElapsedMilliseconds<timeoutMs) {
-            last=read();
-            if(ready(last))return last;
+            try {
+                last=read();
+                if(ready(last))return last;
+            } catch(ElementNotAvailableException) {last=null;}
+            catch(COMException) {last=null;}
+            catch(InvalidOperationException error) {
+                if(error.Message!="trial_history_unavailable")throw;
+                last=null;
+            }
             int pause=(int)Math.Min(intervalMs,timeoutMs-timer.ElapsedMilliseconds);
             if(pause>0)Thread.Sleep(pause);
         }
@@ -412,16 +490,19 @@ public partial class DesktopObserver {
                         if(draft.draft==review.prompt){send=WorkBuddySendButton(draft,true);break;}
                     }
                 } else {
-                    // A single Unicode burst may take React longer than one second
-                    // to expose all characters through UIA (observed in 228 and 231).
+                    // Long reviewed task text can still be rendering after eight
+                    // seconds. Wait read-only within the bridge's outer deadline.
+                    // Typing remains one-shot and exact content is checked below.
                     draft=WaitForDraft(()=>{
                         var v=ReadView(review.observation.window,false);
                         Continuity(v,review);Foreground(hwnd,review.observation.window);return v;
                     },v=>{
                         var buttons=v.nodes.Where(n=>n.Cached.ControlType==ControlType.Button&&n.Cached.Name=="发送消息"&&!n.Cached.IsOffscreen&&n.Cached.IsEnabled).ToArray();
                         if(v.draft!=review.prompt||buttons.Length!=1)return false;
+                        if(v.observation.busy||v.observation.modelLabel!=review.observation.modelLabel)throw new InvalidOperationException("trial_view_changed");
+                        if(!Baseline(TaskRounds(v)).SequenceEqual(review.baseline))return false;
                         send=buttons[0];return true;
-                    },8000,100);
+                    },QoderDraftWaitMilliseconds,100);
                 }
                 if(draft==null||draft.draft!=review.prompt||draft.observation.busy||(task&&draft.observation.modelLabel!=review.observation.modelLabel)||!Baseline(TaskRounds(draft)).SequenceEqual(review.baseline))throw new InvalidOperationException("trial_draft_changed");
                 object invoke=null;if(send==null||(!buddy&&!send.TryGetCurrentPattern(InvokePattern.Pattern,out invoke)))throw new InvalidOperationException("trial_send_unavailable");
@@ -444,10 +525,13 @@ public partial class DesktopObserver {
     }
     static object ReadReview(TaskReview review) {
         ReviewTask(review);
+        return WaitForReply(()=>ReadReviewOnce(review),5000,100);
+    }
+    static object ReadReviewOnce(TaskReview review) {
         var view=ReadView(review.observation.window,false);
         var rounds=TaskRounds(view);
         TaskResult(review,view,rounds);
-        string text=rounds.Last().reply;
+        string text=ReplyText(rounds.Last());
         text=text.Substring(0,text.Length-review.marker.Length).Trim();
         if(text.Length==0||System.Text.Encoding.UTF8.GetByteCount(text)>16384)throw new InvalidOperationException("review_reply_invalid");
         return new{reviewText=text};
@@ -459,7 +543,7 @@ public partial class DesktopObserver {
         var retained=Baseline(rounds.Take(Math.Max(0,rounds.Length-1)).ToArray());
         if(retained.Length<2||retained.Length>review.baseline.Length||!retained.SequenceEqual(review.baseline.Skip(review.baseline.Length-retained.Length)))throw new InvalidOperationException("trial_reply_unverified");
         var last=rounds.Last();
-        if(!last.completed||last.cancelled||!last.user.Contains(review.prompt)||!last.reply.EndsWith(review.marker,StringComparison.Ordinal)||!view.observation.draftEmpty||view.observation.busy)throw new InvalidOperationException("trial_reply_unverified");
+        if(!last.completed||last.cancelled||!last.user.Contains(review.prompt)||!ReplyText(last).EndsWith(review.marker,StringComparison.Ordinal)||!view.observation.draftEmpty||view.observation.busy)throw new InvalidOperationException("trial_reply_unverified");
         if(review.observation.window.app=="workbuddy") {
             ReviewTask(review,true);
             if(last.user.Length!=1||rounds.Count(r=>r.user.Contains(review.prompt))!=1)throw new InvalidOperationException("trial_reply_unverified");

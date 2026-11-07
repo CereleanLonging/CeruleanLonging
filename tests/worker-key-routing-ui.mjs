@@ -1,0 +1,116 @@
+import {confirmConnectionContinue} from './connection-ui-helpers.mjs';
+import assert from 'node:assert/strict';
+import {mkdtemp,writeFile} from 'node:fs/promises';
+import {join,resolve} from 'node:path';
+import {build} from 'vite';
+import {chromium} from 'playwright-core';
+import {openConnectionMethod} from './connection-ui-helpers.mjs';
+
+assert(process.env.CERULEAN_CACHE_SESSION,'Use managed cache runner');
+const run=await mkdtemp(resolve('reports/worker-key-routing-ui-'));
+const bundle=join(process.env.CERULEAN_CACHE_SESSION,'worker-key-routing-ui');
+const data={dataDirectory:'synthetic-worker-routing',workflows:['one','two'].map(id=>({project:{id,root:'D:/fixture/'+id},state:{tasks:{}},approval:null})),projectSetups:[],workerAccountSetups:[],validators:[{id:'checks',name:'Fixture'}],managementDecisions:[],managementHistory:{projects:[]},openaiConnection:{models:[],keyConfigured:false},codexConnection:{models:[],executable:'D:/fixture/codex.exe'},providerConnections:[{provider:'deepseek',target:{kind:'deepSeek'},state:'listed',keyConfigured:true,models:['deepseek-flash','fixture-alternative']}],projectRuns:[],codexJobs:[],apiJobs:[],adapters:[],desktopBindings:[]};
+const draft={projectId:'one',workerAdapter:'omp',codexExecutable:'',workerModel:'',chiefModel:'chief',deputyModel:'deputy',validatorId:'checks',checkArgs:[],artifactPaths:['result.txt'],workerMaxRequests:3,managementMaxRequests:10,maxSeconds:180};
+const entry=join(run,'entry.tsx');
+await writeFile(entry,`import React from 'react';import{createRoot}from'react-dom/client';import{flushSync}from'react-dom';
+import{ProjectPlanning}from'../../apps/desktop/src/ProjectPlanning';import{saveAccessDraft}from'../../apps/desktop/src/accessDraft';
+const root=createRoot(document.getElementById('root'));window.data=${JSON.stringify(data)};window.calls=[];window.mode='connections';window.generation=0;
+window.seed=draft=>saveAccessDraft(window.data.dataDirectory,'D:/fixture/'+draft.projectId,null,draft,false);
+window.render=()=>flushSync(()=>root.render(<ProjectPlanning key={window.generation} data={window.data} mode={window.mode} busy={false} send={async command=>{window.calls.push(command);if(command.type==='setProviderKey'){window.data={...window.data,providerConnections:[{...window.data.providerConnections[0],state:'unchecked',keyConfigured:true,models:[]}]};window.render();}if(command.type==='checkProviderModels'){window.data={...window.data,providerConnections:[{...window.data.providerConnections[0],state:'listed',models:['deepseek-flash','fixture-alternative']}]};window.render();}return true;}} onContinue={()=>{window.mode='planning';window.render();}} onConnections={()=>{window.mode='connections';window.render();}}/>));
+window.seed(${JSON.stringify(draft)});window.render();`);
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:bundle,emptyOutDir:false,lib:{entry,name:'WorkerKeyRouting',formats:['iife'],fileName:()=> 'ui.js'}}});
+const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+const page=await browser.newPage({viewport:{width:1280,height:1000}});
+const cases=[],errors=[];let externalRequests=0;
+try{
+  page.setDefaultTimeout(8000);page.on('pageerror',error=>errors.push(error.message));
+  await page.route('**/*',route=>route.request().url()==='https://cerulean.test/'?route.fulfill({contentType:'text/html',body:'<html lang="zh-CN"><meta charset="utf-8"><div id="root"></div></html>'}):(externalRequests++,route.abort()));
+  await page.goto('https://cerulean.test/');await page.addStyleTag({path:'apps/desktop/src/style.css'});await page.addScriptTag({path:join(bundle,'ui.js')});
+  const worker=page.getByRole('region',{name:'执行端',exact:true});
+  const key=worker.locator(':scope > details[data-method="key"]');
+  const modal=page.getByRole('dialog',{name:'选择具体模型',exact:true});
+  const next=()=>page.getByRole('button',{name:'下一步：设置需求与计划',exact:true}).click();
+  const choose=async model=>{await modal.waitFor();await modal.getByRole('radio',{name:model,exact:true}).check();await modal.getByRole('button',{name:'确认使用此模型',exact:true}).click();await modal.waitFor({state:'hidden'});};
+  const stored=async(id='one')=>page.evaluate(id=>JSON.parse(localStorage.getItem(JSON.stringify(['cerulean-access-draft',1,window.data.dataDirectory,id]))).selection,id);
+  const back=async()=>{await page.getByRole('button',{name:'修改接入配置',exact:true}).click();await openConnectionMethod(page,'执行端','key');};
+
+  await openConnectionMethod(page,'执行端','api');
+  assert.equal(await page.locator('#planning-adapter').inputValue(),'omp');
+  assert.equal(await worker.locator('[data-method="api"] #planning-adapter').count(),1);
+  await page.locator('#planning-worker').fill('deepseek-flash');
+  await next();assert.equal(await page.evaluate(()=>document.activeElement.id),'planning-executable');
+  assert.equal(await page.locator('#planning-executable').inputValue(),'');
+  await openConnectionMethod(page,'执行端','key');
+  assert.equal(await key.locator('input[type="password"]').count(),0);
+  assert.equal(await modal.count(),0);
+  cases.push('OMP lives only in API configuration; opening Key management neither assigns its model nor changes its adapter');
+
+  await key.getByRole('button',{name:'将Key 管理设为默认执行端',exact:true}).click();
+  await choose('deepseek-flash');
+  assert.equal(await page.locator('#planning-adapter').inputValue(),'deepseek');
+  assert.equal(await page.locator('#planning-worker').inputValue(),'deepseek-flash');
+  assert.equal(await page.locator('#planning-executable').count(),0);
+  await next();await confirmConnectionContinue(page);await page.getByRole('region',{name:'已选角色模型',exact:true}).waitFor();
+  await back();assert(await key.getByLabel('DeepSeek API Key',{exact:true}).isVisible());
+  assert.equal((await stored()).apiWorker.model,'deepseek-flash');
+  cases.push('Selecting the independent Key route removes OMP validation and survives Next/Back');
+
+  await page.evaluate(()=>{window.data=structuredClone(window.data);window.render();});
+  assert.equal(await page.locator('#planning-adapter').inputValue(),'deepseek');
+  await page.evaluate(()=>{window.generation++;window.render();});
+  await page.waitForFunction(()=>document.querySelector('#planning-adapter')?.value==='deepseek');
+  await openConnectionMethod(page,'执行端','key');assert(await key.getByLabel('DeepSeek API Key',{exact:true}).isVisible());
+  assert.equal((await stored()).workerModel,'deepseek-flash');
+  cases.push('Snapshot refresh and component remount restore API configuration and an editable Key card');
+
+  await page.locator('#planning-project').selectOption('two');
+  assert.equal(await page.locator('#planning-adapter').inputValue(),'deepseek');
+  await openConnectionMethod(page,'执行端','key');
+  await modal.waitFor();await modal.getByRole('button',{name:'稍后选择',exact:true}).click();await modal.waitFor({state:'hidden'});
+  await key.getByLabel('DeepSeek API Key',{exact:true}).fill('synthetic-worker-key-replacement');
+  assert(await key.getByRole('button',{name:'测试连通',exact:true}).isDisabled());
+  await key.getByRole('button',{name:'加密保存 DeepSeek Key',exact:true}).click();
+  await modal.waitFor();await modal.getByRole('button',{name:'读取模型目录',exact:true}).click();await choose('fixture-alternative');
+  assert.deepEqual((await page.evaluate(()=>window.calls)).map(c=>c.type),['setProviderKey','checkProviderModels']);
+  assert.equal((await stored('two')).workerAdapter,'deepseek');assert.equal((await stored('one')).workerModel,'deepseek-flash');
+  cases.push('A new project starts directly in Key configuration and can replace its API Key; other project selections remain independent');
+
+  await page.locator('#planning-project').selectOption('one');
+  await openConnectionMethod(page,'执行端','key');
+  await key.locator('summary').filter({hasText:/^执行权限与用量上限$/}).click();
+  await page.locator('#planning-api-maxRounds').fill('7');
+  await openConnectionMethod(page,'执行端','api');
+  await openConnectionMethod(page,'执行端','key');
+  assert.equal(await page.locator('#planning-api-maxRounds').inputValue(),'7');
+  assert.equal(await page.locator('#planning-worker').inputValue(),'deepseek-flash');
+  await openConnectionMethod(page,'执行端','api');
+  await worker.getByRole('button',{name:'将API 连接设为默认执行端',exact:true}).click();
+  await page.locator('#planning-executable').fill('D:/fixture/omp.exe');
+  await page.locator('#planning-worker').fill('deepseek-flash');
+  await next();await confirmConnectionContinue(page);await back();assert.equal(await page.locator('#planning-adapter').inputValue(),'omp');
+  assert.equal(await page.locator('#planning-executable').inputValue(),'D:/fixture/omp.exe');
+  cases.push('Expanding sections preserves Key limits; explicitly choosing OMP retains its own executable after navigation');
+
+  await page.evaluate(()=>{window.data={...window.data,providerConnections:[{...window.data.providerConnections[0],keyConfigured:false,state:'notConfigured',models:[]}]};window.render();});
+  await next();
+  const credential=page.getByRole('dialog',{name:'补充 OMP API Key',exact:true});
+  await credential.waitFor();
+  assert.equal(await modal.count(),0);
+  const before=await page.evaluate(()=>window.calls.length);
+  await credential.getByLabel('DeepSeek API Key',{exact:true}).fill('synthetic-omp-api-key-only');
+  await credential.getByRole('button',{name:'加密保存 DeepSeek Key',exact:true}).click();
+  await credential.getByRole('status').filter({hasText:'Key 已加密保存'}).waitFor();
+  assert.deepEqual((await page.evaluate(()=>window.calls.slice(-1))).map(c=>c.type),['setProviderKey']);
+  assert.equal(await page.evaluate(()=>window.calls.length),before+1);
+  await credential.getByRole('button',{name:'返回配置',exact:true}).click();await credential.waitFor({state:'hidden'});
+  assert.equal(await page.locator('#planning-adapter').inputValue(),'omp');
+  assert.equal(await page.locator('#planning-executable').inputValue(),'D:/fixture/omp.exe');
+  await next();await confirmConnectionContinue(page);await back();
+  cases.push('Missing OMP Key opens a dedicated credential dialog; saving makes no network request and preserves OMP configuration');
+  await page.setViewportSize({width:440,height:900});
+  await key.screenshot({path:join(run,'key-routing-narrow.png')});
+  assert.deepEqual(errors,[]);assert.equal(externalRequests,0);
+  await writeFile(join(run,'result.json'),JSON.stringify({passed:true,cases,errors,externalRequests},null,2));
+  console.log(JSON.stringify({passed:true,cases:cases.length,run}));
+}catch(error){await page.screenshot({path:join(run,'failure.png')}).catch(()=>{});await writeFile(join(run,'failure.json'),JSON.stringify({error:String(error),cases,errors},null,2));throw error;}
+finally{await browser.close();}

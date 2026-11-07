@@ -72,6 +72,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
             tasks: ["a", "b", "integration"]
                 .iter()
                 .map(|id| ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: (*id).into(),
                     goal: format!("INTEGRATION_{id} {mode}"),

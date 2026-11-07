@@ -412,7 +412,35 @@ impl RuntimeHost {
         &self,
         query: &WorkspaceQuery,
     ) -> Result<WorkspaceResult, String> {
+        if let WorkspaceQuery::ProjectActivity { project_id, .. } = query {
+            cerulean_domain::execution::identifier(project_id)?;
+            require(!self.base.poisoned, "项目记录需要重开核对")?;
+            #[cfg(windows)]
+            {
+                require(self.api_fault.is_none(), "项目协调器需要重开核对")?;
+                if let Some(writer) = self.api_writers.get(project_id) {
+                    require(!writer.interrupted, "项目协调器已中断")?;
+                    return writer.owner.workspace_history(query.clone());
+                }
+                require(
+                    !self
+                        .active
+                        .values()
+                        .any(|a| a.snapshot.project.id == *project_id)
+                        && !self
+                            .desktop_active
+                            .iter()
+                            .any(|a| a.snapshot.project.id == *project_id),
+                    "原项目由独占写者持有，保留上次记录等待同步",
+                )?;
+            }
+            return crate::workspace_history::query(
+                self.projects.get(project_id).ok_or("原项目不存在")?,
+                query,
+            );
+        }
         let result = match query {
+            WorkspaceQuery::ProjectActivity { .. } => unreachable!(),
             WorkspaceQuery::VerificationRechecks { .. }
             | WorkspaceQuery::CurrentVerificationRecheck { .. }
             | WorkspaceQuery::VerificationRecheckInputs { .. }

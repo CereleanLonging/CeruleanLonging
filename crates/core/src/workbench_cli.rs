@@ -1194,6 +1194,12 @@ fn parse(args: &[String]) -> Result<Invocation, String> {
                 evidence_digest: o.take("--evidence-digest")?,
                 reason: o.take("--reason")?,
             },
+            ("verification", "retry-start") => Command::RetryVerificationStart {
+                project_id: o.take("--project")?,
+                original_operation_id: o.take("--operation")?,
+                evidence_digest: o.take("--evidence-digest")?,
+                reason: o.take("--reason")?,
+            },
             ("verification", "show") => Command::ReadVerificationDetail {
                 project_id: o.take("--project")?,
                 operation_id: o.take("--operation")?,

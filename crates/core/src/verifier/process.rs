@@ -26,6 +26,7 @@ use windows_sys::Win32::{
 
 pub const OUTPUT_LIMIT: usize = 1024 * 1024;
 pub(crate) mod interactive;
+mod isolated_command;
 pub(crate) mod named_job;
 #[cfg(test)]
 mod tests;
@@ -289,6 +290,10 @@ pub(crate) fn run_isolated(
     job_name: Option<&str>,
     account: &crate::windows_worker_account::Account,
 ) -> Result<Outcome, String> {
+    let command = isolated_command::prepare(exe, args, cwd, temp)?;
+    let (exe, args) = command.as_ref().map_or((exe, args), |launch| {
+        (launch.executable.as_path(), launch.args.as_slice())
+    });
     run_inner(
         exe,
         args,

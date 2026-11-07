@@ -15,6 +15,10 @@ use windows_sys::Win32::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
+#[path = "windows_worker_account/recheck_retirement.rs"]
+mod recheck_retirement;
+pub(crate) use recheck_retirement::retire_check_access;
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AccountRecord {
@@ -298,8 +302,9 @@ pub(crate) fn check_acl(
             }
             s if traverse && s.starts_with("S-1-5-21-") => {
                 require(
-                    matches!(ace.Mask, 0x20 | 0x100020) && ace.Header.AceFlags == 0,
-                    "共享父目录仅允许穿越",
+                    matches!(ace.Mask, 0x20 | 0x100020 | 0xa0 | 0x1000a0)
+                        && ace.Header.AceFlags == 0,
+                    "共享父目录仅允许非继承的穿越与属性读取",
                 )?;
             }
             _ => return Err("隔离目录存在其他账户访问权限".into()),
@@ -405,6 +410,17 @@ pub(crate) fn load_binding(
         !folder.join("check-active-lease.json").exists(),
         "该账户的原检查权限尚未确认回收，请核对原操作；不会启动新进程",
     )?;
+    validated_binding(data, project, binding)
+}
+
+// Only explicit, authenticated check retirement may validate an account with
+// a pending lease. Ordinary execution must go through load_binding above.
+fn validated_binding(
+    data: &Path,
+    project: &Project,
+    binding: &WorkerDirectory,
+) -> Result<Account, String> {
+    let folder = directory(data, &project.id, &binding.identity)?;
     root_path(folder.to_str().ok_or("账户路径无效")?)
         .map_err(|_| "该模型的Windows隔离账户尚未就绪，请先设置账户；不会使用当前账户执行")?;
     let owner = crate::ipc::current_sid().map_err(|e| e.to_string())?;
@@ -511,18 +527,16 @@ pub(crate) fn private_directory(path: &Path, owner: &str) -> Result<(), String> 
 /// Grant only a newly-created check workspace to its isolated account. This is
 /// never applied to the core root, sealed inputs, credentials or evidence files.
 pub(crate) fn grant_check_workspace(path: &Path, account: &Account) -> Result<(), String> {
-    check_workspace_acl(path, account, true)
+    check_workspace_acl(path, account, Some(0x1301bf))
 }
 pub(crate) fn revoke_check_workspace(path: &Path, account: &Account) -> Result<(), String> {
-    check_workspace_acl(path, account, false)
+    check_workspace_acl(path, account, None)
 }
-fn check_workspace_acl(path: &Path, account: &Account, allow: bool) -> Result<(), String> {
+fn check_workspace_acl(path: &Path, account: &Account, access: Option<u32>) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
-    let extra = if allow {
-        format!("(A;OICI;0x1301bf;;;{})", account.record.sid)
-    } else {
-        String::new()
-    };
+    let extra = access
+        .map(|mask| format!("(A;OICI;0x{mask:x};;;{})", account.record.sid))
+        .unwrap_or_default();
     // OWNER RIGHTS suppresses the implicit WRITE_DAC of files created by the
     // checker, so it cannot remove host access or grant itself access after exit.
     let sddl = format!(
@@ -599,6 +613,24 @@ pub(crate) fn with_check_workspaces<T>(
     account: &Account,
     action: impl FnOnce() -> Result<T, String>,
 ) -> Result<T, String> {
+    with_check_workspace_access(paths, None, account, action)
+}
+
+pub(crate) fn with_readonly_check_workspaces<T>(
+    source: &Path,
+    temporary: &Path,
+    account: &Account,
+    action: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    with_check_workspace_access(&[source, temporary], Some(source), account, action)
+}
+
+fn with_check_workspace_access<T>(
+    paths: &[&Path],
+    readonly: Option<&Path>,
+    account: &Account,
+    action: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
     use std::io::Write;
     let folder = directory(
         Path::new(&account.record.data_root),
@@ -641,7 +673,11 @@ pub(crate) fn with_check_workspaces<T>(
     };
     let result = (|| {
         for p in paths {
-            grant_check_workspace(p, account)?;
+            if readonly == Some(*p) {
+                check_workspace_acl(p, account, Some(0x1200a9))?;
+            } else {
+                grant_check_workspace(p, account)?;
+            }
         }
         action()
     })();
@@ -1177,12 +1213,50 @@ fn runtime_environment(workspace: &Path) -> Result<(Vec<u16>, PathBuf), String> 
         fs::create_dir(&runtime).map_err(|e| e.to_string())?;
     }
     ordinary(&runtime, true)?;
-    for name in ["home", "appdata", "localappdata", "tmp", "codex"] {
+    // Shell known-folder APIs expand User Shell Folders from USERPROFILE.
+    // Both native and environment-based lookups must select the same profile.
+    for name in [
+        "home",
+        "home/AppData",
+        "home/AppData/Roaming",
+        "home/AppData/Local",
+        "home/AppData/LocalLow",
+        "appdata",
+        "localappdata",
+        "tmp",
+        "codex",
+    ] {
         let p = runtime.join(name);
         if !p.exists() {
             fs::create_dir(&p).map_err(|e| e.to_string())?;
         }
         ordinary(&p, true)?;
+    }
+    for (legacy_name, folder) in [("appdata", "Roaming"), ("localappdata", "Local")] {
+        let legacy = runtime.join(legacy_name);
+        let current = runtime.join("home/AppData").join(folder);
+        if fs::read_dir(&legacy)
+            .map_err(|e| e.to_string())?
+            .next()
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .is_some()
+        {
+            require(
+                fs::read_dir(&current)
+                    .map_err(|e| e.to_string())?
+                    .next()
+                    .transpose()
+                    .map_err(|e| e.to_string())?
+                    .is_none(),
+                "隔离账户的旧版与标准应用数据目录均有内容，请先核对两处资料",
+            )?;
+            // Rename within this model's runtime. A partial preparation keeps
+            // all data in one location and is safe to resume on the next login.
+            fs::remove_dir(&current).map_err(|e| e.to_string())?;
+            fs::rename(&legacy, &current).map_err(|e| e.to_string())?;
+            fs::create_dir(&legacy).map_err(|e| e.to_string())?;
+        }
     }
     let system = std::env::var("SystemRoot").map_err(|_| "SystemRoot缺失")?;
     // Windows shell components expand %SystemDrive% even with a custom user
@@ -1202,11 +1276,19 @@ fn runtime_environment(workspace: &Path) -> Result<(Vec<u16>, PathBuf), String> 
         ("SYSTEMROOT", system.clone()),
         ("WINDIR", system.clone()),
         ("PATH", format!("{system}\\System32;{system}")),
+        ("COMSPEC", format!("{system}\\System32\\cmd.exe")),
+        ("PATHEXT", ".COM;.EXE;.BAT;.CMD".into()),
         ("USERPROFILE", runtime.join("home").to_string_lossy().into()),
-        ("APPDATA", runtime.join("appdata").to_string_lossy().into()),
+        (
+            "APPDATA",
+            runtime
+                .join("home/AppData/Roaming")
+                .to_string_lossy()
+                .into(),
+        ),
         (
             "LOCALAPPDATA",
-            runtime.join("localappdata").to_string_lossy().into(),
+            runtime.join("home/AppData/Local").to_string_lossy().into(),
         ),
         ("TEMP", runtime.join("tmp").to_string_lossy().into()),
         ("TMP", runtime.join("tmp").to_string_lossy().into()),
@@ -1264,6 +1346,14 @@ pub(crate) fn open_login(
         .ok_or("程序路径缺失")?;
     let pin = crate::backup::open(Path::new(path), false, false)
         .map_err(|_| "程序不可用；请为独立账户安装可读取的程序")?;
+    let account_pin = with_identity(&account, || {
+        crate::backup::open(Path::new(path), false, false).map_err(|_| {
+            format!(
+                "独立账户 {} 无法读取登录程序，请为该账户准备可读取的安装目录后重新绑定。程序路径：{}",
+                account.record.username, path
+            )
+        })
+    })?;
     if let Some(worker) = &task.worker {
         use sha2::{Digest, Sha256};
         let mut reader = &pin;
@@ -1311,7 +1401,7 @@ pub(crate) fn open_login(
     std::thread::Builder::new()
         .name("isolated-worker-window".into())
         .spawn(move || {
-            let _guards = (account, pin, lock);
+            let _guards = (account, pin, account_pin, lock);
             drop(spawned.stdin);
             drop(spawned.stdout);
             drop(spawned.stderr);
@@ -1326,6 +1416,10 @@ pub(crate) fn open_login(
 #[cfg(test)]
 #[path = "windows_worker_native_tests.rs"]
 mod native_tests;
+
+#[cfg(test)]
+#[path = "windows_worker_acl_tests.rs"]
+mod acl_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1365,8 +1459,10 @@ mod tests {
             [
                 "APPDATA",
                 "CODEX_HOME",
+                "COMSPEC",
                 "LOCALAPPDATA",
                 "PATH",
+                "PATHEXT",
                 "SYSTEMDRIVE",
                 "SYSTEMROOT",
                 "TEMP",
@@ -1383,6 +1479,25 @@ mod tests {
             values["CODEX_HOME"],
             runtime.join("codex").to_string_lossy()
         );
+        for name in ["Roaming", "Local", "LocalLow"] {
+            let known_folder = runtime.join("home/AppData").join(name);
+            assert!(known_folder.is_dir());
+            ordinary(&known_folder, true).unwrap();
+        }
+        // Preserve initialized runtime contents when preparing another login.
+        let marker = runtime.join("appdata/existing-profile");
+        fs::write(&marker, b"existing").unwrap();
+        assert_eq!(runtime_environment(&workspace).unwrap().0, block);
+        assert!(!marker.exists());
+        assert_eq!(
+            fs::read(runtime.join("home/AppData/Roaming/existing-profile")).unwrap(),
+            b"existing"
+        );
+        assert_eq!(runtime_environment(&workspace).unwrap().0, block);
+        // Conflicting old/new profile data is preserved for reconciliation.
+        fs::write(&marker, b"legacy-conflict").unwrap();
+        assert!(runtime_environment(&workspace).is_err());
+        assert_eq!(fs::read(marker).unwrap(), b"legacy-conflict");
         let result = std::process::Command::new(
             Path::new(&values["SYSTEMROOT"])
                 .join("System32")

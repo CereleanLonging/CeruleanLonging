@@ -61,10 +61,12 @@ fn desktop_progress_rejects_foreign_stale_and_unbound_samples_for_both_apps() {
     let (_host, original) = pair(root.path());
     for (app, version) in [
         (DesktopApp::Qoder, "0.4.3.0"),
+        (DesktopApp::Qoder, "0.4.8.0"),
         (DesktopApp::Workbuddy, "5.7.7.0"),
         (DesktopApp::Workbuddy, "5.8.3.0"),
     ] {
         let mut review = original.review.clone();
+        review.observation.window.version = version.into();
         if app == DesktopApp::Workbuddy {
             review.observation.window.app = app;
             review.observation.window.exe = "D:\\apps\\WorkBuddy.exe".into();
@@ -75,9 +77,7 @@ fn desktop_progress_rejects_foreign_stale_and_unbound_samples_for_both_apps() {
         review.id = digest(&review).unwrap();
         let good = sample(&review);
         validate(&review, &good).unwrap();
-        if version == "5.8.3.0" {
-            crate::desktop_execution::validate_task_window(&review.observation.window).unwrap();
-        }
+        crate::desktop_execution::validate_task_window(&review.observation.window).unwrap();
         for mutation in 0..12 {
             let mut bad = good.clone();
             match mutation {

@@ -109,7 +109,7 @@ impl RuntimeHost {
                             .map_err(|e| e.to_string())?
                             .len()
                         + 128
-                        <= 64 * 1024,
+                        <= intent.purpose.context_limit_bytes(),
                     "当前方案与本条答复超出指挥上下文容量，请缩短答复",
                 )?;
             }

@@ -294,3 +294,68 @@ fn reader17_registration_stays_unchanged_and_explicit_reader18_promotion_is_pinn
     assert!(catalog::open(&catalog, "exp-reader17").is_err());
     assert_eq!(snapshot(&catalog), damaged);
 }
+
+#[test]
+fn current_feature_guards_reopen_without_changing_original_registration() {
+    let temp = tempfile::tempdir().unwrap();
+    let catalog = temp.path().join("catalog");
+    let created = catalog::create(&catalog, "exp-current").unwrap();
+    let catalog = fs::canonicalize(catalog).unwrap();
+    let original = snapshot(&catalog);
+    let mut markers = vec![];
+    for generation in [22, 23] {
+        let marker = created
+            .directory
+            .join(format!("events/00000000.reader{generation}.json"));
+        let guard = serde_json::json!({
+            "schema": 1,
+            "product": cerulean_domain::PRODUCT_NAME,
+            "generation": generation,
+            "root": fs::canonicalize(&created.directory).unwrap(),
+            "owner": cerulean_core::ipc::current_sid().unwrap(),
+        });
+        fs::write(&marker, serde_json::to_vec(&guard).unwrap()).unwrap();
+        markers.push(marker);
+        let frozen = snapshot(&catalog);
+        for _ in 0..2 {
+            let (entry, binding) = catalog::open(&catalog, "exp-current").unwrap();
+            assert!(entry.ready);
+            assert_eq!(
+                data_format::status(&entry.directory)
+                    .unwrap()
+                    .minimum_reader_generation,
+                generation
+            );
+            for marker in &markers {
+                assert!(fs::OpenOptions::new().write(true).open(marker).is_err());
+            }
+            drop(Store::open(&entry.directory).unwrap());
+            drop(binding);
+        }
+        assert_eq!(snapshot(&catalog), frozen);
+    }
+    let mut after = snapshot(&catalog);
+    for marker in &markers {
+        after.remove(marker).unwrap();
+    }
+    assert_eq!(after, original);
+
+    let marker = markers.last().unwrap();
+    let valid = fs::read(marker).unwrap();
+    let mut foreign: serde_json::Value = serde_json::from_slice(&valid).unwrap();
+    foreign["root"] = serde_json::json!(temp.path().join("foreign"));
+    fs::write(marker, serde_json::to_vec(&foreign).unwrap()).unwrap();
+    let damaged = snapshot(&catalog);
+    assert!(catalog::open(&catalog, "exp-current").is_err());
+    assert_eq!(snapshot(&catalog), damaged);
+    fs::write(marker, valid).unwrap();
+
+    let unsupported = created.directory.join(format!(
+        "events/00000000.reader{}.json",
+        cerulean_core::DATA_READER_GENERATION + 1
+    ));
+    fs::write(unsupported, b"{}").unwrap();
+    let future = snapshot(&catalog);
+    assert!(catalog::open(&catalog, "exp-current").is_err());
+    assert_eq!(snapshot(&catalog), future);
+}

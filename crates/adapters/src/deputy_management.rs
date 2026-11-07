@@ -101,6 +101,15 @@ fn request(handoff: &ManagementHandoff) -> Result<ApiRequest, String> {
     } else {
         instructions
     };
+    let instructions =
+        if handoff.purpose == Purpose::Plan && handoff.context.get("objectiveRuntimes").is_some() {
+            format!(
+                "{instructions} {}",
+                cerulean_domain::objective_checker::PLANNING_INSTRUCTIONS
+            )
+        } else {
+            instructions
+        };
     Ok(ApiRequest {
         target: ApiTarget::Provider { endpoint },
         model: model.into(),

@@ -23,6 +23,7 @@ fn original() -> VerificationDetail {
         stages: vec![],
         recovery: None,
         recovery_error: Some("original refusal".into()),
+        can_retry_start: false,
     }
 }
 #[test]
@@ -43,6 +44,10 @@ fn workspace_verification_version_and_metadata_preserve_original_fields() {
     changed = detail.clone();
     changed.recovery_error = None;
     assert_ne!(revision, query_revision("project", &changed).unwrap());
+    changed = detail.clone();
+    changed.can_retry_start = true;
+    assert_ne!(revision, query_revision("project", &changed).unwrap());
+    assert!(metadata(changed, revision.clone()).unwrap().can_retry_start);
     let mut expected = before.clone();
     let fields = expected.as_object_mut().unwrap();
     fields.remove("artifacts");

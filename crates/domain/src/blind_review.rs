@@ -47,6 +47,11 @@ pub enum BlindReviewAction {
         round_id: String,
         digest: String,
     },
+    PrepareFunctionalEnvironment {
+        project_id: String,
+        round_id: String,
+        digest: String,
+    },
     Confirm {
         project_id: String,
         round_id: String,
@@ -93,6 +98,8 @@ pub struct ReviewSeat {
     pub role: String,
     pub target: Option<ApiTarget>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transport: Option<ReviewTransport>,
     pub model: String,
     pub allowed_models: Vec<String>,
@@ -119,6 +126,10 @@ pub enum ReviewTransport {
     },
 }
 impl ReviewSeat {
+    pub fn output_limit(&self) -> u32 {
+        self.max_output_tokens.unwrap_or(4096)
+    }
+
     pub fn identity(&self) -> Result<String, String> {
         let channel = match &self.transport {
             None => "api",
@@ -133,6 +144,11 @@ impl ReviewSeat {
         self.target.as_ref().ok_or_else(|| "API评审端点缺失".into())
     }
     pub fn validate_source(&self) -> Result<(), String> {
+        require(
+            self.max_output_tokens.is_none()
+                || (self.transport.is_none() && self.output_limit() > 0),
+            "评审输出额度只能绑定到有效的 API 席位",
+        )?;
         match (&self.target, &self.transport) {
             (Some(target), None) => {
                 target.url()?;
@@ -185,6 +201,19 @@ pub struct ReviewMaterial {
     pub criteria: Vec<String>,
     pub fragments: Vec<Fragment>,
     pub objective_checks: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub independent_check_evidence: Option<ReviewCheckEvidence>,
+}
+
+/// Numeric facts from authenticated independent reports, without reviewer identities.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReviewCheckEvidence {
+    pub task_deliveries: u32,
+    pub checks_total: u32,
+    pub checks_passed: u32,
+    pub source_files: u32,
+    pub assembled_delivery: bool,
 }
 impl ReviewMaterial {
     pub fn validate(&self) -> Result<(), String> {
@@ -201,6 +230,21 @@ impl ReviewMaterial {
             !self.fragments.is_empty() && self.fragments.len() <= 128,
             "盲评源码片段缺失或超限",
         )?;
+        if let Some(evidence) = &self.independent_check_evidence {
+            require(
+                (1..=100).contains(&evidence.task_deliveries)
+                    && evidence.checks_total == self.objective_checks
+                    && evidence.checks_passed == evidence.checks_total
+                    && evidence.source_files as usize
+                        == self
+                            .fragments
+                            .iter()
+                            .map(|fragment| &fragment.file)
+                            .collect::<std::collections::BTreeSet<_>>()
+                            .len(),
+                "盲评材料与独立检查结果摘要不符",
+            )?;
+        }
         let mut ids = std::collections::BTreeSet::new();
         for f in &self.fragments {
             identifier(&f.id)?;
@@ -409,6 +453,8 @@ impl FailureAnalysis {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BlindReviewView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assembled_delivery: Option<String>,
     pub check_archive_digest: Option<String>,
     pub weight_policy: Option<crate::review_weights::WeightPolicy>,
     pub weighted_result: Option<crate::review_weights::WeightedResult>,

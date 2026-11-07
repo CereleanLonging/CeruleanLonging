@@ -4,6 +4,7 @@ use cerulean_domain::api_worker::ApiTarget;
 fn fixture(root: &Path) -> (Ledger, String) {
     let mut l = Ledger::open(root).unwrap();
     let material = ReviewMaterial {
+        independent_check_evidence: None,
         protocol: PROTOCOL.into(),
         requirement: "Add integers".into(),
         criteria: vec!["Return their sum".into()],
@@ -31,6 +32,7 @@ fn fixture(root: &Path) -> (Ledger, String) {
     ]
     .into_iter()
     .map(|(id, role)| ReviewSeat {
+        max_output_tokens: None,
         id: id.into(),
         role: role.into(),
         target: Some(ApiTarget::OpenAi {}),
@@ -60,6 +62,32 @@ fn ballot(vote: Vote) -> Ballot {
         citations: vec!["f1".into()],
         reason: "Verified sum semantics".into(),
     }
+}
+#[test]
+fn api_review_limit_is_approved_and_requires_reader25_on_reopen() {
+    let original_root = tempfile::tempdir().unwrap();
+    let (original, id) = fixture(original_root.path());
+    let round = original.rounds[&id].clone();
+    let mut seats = round.seats.clone();
+    seats[2].max_output_tokens = Some(393216);
+    assert_ne!(review_digest(&round.binding, &seats).unwrap(), round.digest);
+    let root = tempfile::tempdir().unwrap();
+    drop(crate::Store::open(root.path()).unwrap());
+    crate::review_material_guard::enable_api_limits(root.path()).unwrap();
+    let mut ledger = Ledger::open(root.path()).unwrap();
+    let id = ledger
+        .prepare(round.binding, round.material, seats, round.coverage)
+        .unwrap();
+    assert_eq!(ledger.rounds[&id].view().max_output_tokens, 393216);
+    drop(ledger);
+    assert!(Ledger::open(root.path()).is_ok());
+    fs::remove_file(
+        root.path()
+            .join("events")
+            .join(crate::review_material_guard::API_LIMITS_FILE_NAME),
+    )
+    .unwrap();
+    assert!(Ledger::open(root.path()).is_err());
 }
 #[test]
 fn blind_review_crash_child() {
@@ -124,7 +152,7 @@ fn weighted_round_keeps_scores_sealed_and_blocks_functional_test_on_missing_crit
     for complete in [false, true] {
         let root = tempfile::tempdir().unwrap();
         let (_, old) = fixture(root.path());
-        let original = Ledger::open(root.path()).unwrap().rounds[&old].clone();
+        let mut original = Ledger::open(root.path()).unwrap().rounds[&old].clone();
         let fresh = tempfile::tempdir().unwrap();
         let mut ledger = Ledger::open(fresh.path()).unwrap();
         let record = CheckRecord {
@@ -147,6 +175,7 @@ fn weighted_round_keeps_scores_sealed_and_blocks_functional_test_on_missing_crit
             }],
         };
         let archive = CheckArchive {
+            assembled: None,
             schema_version: 1,
             project_id: "p1".into(),
             revision: original.binding.revision.clone(),
@@ -154,6 +183,18 @@ fn weighted_round_keeps_scores_sealed_and_blocks_functional_test_on_missing_crit
             final_source: record.source_digest.clone(),
             records: vec![record],
         };
+        if complete {
+            drop(crate::Store::open(fresh.path()).unwrap());
+            crate::review_material_guard::enable(fresh.path()).unwrap();
+            original.material.independent_check_evidence = Some(
+                cerulean_domain::independent_verifier::summarize_checks(
+                    &original.material,
+                    &archive,
+                )
+                .unwrap(),
+            );
+            original.binding.material = digest(&original.material).unwrap();
+        }
         let id = ledger
             .prepare_with_checks(
                 original.binding,
@@ -214,6 +255,26 @@ fn weighted_round_keeps_scores_sealed_and_blocks_functional_test_on_missing_crit
         }
         let reopened = Ledger::open(fresh.path()).unwrap();
         assert_eq!(reopened.rounds[&id].weighted_result, round.weighted_result);
+        if complete {
+            let mut forged = round.clone();
+            forged
+                .material
+                .independent_check_evidence
+                .as_mut()
+                .unwrap()
+                .assembled_delivery = true;
+            forged.binding.material = digest(&forged.material).unwrap();
+            forged.digest = review_digest(&forged.binding, &forged.seats).unwrap();
+            assert!(forged.validate().is_err());
+            fs::remove_file(
+                fresh
+                    .path()
+                    .join("events")
+                    .join(crate::review_material_guard::FILE_NAME),
+            )
+            .unwrap();
+            assert!(Ledger::open(fresh.path()).is_err());
+        }
         let mut forged = round;
         forged
             .weighted_result

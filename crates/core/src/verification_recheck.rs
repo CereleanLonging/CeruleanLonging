@@ -372,6 +372,8 @@ impl RuntimeHost {
                 crate::artifacts::root_path(&plan.execution_root(&job.task_id, &job.attempt_id)?)?;
             let mut locks = vec![];
             for check in &review.replacement_checks {
+                #[cfg(not(test))]
+                crate::objective_checker::require_current(check)?;
                 let tool = check.tool.as_ref().ok_or("新检查器缺少工具摘要")?;
                 for file in std::iter::once(&tool.executable).chain(&tool.inputs) {
                     let path = fs::canonicalize(&file.path).map_err(|e| e.to_string())?;

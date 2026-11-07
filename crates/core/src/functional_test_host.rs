@@ -19,6 +19,35 @@ impl Drop for ActiveFunctionalTest {
         self.cancel.store(true, Ordering::Release);
     }
 }
+enum PreparedFunctional {
+    Task(crate::scheduler::PreparedVerification),
+    Delivery(crate::delivery_functional::Prepared),
+}
+impl PreparedFunctional {
+    fn checks(&self) -> Result<&[AcceptanceCheck], String> {
+        match self {
+            Self::Task(p) => p.checks(),
+            Self::Delivery(p) => Ok(p.checks()),
+        }
+    }
+    fn run(
+        &self,
+        pins: &[crate::verifier::PinnedCheck],
+        cancel: &AtomicBool,
+        source: &str,
+    ) -> Result<VerificationReport, String> {
+        match self {
+            Self::Task(p) => p.functional_run(pins, cancel, source),
+            Self::Delivery(p) => p.run(pins, cancel),
+        }
+    }
+    fn require_pass(&self, report: &VerificationReport) -> Result<(), String> {
+        match self {
+            Self::Task(p) => p.require_functional_pass(report),
+            Self::Delivery(p) => p.require_pass(report),
+        }
+    }
+}
 impl RuntimeHost {
     pub(super) fn start_functional_test(
         &mut self,
@@ -42,18 +71,30 @@ impl RuntimeHost {
         let gathered = self.gather_blind_review(project)?;
         let store = self.projects.get(project).ok_or("项目不可用")?;
         let plan = store.revision().ok_or("批准方案缺失")?;
-        let attempt = store.state().tasks[&gathered.final_task]
-            .attempt
-            .as_deref()
-            .ok_or("交付尝试缺失")?;
         // Use a deterministic unique operation, and persist authority before a request or process.
         let operation = format!("functional-{id}");
-        let prepared = store.prepare_functional_verification(
-            &round,
-            &operation,
-            &gathered.final_task,
-            attempt,
-        )?;
+        let prepared = if let Some(delivery) = &gathered.check_archive.assembled {
+            PreparedFunctional::Delivery(crate::delivery_functional::Prepared::new(
+                &self.root,
+                delivery.clone(),
+                &operation,
+                plan.policy.max_seconds,
+            )?)
+        } else {
+            let attempt = store
+                .state()
+                .tasks
+                .get(&gathered.final_task)
+                .and_then(|t| t.attempt.as_deref())
+                .ok_or("交付尝试缺失")?;
+            PreparedFunctional::Task(store.prepare_functional_verification(
+                &round,
+                &operation,
+                &gathered.final_task,
+                attempt,
+                gathered.functional_checks.clone(),
+            )?)
+        };
         let checks = prepared.checks()?;
         let pins = checks
             .iter()
@@ -161,9 +202,9 @@ impl RuntimeHost {
                             decision: authorization.decision,
                         });
                     }
-                    let report = prepared.functional_run(&pins, &token, &gathered.source_digest)?;
+                    let report = prepared.run(&pins, &token, &gathered.source_digest)?;
                     control.check()?;
-                    if prepared.require_functional_pass(&report).is_err() {
+                    if prepared.require_pass(&report).is_err() {
                         return Ok(Completed {
                             model: authorization.model,
                             authorization: authorization.decision,

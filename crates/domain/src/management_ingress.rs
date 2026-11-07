@@ -74,7 +74,7 @@ impl ManagementHandoff {
                 && serde_json::to_vec(&self.context)
                     .map_err(|_| "invalid context")?
                     .len()
-                    <= 64 * 1024
+                    <= self.purpose.context_limit_bytes()
                 && digest(&self.context)? == self.state_digest,
             "management context is invalid or changed",
         )?;

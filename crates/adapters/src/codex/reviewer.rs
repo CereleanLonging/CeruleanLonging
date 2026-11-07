@@ -67,15 +67,7 @@ impl CodexClient {
             ];
             for section in ["mcp_servers", "plugins"] {
                 if let Some(entries) = current["config"][section].as_object() {
-                    if entries.len() > 128 {
-                        return Err("Codex工具配置超出评审预算".into());
-                    }
-                    for id in entries.keys() {
-                        values.push(format!(
-                            "{section}.{}.enabled=false",
-                            serde_json::to_string(id).map_err(|_| "工具标识编码失败")?
-                        ));
-                    }
+                    values.push(disabled_review_section(section, entries)?);
                 }
             }
             Ok::<_, String>(values)
@@ -148,6 +140,8 @@ impl CodexClient {
             return Err("原评分尚未确认结束，保留只读范围等待核对".into());
         }
         let original = record.clone();
+        self.unload_review_session(field(&original["params"], "threadId")?.as_str())
+            .await?;
         let result = self
             .rpc
             .request(
@@ -167,6 +161,30 @@ impl CodexClient {
             return Err("Codex原会话设置恢复尚未核实".into());
         }
         self.review_restore = None;
+        self.binding = None;
+        Ok(())
+    }
+    async fn unload_review_session(&mut self, session: &str) -> Result<(), String> {
+        // A loaded thread can return cached scope even when resume carries new
+        // parameters. Unload our idle subscription before applying or restoring
+        // review scope, then verify the complete resume response as usual.
+        if self.active.is_some() {
+            return Err("原评分尚未结束，不能卸载会话".into());
+        }
+        let result = self
+            .rpc
+            .request(
+                "thread/unsubscribe",
+                json!({"threadId":session}),
+                Duration::from_secs(20),
+            )
+            .await?;
+        if !matches!(
+            result["status"].as_str(),
+            Some("unsubscribed" | "notLoaded")
+        ) {
+            return Err("Codex评审会话卸载尚未确认".into());
+        }
         Ok(())
     }
     pub async fn bind_review_session(
@@ -220,6 +238,9 @@ impl CodexClient {
             input["ephemeral"] = json!(false);
             "thread/start"
         };
+        if let Some(session) = session {
+            self.unload_review_session(session).await?;
+        }
         let result = self
             .rpc
             .request(method, input, Duration::from_secs(30))
@@ -302,6 +323,24 @@ impl CodexClient {
         Ok(text)
     }
 }
+
+fn disabled_review_section(
+    section: &str,
+    entries: &serde_json::Map<String, Value>,
+) -> Result<String, String> {
+    if entries.len() > 128 {
+        return Err("Codex工具配置超出评审预算".into());
+    }
+    // CLI override paths split on dots and retain quote characters. Quote the
+    // actual IDs inside a TOML value so the existing transport entries are merged.
+    let mut disabled = Vec::with_capacity(entries.len());
+    for id in entries.keys() {
+        let key = serde_json::to_string(id).map_err(|_| "工具标识编码失败")?;
+        disabled.push(format!("{key}={{enabled=false}}"));
+    }
+    Ok(format!("{section}={{{}}}", disabled.join(",")))
+}
+
 fn review_reply(
     result: &Value,
     binding: &WorkerBinding,
@@ -331,9 +370,15 @@ fn review_reply(
         tools.push("externalToolRequest".into());
     }
     let mut complete = current["status"] == "completed";
+    let mut input_seen = false;
     for item in items {
         match item["type"].as_str() {
-            Some("userMessage" | "agentMessage" | "reasoning") => {}
+            Some("userMessage") => input_seen = true,
+            Some("agentMessage" | "reasoning") => {}
+            // App-server records automatic history compaction before the new
+            // input. The original input and all subsequent items must remain
+            // available for this audit. Mid-turn compaction stays unverifiable.
+            Some("contextCompaction") if !input_seen => {}
             Some(
                 kind @ ("commandExecution"
                 | "fileChange"
@@ -392,6 +437,94 @@ fn review_reply(
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn bound_review_unloads_before_scope_changes_and_restores_original() {
+        struct ClosedProcess;
+        impl OwnedCodexProcess for ClosedProcess {
+            fn try_wait(&mut self) -> Result<Option<bool>, String> {
+                Ok(Some(true))
+            }
+            fn terminate(&mut self) -> Result<(), String> {
+                Ok(())
+            }
+        }
+        let workspace = std::env::current_dir().unwrap();
+        let original_cwd = workspace.parent().unwrap().to_str().unwrap().to_owned();
+        let original = json!({"thread":{"id":"session"},"cwd":original_cwd,
+            "model":"model","modelProvider":"provider","approvalPolicy":"never",
+            "sandbox":{"type":"readOnly","networkAccess":false}});
+        let (stream, server) = tokio::io::duplex(16384);
+        let (read, write) = tokio::io::split(stream);
+        let mut client = CodexClient::from_owned_process(
+            Box::new(ClosedProcess),
+            Box::new(read),
+            Box::new(write),
+            &workspace,
+            false,
+        )
+        .unwrap();
+        client.review_process = true;
+        let mut scoped = original.clone();
+        scoped["cwd"] = json!(workspace);
+        let server = tokio::spawn(async move {
+            let responses = [
+                (
+                    "thread/read",
+                    json!({"thread":{"id":"session","status":{"type":"idle"},"model":"model","modelProvider":"provider"}}),
+                ),
+                ("thread/resume", original.clone()),
+                ("config/read", json!({"config":{}})),
+                ("thread/unsubscribe", json!({"status":"unsubscribed"})),
+                ("thread/resume", scoped.clone()),
+                ("thread/unsubscribe", json!({"status":"unsubscribed"})),
+                ("thread/resume", original.clone()),
+            ];
+            let mut server = BufReader::new(server);
+            for (index, (method, response)) in responses.into_iter().enumerate() {
+                let mut line = String::new();
+                server.read_line(&mut line).await.unwrap();
+                let request: Value = serde_json::from_str(&line).unwrap();
+                assert_eq!(request["method"], method);
+                if index == 4 {
+                    assert_eq!(request["params"]["cwd"], scoped["cwd"]);
+                }
+                if index == 6 {
+                    assert_eq!(request["params"]["cwd"], original["cwd"]);
+                }
+                let wire = format!("{}\n", json!({"id":request["id"],"result":response}));
+                server.get_mut().write_all(wire.as_bytes()).await.unwrap();
+            }
+        });
+        client
+            .prepare_bound_review("session", "model", "provider")
+            .await
+            .unwrap();
+        client
+            .bind_review_session("model", Some("session"))
+            .await
+            .unwrap();
+        client.restore_bound_review().await.unwrap();
+        assert!(client.review_restore.is_none() && client.binding.is_none());
+        server.await.unwrap();
+        client.close().await.unwrap();
+    }
+
+    #[test]
+    fn review_overrides_preserve_literal_tool_ids() {
+        let configuration = json!({
+            "node_repl": {"command": "node", "enabled": true},
+            "a.b\"c": {"url": "https://example.test/mcp"},
+        });
+        let argument =
+            disabled_review_section("mcp_servers", configuration.as_object().unwrap()).unwrap();
+        assert_eq!(
+            argument,
+            "mcp_servers={\"a.b\\\"c\"={enabled=false},\"node_repl\"={enabled=false}}"
+        );
+        let entries = (0..129).map(|id| (id.to_string(), json!({}))).collect();
+        assert!(disabled_review_section("plugins", &entries).is_err());
+    }
+
     #[test]
     fn review_trace_requires_complete_tool_free_records_bound_to_original_input() {
         let root = std::env::current_dir().unwrap();
@@ -411,6 +544,36 @@ mod tests {
             review_reply(value, &binding, "request", "approved fragment", "turn", 0)
         };
         assert_eq!(audit(&original).unwrap().1.status, ReviewToolStatus::Clean);
+        let mut compacted = original.clone();
+        compacted["thread"]["turns"][0]["items"]
+            .as_array_mut()
+            .unwrap()
+            .insert(0, json!({"type":"contextCompaction","id":"compaction"}));
+        assert_eq!(audit(&compacted).unwrap().1.status, ReviewToolStatus::Clean);
+        let mut mid_turn = original.clone();
+        mid_turn["thread"]["turns"][0]["items"]
+            .as_array_mut()
+            .unwrap()
+            .insert(1, json!({"type":"contextCompaction","id":"compaction"}));
+        assert_eq!(
+            audit(&mid_turn).unwrap().1.status,
+            ReviewToolStatus::Unverifiable
+        );
+        let mut compacted_with_tool = compacted.clone();
+        compacted_with_tool["thread"]["turns"][0]["items"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"type":"commandExecution"}));
+        assert_eq!(
+            audit(&compacted_with_tool).unwrap().1.status,
+            ReviewToolStatus::ToolCallObserved
+        );
+        let mut missing_input = compacted;
+        missing_input["thread"]["turns"][0]["items"]
+            .as_array_mut()
+            .unwrap()
+            .remove(1);
+        assert!(audit(&missing_input).is_err());
         let (_, denied) = review_reply(
             &original,
             &binding,

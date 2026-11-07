@@ -25,6 +25,16 @@ const material={protocol:"cerulean-blind-review-v1",requirement:"Verify the synt
 const seats=["chief","deputy","worker"].map(role=>({id:role,role,target:{kind:"openAi"},model:"fixture",allowedModels:["fixture"]}));
 const votes=()=>seats.map(s=>{const ballot={assessments:material.criteria.map((_,i)=>({criterion:i+1,aligned:true,citations:["f1"]})),vote:"pass",citations:["f1"],reason:"synthetic approved criterion evidence"};return {seat:s.id,model:s.model,ballot,toolAudit:{status:"clean",source:"api-response",request:"request-1",evidenceDigest:"a".repeat(64),tools:[],reason:"complete synthetic trace"},originalBallot:structuredClone(ballot)};});
 const cases=[];
+const evidence = call({kind:"attachCheckEvidence", material, archive}).Ok.material;
+assert.deepEqual(evidence.independentCheckEvidence, {
+  taskDeliveries:1, checksTotal:1, checksPassed:1, sourceFiles:1, assembledDelivery:false,
+});
+assert(!JSON.stringify(evidence).includes("approved synthetic check passed"));
+assert(call({kind:"attachCheckEvidence", material:evidence, archive}).Err);
+const failedArchive = structuredClone(archive);
+failedArchive.records[0].checks[0].passed = false;
+assert(call({kind:"attachCheckEvidence", material, archive:failedArchive}).Err);
+cases.push("Independent process attaches anonymous verified facts and refuses failed or duplicate evidence");
 const archived=call({kind:"archiveChecks",archive});assert.equal(archived.Ok.digest,hash(archive));assert.equal(archived.Ok.basisPoints,10000);cases.push("Independent child validates exact report digest and all check facts");
 const tally=ballots=>call({kind:"weightedTally",policy,archive,material,seats,ballots});
 let ballots=votes();assert.equal(tally(ballots).Ok.result.passed,true);cases.push("Complete independent ballots and checks meet both gates");

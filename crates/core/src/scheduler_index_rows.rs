@@ -34,6 +34,7 @@ fn kind(command: &WorkflowCommand) -> &'static str {
         WorkflowCommand::Verify { .. } => "verify",
         WorkflowCommand::Accept { .. } => "accept",
         WorkflowCommand::Advise { .. } => "advise",
+        WorkflowCommand::ReturnForRework { .. } => "return-for-rework",
     }
 }
 

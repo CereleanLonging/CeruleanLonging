@@ -8,10 +8,16 @@ mod independent_checks;
 #[cfg(windows)]
 pub mod independent_verifier;
 #[cfg(windows)]
+pub mod objective_checker;
+mod objective_checker_guard;
+mod planned_artifacts_guard;
+mod project_activity;
+#[cfg(windows)]
 mod qoder_review_audit;
 mod review_checks_guard;
+mod review_material_guard;
 mod worker_account_guard;
-pub const DATA_READER_GENERATION: u32 = review_checks_guard::GENERATION;
+pub const DATA_READER_GENERATION: u32 = review_material_guard::API_LIMITS_GENERATION;
 #[cfg(windows)]
 pub mod windows_worker_account;
 #[cfg(all(test, windows))]
@@ -23,6 +29,7 @@ pub const BACKUP_WRITER_VERSIONS: &[&str] = &[
     "0.1.19", "0.1.20", "0.1.21", "0.1.22", "0.1.23", "0.1.24", "0.1.25", "0.1.26", "0.1.27",
     "0.1.28", "0.1.29", "0.1.30", "0.1.31", "0.1.32", "0.1.33", "0.1.34", "0.1.35", "0.1.36",
     "0.1.37", "0.1.38", "0.1.39", "0.1.40", "0.1.41", "0.1.42", "0.1.43", "0.1.44", "0.1.45",
+    "0.1.46", "0.1.47", "0.1.48",
 ];
 #[cfg(windows)]
 mod acceptance_scope;
@@ -85,6 +92,10 @@ pub mod currency_scoped_count_guard;
 pub mod currency_scoped_execution_guard;
 pub mod currency_scoped_guard;
 pub mod data_format;
+#[cfg(windows)]
+mod delivery_checker_account;
+#[cfg(windows)]
+mod delivery_functional;
 pub mod derived_index;
 #[cfg(windows)]
 pub mod desktop_execution;
@@ -125,6 +136,8 @@ mod omp_workflow_access;
 pub mod portable_evidence;
 #[cfg(windows)]
 pub mod preserve_shutdown;
+#[cfg(windows)]
+mod project_delivery;
 mod project_setup;
 pub mod reader_generation;
 #[cfg(windows)]
@@ -143,6 +156,7 @@ mod startup_review;
 #[cfg(windows)]
 mod supervised_worker;
 mod supervision_scope;
+mod task_rework;
 #[cfg(windows)]
 pub mod team_import_retention;
 #[cfg(windows)]
@@ -283,6 +297,10 @@ impl Store {
                 || f.file_name() == verification_recheck_guard::FILE_NAME
                 || f.file_name() == blind_review_guard::FILE_NAME
                 || f.file_name() == review_checks_guard::FILE_NAME
+                || f.file_name() == review_material_guard::FILE_NAME
+                || f.file_name() == review_material_guard::API_LIMITS_FILE_NAME
+                || f.file_name() == objective_checker_guard::FILE_NAME
+                || f.file_name() == planned_artifacts_guard::FILE_NAME
                 || f.file_name() == worker_account_guard::FILE_NAME
                 || f.file_name() == experiment_guard::FILE_NAME
                 || f.file_name() == experiment_guard::LEGACY_FILE_NAME
@@ -593,6 +611,7 @@ impl Store {
             | Command::RecoverVerificationRecheck { .. }
             | Command::ReadWorkerObservation { .. }
             | Command::RecoverVerification { .. }
+            | Command::RetryVerificationStart { .. }
             | Command::RequestProjectRevision { .. }
             | Command::RetireSubmittedPlan { .. }
             | Command::PauseProjectRun { .. }

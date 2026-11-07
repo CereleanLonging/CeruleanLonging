@@ -60,6 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "dataRecoverySchema": 2,
                 "readableDataSchemas": cerulean_core::data_format::READABLE_SCHEMAS,
                 "backupWriterVersions": cerulean_core::BACKUP_WRITER_VERSIONS,
+                "objectiveCheckerSchema": 1,
+                "objectiveCheckerSha256": option_env!("CERULEAN_CHECKER_SHA256"),
                 "independentVerifierSchema": 1,
                 "independentVerifierSha256": verifier_sha256()
             }),

@@ -10,7 +10,9 @@ async fn cli(data: &Path, args: Vec<String>) -> serde_json::Value {
     let data = data.to_path_buf();
     let output = tokio::task::spawn_blocking(move || {
         use std::os::windows::process::CommandExt;
-        std::process::Command::new(env!("CARGO_BIN_EXE_cerulean-core"))
+        let binary = std::env::var_os("CERULEAN_RECHECK_TEST_CORE")
+            .unwrap_or_else(|| env!("CARGO_BIN_EXE_cerulean-core").into());
+        std::process::Command::new(binary)
             .args(["--workbench", "--data-dir"])
             .arg(data)
             .args(args)
@@ -128,6 +130,7 @@ pub(super) async fn stop(data: &Path, preserve: bool) {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 async fn recheck_user_pipe_reviews_approves_queries_runs_and_recovers_exact_operation() {
     let (root, store, a) = runner::corrected("corrected_checker");
     drop(store);
@@ -394,6 +397,7 @@ async fn recheck_user_pipe_reviews_approves_queries_runs_and_recovers_exact_oper
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 async fn recheck_user_pipe_cancel_preserves_unknown_without_relaunch_or_old_recovery() {
     let (root, store, a) = runner::corrected("slow_checker");
     drop(store);
@@ -543,6 +547,7 @@ async fn recheck_user_pipe_cancel_preserves_unknown_without_relaunch_or_old_reco
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 async fn recheck_disposition_pipe_cli_unstarted_receipt_reopen_and_changed_evidence() {
     use cerulean_domain::{
         verification_recheck::RecheckDispositionReview,

@@ -205,6 +205,57 @@ pub(crate) fn inspect(
     let inspection = inspect_evidence(root, job, basis)?;
     Ok((inspection.detail, inspection.report))
 }
+
+/// Older runtimes wrote a runner intent and snapshot before rejecting the
+/// Windows logon command length. A single provably overlong first command and
+/// its exact terminal prelaunch error allow an explicit retry of those inputs.
+#[cfg(windows)]
+pub(crate) fn require_logon_prelaunch_failure(
+    root: &Path,
+    job: &VerificationJob,
+    basis: &Basis,
+) -> Result<(), String> {
+    let inspection = inspect_evidence(root, job, basis)?;
+    let task = basis.plan.task(&job.task_id)?;
+    require(
+        basis.recheck.is_none()
+            && task.worker_directory.is_some()
+            && task.checks.len() == 1
+            && task.checks[0]
+                .args
+                .iter()
+                .map(|s| s.encode_utf16().count())
+                .sum::<usize>()
+                > 1024
+            && inspection.terminal_error.as_deref()
+                == Some("隔离检查命令超过Windows登录进程长度限制")
+            && inspection.report.is_none()
+            && !inspection.detail.ledger_recorded
+            && inspection.detail.stages.iter().all(|stage| {
+                stage.exit_code.is_none() && stage.stdout.is_none() && stage.stderr.is_none()
+            }),
+        "检查已有运行记录或缺少确定的启动前失败证据，请核对原结果",
+    )?;
+    let directory = root
+        .join("workflows")
+        .join(&job.project_id)
+        .join("verification");
+    // Even stray output without an observation prevents this limited recovery.
+    for extension in ["json", "stdout", "stderr", "process-exit.json"] {
+        let path = directory
+            .join(&job.operation_id)
+            .join(format!("{}.{}", task.checks[0].id, extension));
+        match fs::symlink_metadata(path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            _ => return Err("原检查存在阶段文件，不能按未启动恢复".into()),
+        }
+    }
+    let seal = SourceSnapshot {
+        operation_id: job.operation_id.clone(),
+        manifest_sha256: inspection.detail.snapshot_digest.ok_or("原受测副本缺失")?,
+    };
+    crate::source_snapshot::require_sealed(&basis.plan, &basis.manifest, &seal, &directory)
+}
 struct Inspection {
     detail: VerificationDetail,
     report: Option<VerificationReport>,
@@ -473,6 +524,7 @@ fn inspect_evidence(
             stages,
             recovery: None,
             recovery_error: None,
+            can_retry_start: false,
         },
         report: validated_report,
         #[cfg(windows)]

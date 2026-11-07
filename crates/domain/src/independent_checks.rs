@@ -154,11 +154,15 @@ pub struct CheckArchive {
     pub final_task: String,
     pub final_source: String,
     pub records: Vec<CheckRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assembled: Option<crate::project_delivery::DeliveryManifest>,
 }
 impl CheckArchive {
     pub fn validate(&self) -> Result<(), String> {
         require(
-            self.schema_version == 1 && !self.records.is_empty() && self.records.len() <= 100,
+            matches!(self.schema_version, 1 | 2)
+                && !self.records.is_empty()
+                && self.records.len() <= 100,
             "整体验收检查集缺失或超限",
         )?;
         identifier(&self.project_id)?;
@@ -175,6 +179,47 @@ impl CheckArchive {
                 "整体验收检查报告过期、跨项目或任务重复",
             )?;
         }
+        if let Some(delivery) = &self.assembled {
+            delivery.validate()?;
+            require(
+                self.schema_version == 2
+                    && self.final_task == "core-assembled-delivery"
+                    && self.project_id == delivery.project_id
+                    && self.revision == delivery.revision
+                    && self.final_source == digest(delivery)?
+                    && self.records.len() == delivery.inputs.len(),
+                "汇总交付与独立检查归档不符",
+            )?;
+            for input in &delivery.inputs {
+                require(
+                    self.records.iter().any(|record| {
+                        record.task_id == input.manifest.task_id
+                            && record.attempt_id == input.manifest.attempt_id
+                            && record.operation_id == input.verification_operation
+                            && record.source_digest == input.source.manifest_sha256
+                            && record.manifest_digest == digest(&input.manifest).unwrap_or_default()
+                            && record.report_digest == input.verification_report_digest
+                            && record.checks.len() == input.checks.len()
+                            && record
+                                .checks
+                                .iter()
+                                .zip(&input.checks)
+                                .all(|(fact, check)| {
+                                    fact.passed
+                                        && fact.id == check.id
+                                        && digest(check)
+                                            .is_ok_and(|hash| hash == fact.command_digest)
+                                        && check.tool.as_ref().is_some_and(|tool| {
+                                            digest(tool).is_ok_and(|hash| hash == fact.tool_digest)
+                                        })
+                                })
+                    }),
+                    "汇总交付含未合格、缺失或不匹配的执行端检查",
+                )?;
+            }
+            return Ok(());
+        }
+        require(self.schema_version == 1, "汇总交付缺少封存清单")?;
         require(
             self.records
                 .iter()

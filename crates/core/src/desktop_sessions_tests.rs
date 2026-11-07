@@ -5,6 +5,11 @@ use std::time::Instant;
 mod run_tests;
 
 fn window(app: DesktopApp) -> DesktopWindow {
+    let version = if app == DesktopApp::Qoder {
+        "0.4.3.0"
+    } else {
+        "5.7.7.0"
+    };
     DesktopWindow {
         exe: format!(
             "D:\\apps\\{}.exe",
@@ -19,7 +24,7 @@ fn window(app: DesktopApp) -> DesktopWindow {
         pid: 123,
         start_ticks: "123456789".into(),
         title: "工作台接入验证".into(),
-        version: "fixture-1".into(),
+        version: version.into(),
     }
 }
 fn observation(w: DesktopWindow) -> DesktopObservation {
@@ -719,7 +724,7 @@ fn desktop_trial_rejects_wrong_app_version_stale_binding_and_expired_confirmatio
     assert!(host
         .prepare_desktop_trial(&wb)
         .unwrap_err()
-        .contains("尚未开放"));
+        .contains("支持已移除"));
     let binding = trial_binding(&mut host);
     host.desktop_fixture = Some(changed_trial);
     host.prepare_desktop_trial(&binding).unwrap();
@@ -1155,11 +1160,6 @@ pub(crate) fn assigned_desktop_task_with_validator(
     use cerulean_adapters::openai::DecisionObservation;
     use cerulean_domain::management::{DecisionEnvelope, ManagementDecision, Purpose};
     let (mut host, mut draft) = desktop_plan_fixture(root, DesktopApp::Qoder);
-    let b = &mut draft.desktop_worker.as_mut().unwrap().binding;
-    b.observation.window.version = "0.4.3.0".into();
-    b.id = binding_digest(b).unwrap();
-    persist(&host.root, b).unwrap();
-    host.desktop_access.bindings.push(b.clone());
     if real_node {
         let node = std::env::split_paths(&std::env::var_os("PATH").unwrap())
             .map(|p| p.join("node.exe"))
@@ -2131,34 +2131,55 @@ fn desktop_completion_recovery_requires_unchanged_files_and_intact_seal() {
     assert!(RuntimeHost::open(&data).is_err());
 }
 #[test]
-fn desktop_completion_missing_delivery_and_cancelled_attempt_cannot_submit() {
+fn desktop_completion_preserves_missing_delivery_and_refuses_cancelled_submission() {
     use crate::desktop_execution as execution;
     let root = tempfile::tempdir().unwrap();
     let (mut host, review) = assigned_desktop_task(root.path());
     let data = host.root.clone();
-    assert!(execution::dispatch(
+    execution::dispatch(
         &data,
         host.projects.get_mut("project").unwrap(),
         &review,
-        |r| Ok(task_proof(r))
+        |r| Ok(task_proof(r)),
     )
-    .is_err());
+    .unwrap();
     assert_eq!(
         host.projects["project"].state().tasks["task"].state,
-        TaskState::Unknown
+        TaskState::Submitted
     );
+    assert!(!host.projects["project"].state().tasks["task"].verified);
+    let (_, manifest) = host.projects["project"]
+        .completed_artifacts("task", "desktop-attempt")
+        .unwrap();
+    assert!(manifest.artifacts.is_empty());
+    let original_manifest = manifest.clone();
+    let original_history_len = host.projects["project"].history().len();
+    let original = fs::read(sealed_directory(root.path()).join("completion.json")).unwrap();
     write_sum(root.path(), true);
-    assert!(execution::recover_and_submit(
+    execution::recover_and_submit(
         &data,
         host.projects.get_mut("project").unwrap(),
         "project",
         "desktop-attempt",
-        |_| panic!("never resend")
+        |_| panic!("never resend"),
     )
-    .is_err());
-    assert!(!sealed_directory(root.path())
-        .join("completion.json")
-        .exists());
+    .unwrap();
+    assert_eq!(
+        host.projects["project"].history().len(),
+        original_history_len
+    );
+    assert_eq!(
+        host.projects["project"]
+            .completed_artifacts("task", "desktop-attempt")
+            .unwrap()
+            .1,
+        &original_manifest
+    );
+    assert!(!host.projects["project"].state().tasks["task"].verified);
+    assert_eq!(
+        fs::read(sealed_directory(root.path()).join("completion.json")).unwrap(),
+        original
+    );
     let root = tempfile::tempdir().unwrap();
     let (mut host, review) = assigned_desktop_task(root.path());
     let data = host.root.clone();

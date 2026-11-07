@@ -509,7 +509,7 @@ fn scoped_count_ledger_receipt_replay_rejects_rehashed_tamper_and_oversize_is_pr
     );
     let i = intent(&h, "receipt-tamper", Purpose::Plan);
     let mut oversized = i.clone();
-    oversized.context["requirement"] = serde_json::json!("x".repeat(140 * 1024));
+    oversized.context["requirement"] = serde_json::json!("x".repeat(257 * 1024));
     oversized.state_digest = digest(&oversized.context).unwrap();
     let before = snapshot(&data);
     assert!(ScopedDecisionDraft::standard(

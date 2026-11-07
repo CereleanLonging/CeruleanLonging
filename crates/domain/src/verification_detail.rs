@@ -21,6 +21,8 @@ pub struct VerificationDetail {
     pub stages: Vec<VerificationStageView>,
     pub recovery: Option<VerificationRecoveryReview>,
     pub recovery_error: Option<String>,
+    #[serde(default)]
+    pub can_retry_start: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

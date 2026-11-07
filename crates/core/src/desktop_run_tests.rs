@@ -17,6 +17,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
         Purpose::Refine => return Err("Document refinement uses its dedicated fixture".into()),
         Purpose::Plan => {
             let mut tasks = vec![ProposedTask {
+                artifact_paths: None,
+                objective_test: None,
                 profile_id: None,
                 id: "task".into(),
                 goal: format!("Implement sum. {requirement}"),
@@ -26,6 +28,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
             }];
             if requirement.contains("TWO_TASKS") || requirement.contains("THREE_TASKS") {
                 tasks.push(ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "second".into(),
                     goal: "Second task after acceptance".into(),
@@ -36,6 +40,8 @@ fn manager(i: crate::management_execution::DecisionIntent) -> Result<DecisionObs
             }
             if requirement.contains("THREE_TASKS") {
                 tasks.push(ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "third".into(),
                     goal: "Third task after acceptance".into(),
@@ -164,15 +170,16 @@ fn configured_for_version(
 ) -> RuntimeHost {
     let (mut host, mut draft) = desktop_plan_fixture(root, app.clone());
     let b = &mut draft.desktop_worker.as_mut().unwrap().binding;
-    b.observation.window.version = version
-        .unwrap_or(match app {
-            DesktopApp::Qoder => "0.4.3.0",
-            DesktopApp::Workbuddy => "5.7.7.0",
-        })
-        .into();
-    b.id = binding_digest(b).unwrap();
-    persist(&host.root, b).unwrap();
-    host.desktop_access.bindings.push(b.clone());
+    let selected_version = version.unwrap_or(match app {
+        DesktopApp::Qoder => "0.4.3.0",
+        DesktopApp::Workbuddy => "5.7.7.0",
+    });
+    if b.observation.window.version != selected_version {
+        b.observation.window.version = selected_version.into();
+        b.id = binding_digest(b).unwrap();
+        persist(&host.root, b).unwrap();
+        host.desktop_access.bindings.push(b.clone());
+    }
     configured_draft(host, draft, mode)
 }
 fn configured_draft(

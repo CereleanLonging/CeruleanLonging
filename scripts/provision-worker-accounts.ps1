@@ -1,13 +1,19 @@
-param([Parameter(Mandatory=$true)][string]$PlanPath)
+﻿param([Parameter(Mandatory=$true)][string]$PlanPath)
 # Product-owned one-shot provisioning. No provider credentials are copied.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.Security
+# Windows PowerShell 5.1 providers need the extended path form beyond MAX_PATH.
+# Preserve plain canonical paths in account identities and serialized records.
+function Filesystem-Path([string]$Path) {
+    if ($Path.StartsWith('\\?\')) { return $Path }
+    return '\\?\'+$Path
+}
 if ($PlanPath.StartsWith('\\?\')) { $PlanPath=$PlanPath.Substring(4) }
 $planFile = [IO.Path]::GetFullPath($PlanPath)
 $reportFile = [IO.Path]::ChangeExtension($planFile, 'result.json')
 $intentFile = [IO.Path]::ChangeExtension($planFile, 'intent')
-$intent = [IO.File]::Open($intentFile, 'CreateNew', 'Write', 'None')
+$intent = [IO.File]::Open((Filesystem-Path $intentFile), 'CreateNew', 'Write', 'None')
 $intent.Dispose()
 $created = @()
 $ok = $false
@@ -20,15 +26,15 @@ function Plain-Path([string]$Path) {
     if ($full -eq [IO.Path]::GetPathRoot($full).TrimEnd('\')) { throw 'Volume root forbidden' }
     $cursor = $full
     while ($cursor.Length -gt 3) {
-        if (Test-Path -LiteralPath $cursor) {
-            if ((Get-Item -Force -LiteralPath $cursor).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse path forbidden' }
+        if (Test-Path -LiteralPath (Filesystem-Path $cursor)) {
+            if ((Get-Item -Force -LiteralPath (Filesystem-Path $cursor)).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse path forbidden' }
         }
         $cursor = [IO.Path]::GetDirectoryName($cursor)
     }
     return $full
 }
 function Protect-Path([string]$Path, [string]$WorkerSid, [bool]$Traverse) {
-    $item = Get-Item -Force -LiteralPath $Path
+    $item = Get-Item -Force -LiteralPath (Filesystem-Path $Path)
     if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse point in protected tree' }
     $isDir = $item.PSIsContainer
     if ($isDir) { $acl = New-Object Security.AccessControl.DirectorySecurity }
@@ -50,11 +56,14 @@ function Protect-Path([string]$Path, [string]$WorkerSid, [bool]$Traverse) {
     if ($Traverse) {
         foreach ($entry in $script:accounts) {
             $sid = New-Object Security.Principal.SecurityIdentifier($entry.sid)
-            $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, 'Traverse', 'None', 'None', 'Allow')
+            # Node/Electron resolves each parent with lstat before opening its
+            # own files. Folder attributes allow that lookup without granting
+            # directory listing or inherited access to shared source files.
+            $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, 'Traverse,ReadAttributes', 'None', 'None', 'Allow')
             $acl.AddAccessRule($rule)
         }
     }
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    Set-Acl -LiteralPath (Filesystem-Path $Path) -AclObject $acl
 }
 function Protect-Tree([string]$Path, [string]$WorkerSid) {
     # Enumerate before changing ACLs and refuse every reparse point.
@@ -62,7 +71,7 @@ function Protect-Tree([string]$Path, [string]$WorkerSid) {
     $queue = New-Object 'Collections.Generic.Queue[string]'
     $queue.Enqueue($Path)
     while ($queue.Count) {
-        foreach ($item in @(Get-ChildItem -LiteralPath $queue.Dequeue() -Force -ErrorAction Stop)) {
+        foreach ($item in @(Get-ChildItem -LiteralPath (Filesystem-Path $queue.Dequeue()) -Force -ErrorAction Stop)) {
             if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse point in protected tree' }
             $entries += $item
             if ($entries.Count -gt 50000) { throw 'Protected tree exceeds setup limit' }
@@ -78,7 +87,7 @@ try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Administrator consent required' }
-    $script:plan = [IO.File]::ReadAllText($planFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $script:plan = [IO.File]::ReadAllText((Filesystem-Path $planFile), [Text.Encoding]::UTF8) | ConvertFrom-Json
     if ($plan.schemaVersion -ne 1 -or $plan.ownerSid -ne $identity.User.Value) { throw 'Setup owner mismatch' }
     if (@($plan.slots).Count -lt 1 -or @($plan.slots).Count -gt 5) { throw 'One to five slots required' }
     if ($plan.projectId -notmatch '^[a-zA-Z0-9_.:-]{1,128}$') { throw 'Invalid project ID' }
@@ -86,7 +95,7 @@ try {
     $shared = Plain-Path $plan.sharedRoot
     $chief = Plain-Path $plan.chiefRoot
     foreach ($a in @($data,$shared,$chief)) {
-        if (-not (Test-Path -LiteralPath $a -PathType Container)) { throw 'Managed root missing' }
+        if (-not (Test-Path -LiteralPath (Filesystem-Path $a) -PathType Container)) { throw 'Managed root missing' }
         foreach ($b in @($data,$shared,$chief)) {
             if ($a -ne $b -and $a.StartsWith($b+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Managed roots overlap' }
         }
@@ -99,20 +108,20 @@ try {
         $seen[$slot.identity] = $true
         $workspace = Plain-Path $slot.workspace
         if ($workspace -ne (Join-Path (Join-Path $shared 'executors') $slot.identity)) { throw 'Workspace mismatch' }
-        $null = Get-Item -LiteralPath $workspace -Force
+        $null = Get-Item -LiteralPath (Filesystem-Path $workspace) -Force
         $accountDir = Join-Path (Join-Path (Join-Path $data 'worker-accounts') $plan.projectId) $slot.identity
-        $null = [IO.Directory]::CreateDirectory($accountDir)
+        $null = [IO.Directory]::CreateDirectory((Filesystem-Path $accountDir))
         Protect-Tree $accountDir ''
         $recordPath = Join-Path $accountDir 'account.json'
         $passwordPath = Join-Path $accountDir 'password.dpapi'
         $description = 'CeruleanLonging '+$slot.identity.Substring(0,32)
         $existing = Get-LocalUser -Name $slot.username -ErrorAction SilentlyContinue
         if ($existing) {
-            if (-not (Test-Path -LiteralPath $recordPath) -or -not (Test-Path -LiteralPath $passwordPath)) { throw 'Existing account without complete receipt; manual reconciliation required' }
-            $record = [IO.File]::ReadAllText($recordPath,[Text.Encoding]::UTF8) | ConvertFrom-Json
+            if (-not (Test-Path -LiteralPath (Filesystem-Path $recordPath)) -or -not (Test-Path -LiteralPath (Filesystem-Path $passwordPath))) { throw 'Existing account without complete receipt; manual reconciliation required' }
+            $record = [IO.File]::ReadAllText((Filesystem-Path $recordPath),[Text.Encoding]::UTF8) | ConvertFrom-Json
             if ($existing.Description -ne $description -or $record.sid -ne $existing.SID.Value -or $record.identity -ne $slot.identity -or $record.workspace -ne $slot.workspace -or $record.ownerSid -ne $plan.ownerSid -or $record.dataRoot -ne $plan.dataRoot -or $record.chiefRoot -ne $plan.chiefRoot -or $record.projectId -ne $plan.projectId) { throw 'Existing account binding mismatch' }
         } else {
-            if ((Test-Path -LiteralPath $recordPath) -or (Test-Path -LiteralPath $passwordPath)) { throw 'Account disappeared; refusing identity reuse' }
+            if ((Test-Path -LiteralPath (Filesystem-Path $recordPath)) -or (Test-Path -LiteralPath (Filesystem-Path $passwordPath))) { throw 'Account disappeared; refusing identity reuse' }
             $random = New-Object byte[] 48
             $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
             $rng.GetBytes($random); $rng.Dispose()
@@ -125,9 +134,9 @@ try {
             $created += $slot.username
             $secure.Dispose()
             Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $existing
-            [IO.File]::WriteAllBytes($passwordPath,$protected)
+            [IO.File]::WriteAllBytes((Filesystem-Path $passwordPath),$protected)
             $record = [ordered]@{schemaVersion=1;ownerSid=[string]$plan.ownerSid;projectId=[string]$plan.projectId;identity=[string]$slot.identity;sharedRoot=[string]$plan.sharedRoot;chiefRoot=[string]$plan.chiefRoot;dataRoot=[string]$plan.dataRoot;workspace=[string]$slot.workspace;username=[string]$slot.username;sid=[string]$existing.SID.Value}
-            [IO.File]::WriteAllText($recordPath,($record|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+            [IO.File]::WriteAllText((Filesystem-Path $recordPath),($record|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
         }
         $script:accounts += $record
     }
@@ -148,6 +157,6 @@ try {
 }
 $receipt=[ordered]@{schemaVersion=1;success=$ok;created=@($created);error=$failure;finishedAt=[DateTime]::UtcNow.ToString('o');modelRequests=0}
 $bytes=[Text.Encoding]::UTF8.GetBytes(($receipt|ConvertTo-Json -Depth 4))
-$stream=[IO.File]::Open($reportFile,'CreateNew','Write','None')
+$stream=[IO.File]::Open((Filesystem-Path $reportFile),'CreateNew','Write','None')
 try {$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)} finally {$stream.Dispose()}
 if (-not $ok) {exit 1}

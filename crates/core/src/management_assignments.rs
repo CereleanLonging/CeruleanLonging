@@ -143,6 +143,36 @@ pub(super) fn rebuild(intent: &DecisionIntent, mut context: Value) -> Result<Val
 }
 
 impl RuntimeHost {
+    /// Only new planning contexts opt into the larger reply budget. Historical
+    /// requests are rebuilt with their original selection and digest.
+    pub(super) fn planning_replies(&self, mut context: Value) -> Result<Value, String> {
+        let project = context["workflow"]["project"]["id"]
+            .as_str()
+            .ok_or("planning project missing")?
+            .to_owned();
+        let object = context
+            .as_object_mut()
+            .ok_or("management context invalid")?;
+        object.remove("userResponses");
+        object.remove("userResponsesOmitted");
+        context["planningContextVersion"] = 1.into();
+        let bytes = serde_json::to_vec(&context)
+            .map_err(|e| e.to_string())?
+            .len();
+        let count = self.management.reply_count(&project);
+        if count > 0 {
+            let replies = self.management.user_replies(
+                &project,
+                management::Purpose::Plan
+                    .context_limit_bytes()
+                    .saturating_sub(bytes + 128),
+            );
+            context["userResponsesOmitted"] = (count - replies.len()).into();
+            context["userResponses"] = Value::Array(replies);
+        }
+        Ok(context)
+    }
+
     pub(super) fn match_original_catalog(
         &self,
         original: &Value,
@@ -206,10 +236,29 @@ impl RuntimeHost {
             return self.rebuild_refinement_context(intent);
         }
         let context = self.rebuild_role_context(&intent.context, context, intent.purpose)?;
-        rebuild(
+        let context = rebuild(
             intent,
             self.match_original_catalog(&intent.context, context)?,
-        )
+        )?;
+        let context = if let Some(original) = intent.context.get("rework") {
+            let current = self.add_rework_context(context, intent.purpose)?;
+            require(
+                current.get("rework") == Some(original),
+                "原独立检查返工反馈已变化",
+            )?;
+            current
+        } else {
+            context
+        };
+        if let Some(version) = intent.context.get("planningContextVersion") {
+            require(
+                intent.purpose == management::Purpose::Plan && version.as_u64() == Some(1),
+                "planning context version invalid",
+            )?;
+            self.planning_replies(context)
+        } else {
+            Ok(context)
+        }
     }
     pub(super) fn management_dispatch_context(
         &self,
@@ -243,7 +292,13 @@ impl RuntimeHost {
         } else {
             context
         };
-        crate::worker_boundaries::annotate(context, purpose)
+        let context = crate::worker_boundaries::annotate(context, purpose)?;
+        let context = self.add_rework_context(context, purpose)?;
+        if purpose == management::Purpose::Plan {
+            self.planning_replies(context)
+        } else {
+            Ok(context)
+        }
     }
 }
 

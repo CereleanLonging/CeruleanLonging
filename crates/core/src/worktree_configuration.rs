@@ -133,6 +133,8 @@ mod tests {
         let proposal = ManagementDecision::Plan {
             tasks: vec![
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "a".into(),
                     goal: "first".into(),
@@ -141,6 +143,8 @@ mod tests {
                     validator_id: "tests".into(),
                 },
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "b".into(),
                     goal: "next".into(),
@@ -225,6 +229,8 @@ mod tests {
             assert_eq!(host.project_setups["project"].digest, saved.digest);
             let proposal = ManagementDecision::Plan {
                 tasks: vec![ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "task".into(),
                     goal: "isolated task".into(),
@@ -295,6 +301,8 @@ mod tests {
         let proposal = ManagementDecision::Plan {
             tasks: vec![
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "a".into(),
                     goal: "first".into(),
@@ -303,6 +311,8 @@ mod tests {
                     validator_id: "tests".into(),
                 },
                 ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "b".into(),
                     goal: "depends on first".into(),

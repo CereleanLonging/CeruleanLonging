@@ -3,15 +3,18 @@ import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
 import {once} from 'node:events';
 import {createServer} from 'node:net';
-import {mkdtemp,writeFile,readdir} from 'node:fs/promises';
+import {mkdir,mkdtemp,writeFile,readdir} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {chromium} from 'playwright-core';
 
 assert.equal(process.env.CERULEAN_NATIVE_OWNED_JOB,'1');
 const run=await mkdtemp(resolve('reports/connection-tests-native-'));
+assert(process.env.CERULEAN_CACHE_SESSION,'Use managed cache runner');
+const cache=join(process.env.CERULEAN_CACHE_SESSION,'connection-tests-native');
 const data=join(run,'data');
-const fixture=join(run,'codex.exe');
-await writeFile(join(run,'CodexFixture.cs'), `using System;using System.Collections.Generic;using System.Web.Script.Serialization;
+await mkdir(cache,{recursive:true});
+const fixture=join(cache,'codex.exe');
+await writeFile(join(cache,'CodexFixture.cs'), `using System;using System.Collections.Generic;using System.Web.Script.Serialization;
 class Fixture {
   static void Main() {
     var json=new JavaScriptSerializer(); string line;
@@ -34,11 +37,11 @@ class Fixture {
   }
 }`);
 const compiler=join(process.env.SystemRoot,'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
-const compile=spawnSync(compiler,['/nologo','/r:System.Web.Extensions.dll',`/out:${fixture}`,join(run,'CodexFixture.cs')],{windowsHide:true,encoding:'utf8'});
+const compile=spawnSync(compiler,['/nologo','/r:System.Web.Extensions.dll',`/out:${fixture}`,join(cache,'CodexFixture.cs')],{windowsHide:true,encoding:'utf8'});
 assert.equal(compile.status,0,compile.stdout+compile.stderr);
 const wait=async predicate=>{for(let n=0;n<160;n++){const value=await predicate();if(value)return value;await new Promise(resolve=>setTimeout(resolve,150));}throw Error('Native condition timeout');};
 const socket=createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');const port=socket.address().port;await new Promise(resolve=>socket.close(resolve));
-const app=spawn(process.env.CERULEAN_NATIVE_GUI,[],{windowsHide:true,stdio:'ignore',env:{...process.env,CERULEAN_TEST_DATA_DIR:data,CERULEAN_TEST_WEBVIEW_ROOT:join(run,'webviews'),CERULEAN_TEST_ACCESS_ROOT:join(run,'settings'),CERULEAN_TEST_MAINTENANCE_ROOT:join(run,'maintenance'),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:`--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1`}});
+const app=spawn(process.env.CERULEAN_NATIVE_GUI,[],{windowsHide:true,stdio:'ignore',env:{...process.env,CERULEAN_TEST_DATA_DIR:data,CERULEAN_TEST_WEBVIEW_ROOT:join(cache,'webviews'),CERULEAN_TEST_ACCESS_ROOT:join(run,'settings'),CERULEAN_TEST_MAINTENANCE_ROOT:join(run,'maintenance'),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:`--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1`}});
 let browser,page;
 const cases=[];
 const invoke=(name,args)=>page.evaluate(({name,args})=>window.__TAURI_INTERNALS__.invoke(name,args),{name,args});
@@ -72,13 +75,15 @@ try {
   await chief.getByRole('alert').filter({hasText:'不一致'}).waitFor();
   cases.push('The actual desktop button displays native success and failure, and clears results when configuration changes');
   const worker=page.getByRole('region',{name:'执行端',exact:true});
-  await worker.locator('summary').filter({hasText:/^CLI 接入$/}).click();
-  await worker.getByLabel('CLI 程序').selectOption('omp');
+  await worker.locator('summary').filter({hasText:/^API 连接$/}).click();
   await worker.getByLabel('OMP 程序完整路径').fill(join(run,'missing.exe'));
   await wait(async()=>Object.values(await invoke('access_settings_load')).includes(JSON.stringify(join(run,'missing.exe'))));
   await worker.getByRole('button',{name:'测试连通',exact:true}).click();
-  await worker.getByRole('alert').filter({hasText:'测试未通过'}).waitFor();
-  cases.push('OMP test inputs persist through the native settings allowlist, and native executable errors remain visible');
+  const missingKey=page.getByRole('dialog',{name:'补充 OMP API Key',exact:true});
+  await missingKey.waitFor();
+  assert(await missingKey.getByRole('button',{name:'测试连通',exact:true}).isDisabled());
+  await missingKey.getByRole('button',{name:'返回配置',exact:true}).click();
+  cases.push('OMP input persists through the native allowlist; a missing Key opens the credential dialog before a connection attempt');
   await page.screenshot({path:join(run,'native-results.png'),fullPage:false});
   await page.getByRole('button',{name:'退出工作台',exact:true}).click();
   await page.getByRole('button',{name:'确认退出并停止后台',exact:true}).click();

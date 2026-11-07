@@ -61,14 +61,17 @@ async fn coordinated_wire_preserves_completion_cancel_unknown_and_responsive_own
             );
             release.send(()).unwrap();
         });
+        if mode == "missing-artifact" {
+            assert!(!store.state().tasks["task"].verified);
+        }
         let expected = match mode {
-            "completed" => TaskState::Submitted,
+            "completed" | "missing-artifact" => TaskState::Submitted,
             "early-cancel" => TaskState::Cancelled,
             _ => TaskState::Unknown,
         };
         assert_eq!(
             result.is_ok(),
-            matches!(mode, "completed" | "early-cancel"),
+            matches!(mode, "completed" | "missing-artifact" | "early-cancel"),
             "{mode}: {result:?}"
         );
         assert_eq!(store.state().tasks["task"].state, expected);

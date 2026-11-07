@@ -18,6 +18,7 @@ const commands = {
   contracts: ["cargo", "run", "-p", "cerulean-domain", "--bin", "export-contracts", "--locked"],
 };
 if (!commands[task]) throw Error("Unknown managed build/test task");
+const schedule = command => task === "ui" ? command : [process.execPath, join(root, "scripts/build-scheduler.mjs"), ...(task === "frontend" ? [] : ["--rust"]), ...command];
 const execute = (program, arguments_, options = {}) => {
   const result = spawnSync(program, arguments_, { cwd: root, stdio: "inherit", shell: false, ...options });
   if (result.error) throw result.error;
@@ -25,7 +26,8 @@ const execute = (program, arguments_, options = {}) => {
 };
 
 if (process.env.CERULEAN_CACHE_SESSION) {
-  process.exit(execute(commands[task][0], commands[task].slice(1)));
+  const command = schedule(commands[task]);
+  process.exit(execute(command[0], command.slice(1)));
 }
 
 const extension = windows ? ".exe" : "";
@@ -37,7 +39,7 @@ for (const file of ["Cargo.lock", "crates/cache/Cargo.toml", "crates/cache/src/l
 const fingerprint = hash.digest("hex");
 if (!existsSync(manager) || !existsSync(stamp) || readFileSync(stamp, "utf8") !== fingerprint) {
   const bootstrap = join(root, ".temp/build-cache/bootstrap/cargo");
-  const result = execute("cargo", ["build", "-p", "cerulean-cache", "--release", "--locked", "--target-dir", bootstrap]);
+  const result = execute(process.execPath, [join(root, "scripts/build-scheduler.mjs"), "--rust", "cargo", "build", "-p", "cerulean-cache", "--release", "--locked", "--target-dir", bootstrap]);
   if (result) process.exit(result);
   mkdirSync(tools, { recursive: true });
   copyFileSync(join(bootstrap, "release", `cerulean-cache${extension}`), manager);
@@ -45,7 +47,7 @@ if (!existsSync(manager) || !existsSync(stamp) || readFileSync(stamp, "utf8") !=
 }
 let result = 1;
 try {
-  result = execute(manager, ["run", root, ...commands[task]]);
+  result = execute(manager, ["run", root, ...schedule(commands[task])]);
 } finally {
   // Final executables live in target/{debug,release}; only compiler-cache subtrees
   // and managed temporary payloads are candidates for this operation.

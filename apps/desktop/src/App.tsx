@@ -4,6 +4,7 @@ import { ErrorText } from "./ErrorText";
 import { ExitWorkbench } from "./ExitWorkbench";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Command, Snapshot, HistoricalResult, CommandResult, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
 import { submitAndRead } from "./commandSubmission";
 import { WorkspaceBrowser } from "./WorkspaceBrowser";
@@ -47,6 +48,8 @@ const time = (s: string) =>
   new Date(s).toLocaleString("zh-CN", { hour12: false });
 
 export function App() {
+  const windowLabel = desktop ? getCurrentWindow().label : "main";
+  const experiment = windowLabel.startsWith("experiment-");
   const [page, setPage] = useState<Page>("工作总览");
   const [experimentsEnabled,setExperimentsEnabled]=useState(false);
   const [configuration,setConfiguration]=useState<ConfigurationRequest|null>(null);
@@ -147,7 +150,7 @@ export function App() {
   }, [page, needsFullView]);
   const verifying = data?.teamImport?.state === "running" || (data?.baselines?.some(b => b.busy || b.timing?.clockLive) ?? false) || (data?.teamTimelines?.some(t => t.clockLive) ?? false) || !!data?.desktopAccess?.checking || (data?.apiJobs?.some(job=>["starting","executing","cancel-requested"].includes(job.state))??false) || (data?.providerConnections?.some(s=>s.state==="checking")??false) || (data?.ompJobs?.some(job=>["starting","executing","cancel-requested"].includes(job.state))??false) || (data?.projectRuns?.some(r=>r.state==="active")??false) || (data?.managementHistory.projects.some(project=>project.running>0)??false) || (data?.verificationJobs.some(job => job.state === "running" || job.state === "cancelling") ?? false) || data?.codexConnection?.state === "checking" || data?.openaiConnection?.state === "checking" || (data?.codexJobs?.some(job=>["starting","executing","reconciling","cancel-requested","cancelling"].includes(job.state)) ?? false);
   useEffect(() => {
-    if (!desktop || !needsFullView || !verifying || busy || snapshotLoading || !!data?.ompStopIssues?.length || !!data?.coreDiagnostic) return;
+    if (!desktop || !needsFullView || !(verifying || data?.desktopAccess?.tasks?.some(task=>task.active||task.stopping) || data?.managementDecisions?.some(d=>d.state==="awaitingExternal")) || busy || snapshotLoading || !!data?.ompStopIssues?.length || !!data?.coreDiagnostic) return;
     let stopped = false;
     let timer: number;
     async function poll() {
@@ -159,13 +162,13 @@ export function App() {
     }
     timer=window.setTimeout(poll,1000);
     return () => {stopped=true;window.clearTimeout(timer);};
-  },[needsFullView,verifying,busy,snapshotLoading,data?.ompStopIssues?.length,data?.coreDiagnostic]);
+  },[needsFullView,verifying,busy,snapshotLoading,data?.ompStopIssues?.length,data?.coreDiagnostic,data?.desktopAccess?.tasks?.some(task=>task.active||task.stopping),data?.managementDecisions?.some(d=>d.state==="awaitingExternal")]);
   const planCount = workspace?.legacyPlanCount ?? null;
   const pendingCount = workspace?.pendingLegacyPlanCount ?? null;
   const showPlanning = (page === "接入管理" || page === "需求与计划") && !data?.coreDiagnostic;
   const standardPage = page !== "维护与升级" && page !== "独立实验工作台" && !data?.coreDiagnostic;
   return (
-    <div className="shell">
+    <div className="shell" data-workbench={experiment ? "experiment" : "daily"}>
       <aside className="sidebar">
         <a
           className="brand"
@@ -187,7 +190,8 @@ export function App() {
         <div className="workspace">
           <span className="workspace-icon">CL</span>
           <span>
-            本地工作空间<small>个人 · Windows</small>
+            {experiment ? "独立实验台" : "日常工作台"}
+            <small>{experiment ? windowLabel.slice("experiment-".length) : "个人 · Windows"}</small>
           </span>
           <span className="local-dot" />
         </div>
@@ -270,7 +274,7 @@ export function App() {
               {notice}
             </div>
           )}
-          {(page === "工作总览" || page === "需求与计划") && <WorkspaceBrowser refinementSetups={data?.projectSetups} configureChief={projectId=>configure("chief",undefined,projectId)} read={readWorkspace} send={send} enabled={desktop} busy={busy} showPlans={page === "需求与计划"} onOverview={setWorkspace}/>}
+          {page === "工作总览" && <WorkspaceBrowser read={readWorkspace} send={send} enabled={desktop} busy={busy} showPlans={false} onOverview={setWorkspace}/>}
           {needsFullView && !data && <div role="status" className="banner">{snapshotLoading ? "正在读取此页的完整记录；独立项目与计划入口仍可使用。" : "此页完整记录尚不可用，不能据此判断没有任务或事件。请重新读取；独立项目与计划入口仍可使用。"}<button disabled={busy || snapshotLoading || !desktop} onClick={() => void query({type:"snapshot"})}>读取完整记录</button></div>}
           {page === "工作总览" && (
             <>
@@ -380,15 +384,25 @@ export function App() {
               onContinue={()=>{navigate("需求与计划");window.scrollTo({top:0});}}/>
           </div>}
           {standardPage && <>
+          {page === "需求与计划" && <details className="panel" aria-label="手工计划与历史记录">
+            <summary>手工计划与历史记录（可选）</summary>
+            <p className="secondary">这里单独保存手工任务清单，不使用上方尚未提交的项目接入草稿。编程项目请在上方填写需求，已选角色模型会继续沿用。</p>
+            <WorkspaceBrowser read={readWorkspace} send={send} enabled={desktop} busy={busy} showPlans onOverview={setWorkspace}/>
+          </details>}
           {page === "需求与计划" && data && (
             <div className="plan-layout">
-              <WorkflowPlans workflows={data?.workflows ?? []} revisions={data?.projectRevisions ?? []} setups={data?.projectSetups??[]} send={send} busy={busy} />
-              <HistoricalCurrencyPanel snapshot={data} query={queryHistorical} busy={busy}/>
-              <ManagementCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
-              <ApiCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
-              <ApiGenerationPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
-              <ProjectRuns data={data} send={send} busy={busy}/>
+              <ProjectRuns data={data} send={send} busy={busy} read={readWorkspace} enabled={desktop}/>
               <BlindReviewPanel data={data} send={send} busy={busy}/>
+              <details className="panel project-data-statistics" aria-label="项目数据与费用统计">
+                <summary>项目数据与费用统计<span className="secondary">执行方案、历史费用及费用核对，按需展开</span></summary>
+                <div className="project-statistics-content">
+                  <WorkflowPlans workflows={data.workflows ?? []} revisions={data.projectRevisions ?? []} setups={data.projectSetups ?? []} send={send} busy={busy} />
+                  <HistoricalCurrencyPanel snapshot={data} query={queryHistorical} busy={busy}/>
+                  <ManagementCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
+                  <ApiCountPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
+                  <ApiGenerationPanel busy={busy} query={command => invoke("count_resolution_request", {command})}/>
+                </div>
+              </details>
               <ManagementReview focusOperation={ompManagement} data={data} send={send} query={query} busy={busy}/>
               <CodexStartups data={data} send={send} query={query} busy={busy}/>
               <OmpJobs data={data} send={send} busy={busy} openManagement={operationId=>setOmpManagement({operationId,token:Date.now()})}/>
@@ -402,7 +416,7 @@ export function App() {
           {page === "交接记录" && <WorkspaceHistory read={readWorkspace} enabled={desktop} busy={busy}/>}
           {page === "项目设置" && (
             <>
-            {configuration&&<section className="panel" aria-label="模型配置引导"><HelpHeading as="h2" topic="App">继续配置{configuration.role==="chief"?"主指挥":configuration.role==="deputy"?"副指挥":"执行端"}</HelpHeading><p>先在下方关联已有项目目录，再返回接入管理。{configuration.chiefMethod==="desktop"?"已保留“当前 Codex 聊天”的选择；进入后填写会话标识。":"关联目录不会调用模型。"}</p><button className="primary" disabled={busy||snapshotLoading||!data?.workflows.length} onClick={()=>setPage("接入管理")}>继续配置模型</button><p className="secondary">独立验收工具已固定关联；保存执行配置前，请在高级设置登记项目功能检查程序。配置、请求方案、批准与启动保持分别确认。</p></section>}
+            {configuration&&<section className="panel" aria-label="模型配置引导"><HelpHeading as="h2" topic="App">继续配置{configuration.role==="chief"?"主指挥":configuration.role==="deputy"?"副指挥":"执行端"}</HelpHeading><p>先在下方关联已有项目目录，再返回接入管理。{configuration.chiefMethod==="desktop"?"已保留“当前 Codex 聊天”的选择；进入后填写会话标识。":"关联目录不会调用模型。"}</p><button className="primary" disabled={busy||snapshotLoading||!data?.workflows.length} onClick={()=>setPage("接入管理")}>继续配置模型</button><p className="secondary">独立检查与盲评验收分别固定关联；主指挥将在方案中提供客观测试，审阅批准后执行。配置、请求方案、批准与启动保持分别确认。</p></section>}
             {data && <ProjectRegistration send={send} busy={busy || snapshotLoading} connected={true} />}
             {data && <ValidatorCatalog items={data.validators} send={send} busy={busy || snapshotLoading} connected={true} />}
             <section className="panel settings">

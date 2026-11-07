@@ -8,20 +8,20 @@ type Request =
   | { kind: "omp"; executable: string; model: string; runtimeParent?: string | null }
   | { kind: "qoder"; observation: DesktopObservation };
 type Result = { message: string; checkedAt: string };
-type Props = { request: Request | null; busy: boolean; scope: string; hint?: string };
+type Props = { request: Request | null; busy: boolean; scope: string; hint?: string; beforeTest?: () => boolean };
 
 export function LocalConnectionTest(props: Props) {
   // A result belongs to exactly one configuration, including its workbench.
   return <ConnectionTest key={JSON.stringify([props.scope, props.request])} {...props}/>;
 }
 
-function ConnectionTest({ request, busy, hint }: Props) {
+function ConnectionTest({ request, busy, hint, beforeTest }: Props) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const lock = useRef(false);
   async function test() {
-    if (busy || lock.current || !request) return;
+    if (busy || lock.current || !request || beforeTest?.() === false) return;
     lock.current = true;
     setTesting(true);
     setResult(null);

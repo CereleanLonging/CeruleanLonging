@@ -13,6 +13,8 @@ jobs:
         run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
       - run: npm ci
       - run: ./scripts/check.ps1
+        env:
+          CERULEAN_RUN_NATIVE_ACCOUNT_TESTS: '1'
       - name: Check generated contract drift
         run: git diff --exit-code -- apps/desktop/src/contracts.ts
       - name: Build core and desktop

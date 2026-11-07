@@ -13,17 +13,27 @@ mod runner;
 #[path = "recheck_workspace.rs"]
 mod workspace;
 
+#[path = "recheck_accounts.rs"]
+pub(super) mod accounts;
+use accounts::FixtureRoot;
+
 const APPROVAL_SOURCE: &str = "authenticated local-user verification recheck approval";
 
-fn fixture(protected: bool) -> (tempfile::TempDir, DurableWorkflow, RecheckApproval) {
-    let (root, mut host, p, pins) = async_fixture("detail-first-fail");
+fn fixture(protected: bool) -> (FixtureRoot, DurableWorkflow, RecheckApproval) {
+    fixture_mode(protected, false)
+}
+fn fixture_mode(
+    protected: bool,
+    isolated: bool,
+) -> (FixtureRoot, DurableWorkflow, RecheckApproval) {
+    let root = FixtureRoot::new(isolated);
+    let (mut host, p, pins) = async_fixture_setup(root.path(), "detail-first-fail", isolated);
     host.start_verification("project", "stage-check", "task", "attempt", pins)
         .unwrap();
     complete_detail_verification(&mut host);
     let original_job = host.snapshot().verification_jobs[0].clone();
     assert_eq!(original_job.state, VerificationState::Failed);
-    let mut checks = p.execution[0].checks.clone();
-    checks[0].args.push("--test-threads=1".into());
+    let checks = fixed_checks(&p.execution[0].checks);
     let review = host
         .review_verification_recheck(&RecheckRequest {
             project_id: "project".into(),
@@ -61,6 +71,67 @@ fn fixture(protected: bool) -> (tempfile::TempDir, DurableWorkflow, RecheckAppro
             original_job,
         },
     )
+}
+
+/// Rechecks bind the packaged checker while the original ledger retains its
+/// historical test executable. Exercise migration through the real entry point.
+pub(super) fn fixed_checks(checks: &[AcceptanceCheck]) -> Vec<AcceptanceCheck> {
+    checks
+        .iter()
+        .map(|check| fixed_check(check, "corrected_checker"))
+        .collect()
+}
+
+fn fixed_check(base: &AcceptanceCheck, behavior: &str) -> AcceptanceCheck {
+    use cerulean_domain::objective_checker::{bind, Language, ScriptTest};
+    let status = cerulean_core::objective_checker::status();
+    assert!(status.ready, "{:?}", status.error);
+    let runtime = std::env::split_paths(&std::env::var_os("PATH").unwrap())
+        .filter(|path| path.is_absolute())
+        .map(|path| path.join("node.exe"))
+        .find(|path| path.is_file())
+        .expect("Install Node for fixed-checker integration tests");
+    let runtime = cerulean_core::verifier::PinnedCheck::describe(&runtime, &[], Default::default())
+        .unwrap()
+        .executable;
+    let mut check = base.clone();
+    check.program = status.path;
+    check.tool = Some(
+        cerulean_core::verifier::PinnedCheck::describe(
+            Path::new(&check.program),
+            &[],
+            Default::default(),
+        )
+        .unwrap(),
+    );
+    check.program = check.tool.as_ref().unwrap().executable.path.clone();
+    check.args.clear();
+    let before = match behavior {
+        "corrected_checker" | "failed_checker" => "",
+        "slow_checker" => {
+            "fs.writeFileSync(path.join(temp, 'validator-started'), 'ready'); await new Promise(resolve => setTimeout(resolve, 30000));"
+        }
+        _ => panic!("Unknown fixture behavior"),
+    };
+    let passed = behavior != "failed_checker";
+    let source = format!(
+        "import fs from 'node:fs'; import path from 'node:path'; import assert from 'node:assert/strict';\n\
+         const temp = process.env.TEMP; {before}\n\
+         assert.equal(fs.readFileSync('result.txt', 'utf8'), 'abc');\n\
+         fs.writeFileSync(path.join(temp, 'validator-count'), 'one', {{flag:'wx'}});\n\
+         console.log(JSON.stringify({{schemaVersion:1,assertions:[{{id:'fixture',passed:{passed},detail:'checked original result'}}]}}));\n\
+         if (!{passed}) process.exit(13);"
+    );
+    bind(
+        &check,
+        &ScriptTest {
+            language: Language::JavaScript,
+            source,
+            assertions: vec!["fixture".into()],
+        },
+        &runtime,
+    )
+    .unwrap()
 }
 
 fn approval_command(a: &RecheckApproval) -> WorkflowCommand {
@@ -128,7 +199,11 @@ fn result_fixture(
                 .iter()
                 .map(|check| CheckObservation {
                     assertion_error: None,
-                    assertions: vec![],
+                    assertions: vec![AssertionResult {
+                        id: "fixture".into(),
+                        passed,
+                        detail: "synthetic ledger result".into(),
+                    }],
                     check_id: check.id.clone(),
                     command_digest: digest(check).unwrap(),
                     exit_code: Some(if passed { 0 } else { 1 }),
@@ -503,6 +578,28 @@ fn recheck_ledger_new_failure_preserves_submission_and_requires_new_approval() {
         .unwrap();
     assert!(!s.state().tasks["task"].verified);
     assert_eq!(s.state().tasks["task"].state, TaskState::Submitted);
+    let ExecutionEvidence::VerificationRecheck {
+        result: checked, ..
+    } = result.body.context.execution.as_ref().unwrap()
+    else {
+        panic!()
+    };
+    let rejected = s
+        .command(
+            "rework-after-revised-check",
+            "deputy",
+            WorkflowCommand::ReturnForRework {
+                task: "task".into(),
+                attempt: "attempt".into(),
+                verification_operation: a.operation_id.clone(),
+                report_digest: digest(&checked.report).unwrap(),
+                suggestion: "修正输出".into(),
+            },
+            CommandContext::default(),
+            false,
+        )
+        .unwrap_err();
+    assert!(rejected.contains("主指挥修订方案"), "{rejected}");
     let mut next = a.clone();
     next.operation_id = "new-check".into();
     next.review.ledger_head = result.hash;

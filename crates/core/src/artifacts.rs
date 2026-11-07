@@ -175,6 +175,12 @@ impl<'a> ArtifactObserver<'a> {
         let mut artifacts = Vec::new();
         let mut total = 0;
         for path in paths {
+            // A known completed reply can omit an expected file. Preserve that
+            // incomplete manifest for the checker instead of losing the reply
+            // as Unknown. Permission errors and unsafe paths still fail closed.
+            if !artifact_exists(&self.root, &path)? {
+                continue;
+            }
             let artifact = read_artifact(&self.root, &path)?;
             total += u64::from(artifact.bytes);
             require(total <= MAX_TOTAL_BYTES, "artifact set size limit")?;
@@ -206,4 +212,27 @@ impl<'a> ArtifactObserver<'a> {
         report.require_pass(self.plan, manifest, trusted_verifier)?;
         self.require_unchanged(manifest)
     }
+}
+
+fn artifact_exists(root: &Path, relative: &str) -> Result<bool, String> {
+    artifact_path(relative)?;
+    let mut path = root.to_path_buf();
+    let parts = relative.split('/').collect::<Vec<_>>();
+    for (index, part) in parts.iter().enumerate() {
+        path.push(part);
+        match fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error.to_string()),
+            Ok(_) => {
+                let metadata = ordinary(&path)?;
+                if index + 1 == parts.len() {
+                    return Ok(metadata.is_file());
+                }
+                if !metadata.is_dir() {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    Ok(true)
 }

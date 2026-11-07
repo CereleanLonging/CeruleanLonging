@@ -9,6 +9,11 @@ mod access_settings;
 mod cache_monitor;
 mod cli_sessions;
 mod experiment_workbench;
+mod file_import;
+#[cfg(windows)]
+mod file_import_process;
+#[cfg(windows)]
+mod file_import_service;
 mod maintenance;
 mod portable_archive;
 mod review_logs;
@@ -25,6 +30,18 @@ async fn independent_verifier_status(
     tauri::async_runtime::spawn_blocking(cerulean_core::independent_verifier::status)
         .await
         .map_err(|_| "独立验收工具核对未完成".into())
+}
+
+#[tauri::command]
+async fn objective_checker_status(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, State>,
+) -> Result<cerulean_core::independent_verifier::Status, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
+    state.workbenches.directory(window.label())?;
+    tauri::async_runtime::spawn_blocking(cerulean_core::objective_checker::status)
+        .await
+        .map_err(|_| "独立检查工具核对未完成".into())
 }
 
 #[tauri::command]
@@ -65,6 +82,8 @@ async fn test_local_connection(
 }
 
 struct State {
+    #[cfg(windows)]
+    file_imports: std::sync::Arc<file_import_service::Service>,
     cli_sessions: cli_sessions::Windows,
     lifecycle: workbench_exit::Lifecycle,
     workbenches: experiment_workbench::Windows,
@@ -93,6 +112,14 @@ async fn close_workbench(
     )
     .await
     .map_err(|e| format!("后台退出尚未完成，窗口已保留：{e}"))?;
+    #[cfg(windows)]
+    {
+        let imports = state.file_imports.clone();
+        let owner = window.label().to_owned();
+        tauri::async_runtime::spawn_blocking(move || imports.close_owner(&owner))
+            .await
+            .map_err(|_| "文件导入窗口尚未关闭".to_string())??;
+    }
     state
         .cli_sessions
         .close_owner(window.label(), window.app_handle())?;
@@ -604,6 +631,12 @@ fn main() {
                 },
             )?;
             app.manage(State {
+                #[cfg(windows)]
+                file_imports: std::sync::Arc::new(file_import_service::Service::new(
+                    app.path()
+                        .app_local_data_dir()?
+                        .join("file-import-sessions-v1"),
+                )),
                 cli_sessions: cli_sessions::Windows::default(),
                 lifecycle: workbench_exit::Lifecycle::default(),
                 workbenches,
@@ -641,6 +674,7 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            file_import::file_import_window,
             cli_sessions::open_cli_session_window,
             cli_sessions::cli_session_read,
             cache_monitor::build_cache_monitor,
@@ -653,6 +687,7 @@ fn main() {
             scan_codex_installations,
             test_local_connection,
             independent_verifier_status,
+            objective_checker_status,
             review_workflow_template,
             portable_evidence,
             historical_request,

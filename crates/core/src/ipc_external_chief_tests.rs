@@ -14,33 +14,31 @@ fn setup(root: &Path) -> (RuntimeHost, String) {
     std::fs::create_dir(&project).unwrap();
     let worker = root.join("codex.exe");
     std::fs::write(&worker, b"never executed in this test").unwrap();
-    for (index, command) in [
-        Command::RegisterProject {
+    let registered = host.handle(Request {
+        id: "register-project".into(),
+        protocol_version: PROTOCOL_VERSION,
+        command: Command::RegisterProject {
             project: Project {
                 id: "project".into(),
                 root: project.to_string_lossy().into(),
                 timezone: "Asia/Shanghai".into(),
             },
         },
-        Command::RegisterValidator {
+    });
+    assert!(registered.error.is_none());
+    let rejected = host.handle(Request {
+        id: "external-checker".into(),
+        protocol_version: PROTOCOL_VERSION,
+        command: Command::RegisterValidator {
             id: "tests".into(),
             name: "never launched".into(),
             executable: std::env::current_exe().unwrap().to_string_lossy().into(),
             inputs: vec![],
             environment: Default::default(),
         },
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let reply = host.handle(Request {
-            id: format!("setup-{index}"),
-            protocol_version: PROTOCOL_VERSION,
-            command,
-        });
-        assert!(reply.error.is_none(), "{:?}", reply.error);
-    }
-    let draft=serde_json::from_value(serde_json::json!({"projectId":"project","requirement":"Implement sum","codexExecutable":worker,"workerModel":"fixture-worker","chiefModel":"fixture-chief","deputyModel":"fixture-deputy","validatorId":"tests","checkArgs":[],"artifactPaths":["sum.mjs"],"workerMaxRequests":1,"managementMaxRequests":4,"maxSeconds":60})).unwrap();
+    });
+    assert!(rejected.error.is_some());
+    let draft=serde_json::from_value(serde_json::json!({"projectId":"project","requirement":"Implement sum","codexExecutable":worker,"workerModel":"fixture-worker","chiefModel":"fixture-chief","deputyModel":"fixture-deputy","validatorId":cerulean_domain::objective_checker::ID,"checkArgs":[],"artifactPaths":["sum.mjs"],"workerMaxRequests":1,"managementMaxRequests":4,"maxSeconds":60})).unwrap();
     let response = host.handle(Request {
         id: "configure".into(),
         protocol_version: PROTOCOL_VERSION,
@@ -113,12 +111,20 @@ async fn external_chief_ipc_returns_real_handoff_and_never_approves_or_resends()
             state_digest: result.handoff.state_digest.clone(),
             decision: ManagementDecision::Plan {
                 tasks: vec![ProposedTask {
+                    artifact_paths: None,
+                    objective_test: Some(cerulean_domain::objective_checker::ScriptTest {
+                        language: cerulean_domain::objective_checker::Language::JavaScript,
+                        source:
+                            "throw new Error('approval is required before this fixture can run');"
+                                .into(),
+                        assertions: vec!["sum".into()],
+                    }),
                     profile_id: None,
                     id: "sum".into(),
                     goal: "Implement sum".into(),
                     dependencies: vec![],
                     worker_id: "worker-codex".into(),
-                    validator_id: "tests".into(),
+                    validator_id: cerulean_domain::objective_checker::ID.into(),
                 }],
                 rationale: "one task".into(),
             },

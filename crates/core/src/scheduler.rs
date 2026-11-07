@@ -750,7 +750,9 @@ impl DurableWorkflow {
             | WorkflowCommand::RetireUnknownDesktop { .. }
             | WorkflowCommand::RequestRevision { .. } => Role::User,
             WorkflowCommand::RetireSubmittedPlan { .. } => Role::User,
-            WorkflowCommand::Assign { .. } | WorkflowCommand::Advise { .. } => Role::Deputy,
+            WorkflowCommand::Assign { .. }
+            | WorkflowCommand::Advise { .. }
+            | WorkflowCommand::ReturnForRework { .. } => Role::Deputy,
             WorkflowCommand::Submit { .. } => Role::Worker,
             _ => Role::Core,
         };
@@ -970,6 +972,50 @@ impl DurableWorkflow {
         }
         let approval = self.approval().ok_or("full revision not approved")?;
         approval.validate(revision, self.role_id(Role::User)?, scope.policy_version)?;
+        if let WorkflowCommand::ReturnForRework {
+            task,
+            attempt,
+            verification_operation,
+            report_digest,
+            ..
+        } = command
+        {
+            require(
+                *context == CommandContext::default(),
+                "rework requires plain deputy context",
+            )?;
+            require(
+                self.unresolved_verification_recheck().is_none(),
+                "original recheck is unresolved",
+            )?;
+            let entry = self
+                .entries
+                .iter()
+                .rev()
+                .find(|e| {
+                    matches!(
+                        &e.body.event.command, WorkflowCommand::Verify { task: t, attempt: a, .. }
+                            if t == task && a == attempt
+                    )
+                })
+                .ok_or("failed check evidence missing")?;
+            let report = match &entry.body.context.execution {
+                Some(ExecutionEvidence::Verification { report }) => report,
+                Some(ExecutionEvidence::VerificationRecheck { .. }) => {
+                    return Err("检查标准已复验修订，请先由主指挥修订方案再返工".into());
+                }
+                _ => return Err("failed check report missing".into()),
+            };
+            return require(
+                entry.body.operation_id == *verification_operation
+                    && proof_digest(report)? == *report_digest
+                    && matches!(
+                        entry.body.event.command,
+                        WorkflowCommand::Verify { passed: false, .. }
+                    ),
+                "rework differs from the latest failed check",
+            );
+        }
         if let WorkflowCommand::Assign {
             task,
             worker,
@@ -1119,14 +1165,15 @@ impl DurableWorkflow {
                     )?;
                     let mut expected = revision.task(task)?.artifact_paths.clone();
                     expected.sort();
+                    let observed = manifest
+                        .artifacts
+                        .iter()
+                        .map(|a| &a.path)
+                        .collect::<Vec<_>>();
                     require(
-                        manifest
-                            .artifacts
-                            .iter()
-                            .map(|a| a.path.clone())
-                            .collect::<Vec<_>>()
-                            == expected,
-                        "artifact set mismatch",
+                        observed.windows(2).all(|pair| pair[0] < pair[1])
+                            && observed.iter().all(|path| expected.contains(path)),
+                        "artifact set contains duplicates or unapproved paths",
                     )?;
                     for artifact in &manifest.artifacts {
                         sha256(&artifact.sha256)?;

@@ -189,6 +189,8 @@ mod project_dag_tests;
 mod project_planning;
 #[path = "project_revision.rs"]
 mod project_revision;
+#[path = "project_rework.rs"]
+mod project_rework;
 #[path = "project_runner.rs"]
 mod project_runner;
 #[path = "provider_connections.rs"]
@@ -244,6 +246,8 @@ mod verification_recheck;
 mod verification_recheck_host;
 #[path = "verification_recovery.rs"]
 mod verification_recovery;
+#[path = "verification_start_retry.rs"]
+mod verification_start_retry;
 #[path = "worker_account_authorization.rs"]
 mod worker_account_authorization;
 #[cfg(all(test, windows))]
@@ -537,6 +541,36 @@ impl RuntimeHost {
             })
             .collect();
         let mut context = serde_json::json!({"requirement":requirement,"workflow":workflow,"validators":self.validators,"workers":workers});
+        #[cfg(windows)]
+        if self
+            .project_setups
+            .get(&workflow.project.id)
+            .is_some_and(|s| s.setup.validator_id == cerulean_domain::objective_checker::ID)
+        {
+            context["validators"] = serde_json::to_value(
+                self.validators
+                    .iter()
+                    .filter(|(id, _)| id.as_str() == cerulean_domain::objective_checker::ID)
+                    .collect::<BTreeMap<_, _>>(),
+            )
+            .expect("catalog");
+            let runtimes = crate::objective_checker::runtimes()
+                .into_iter()
+                .filter(|(_, file)| {
+                    !self.projects.values().any(|p| {
+                        p.configuration().execution_scope.as_ref().is_some_and(|s| {
+                            crate::artifacts::contains_path(
+                                Path::new(&s.project.root),
+                                Path::new(&file.path),
+                            )
+                        })
+                    })
+                })
+                .collect::<BTreeMap<_, _>>();
+            context["objectiveRuntimes"] = serde_json::to_value(runtimes).expect("runtimes");
+            context["objectiveTestInstructions"] =
+                cerulean_domain::objective_checker::PLANNING_INSTRUCTIONS.into();
+        }
         if let Some(setup) = self.project_setups.get(&workflow.project.id) {
             context["executionSetup"] = serde_json::to_value(setup).expect("serializable setup");
         }
@@ -839,7 +873,11 @@ impl RuntimeHost {
             crate::credential_vault::exists_for(&root, credentials::CredentialProvider::DeepSeek)?;
         #[cfg(not(windows))]
         let deepseek_key_configured = false;
-        let validators = crate::validator_catalog::load(&root)?;
+        let mut validators = crate::validator_catalog::load(&root)?;
+        #[cfg(windows)]
+        if let Ok(checker) = crate::objective_checker::registration() {
+            validators.insert(checker.id.clone(), checker);
+        }
         let management = crate::management_execution::DecisionJournal::open(&root)?;
         let startups = crate::startup_journal::StartupJournal::open(&root)?;
         let omp_startups = crate::startup_journal::StartupJournal::open_omp(&root)?;
@@ -1183,7 +1221,12 @@ impl RuntimeHost {
             .values()
             .map(|job| self.verification_job_view(job))
             .collect();
-        snapshot.validators = self.validators.values().cloned().collect();
+        snapshot.validators = self
+            .validators
+            .values()
+            .filter(|v| v.id == cerulean_domain::objective_checker::ID)
+            .cloned()
+            .collect();
         snapshot.codex_connection = self.codex_connection.clone();
         snapshot.openai_connection = self.openai_connection.clone();
         snapshot.provider_credentials = vec![
@@ -2947,6 +2990,7 @@ impl RuntimeHost {
                 | Command::RequestProjectRevision { .. }
                 | Command::RetireSubmittedPlan { .. }
                 | Command::RecoverVerification { .. }
+                | Command::RetryVerificationStart { .. }
                 | Command::RetireVerificationRecheck { .. }
                 | Command::ApproveVerificationRecheck { .. }
                 | Command::StartVerificationRecheck { .. }
@@ -3337,7 +3381,10 @@ impl RuntimeHost {
                 executable,
                 inputs,
                 environment,
-            } => self.register_validator(id, name, executable, inputs, environment),
+            } => {
+                let _ = (id, name, executable, inputs, environment);
+                Err("独立检查工具固定随工作台提供，不再开放新增或替换；历史登记仅保留回读".into())
+            }
             Command::RegisterProject { project } => self.register(project),
             Command::ApproveRevision { project_id, digest } => {
                 self.approve_with_timing(&project_id, &digest)
@@ -3357,6 +3404,17 @@ impl RuntimeHost {
                 digest,
                 reason,
             } => self.abandon_verification(&project_id, &operation_id, &digest, &reason),
+            Command::RetryVerificationStart {
+                project_id,
+                original_operation_id,
+                evidence_digest,
+                reason,
+            } => self.retry_verification_start(
+                &project_id,
+                &original_operation_id,
+                &evidence_digest,
+                &reason,
+            ),
             Command::RecoverVerification {
                 project_id,
                 operation_id,

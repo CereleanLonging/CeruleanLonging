@@ -20,10 +20,12 @@ pub mod count_resolution;
 pub mod credentials;
 pub mod currency_budget;
 pub mod desktop_sessions;
+pub mod desktop_upgrade;
 pub mod execution;
 pub mod historical_money;
 pub mod management;
 pub mod management_ingress;
+pub mod project_delivery;
 pub mod project_setup;
 pub mod secret;
 pub mod supervision;
@@ -629,6 +631,12 @@ pub enum Command {
         project_id: String,
         operation_id: String,
     },
+    RetryVerificationStart {
+        project_id: String,
+        original_operation_id: String,
+        evidence_digest: String,
+        reason: String,
+    },
     RecoverVerification {
         project_id: String,
         operation_id: String,
@@ -802,3 +810,4 @@ pub fn validate_plan(title: &str, tasks: &[String]) -> Result<(), String> {
     }
     Ok(())
 }
+pub mod objective_checker;

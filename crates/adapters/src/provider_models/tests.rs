@@ -208,6 +208,20 @@ async fn actual_http_uses_provider_auth_and_only_one_get() {
             } else {
                 let err = result.unwrap_err();
                 assert!(!err.contains("secret-error") && !err.contains(key().expose()));
+                let code = match status {
+                    "unauthorized" => Some(401),
+                    "forbidden" => Some(403),
+                    "limited" => Some(429),
+                    "redirect" => Some(302),
+                    _ => None,
+                };
+                if let Some(code) = code {
+                    assert!(err.contains(&format!("HTTP {code}")));
+                }
+                if status == "unauthorized" && matches!(target, ProviderEndpoint::DeepSeek {}) {
+                    assert!(err.contains("DeepSeek 官方拒绝了已保存的 Key"));
+                    assert!(!err.contains("地域"));
+                }
             }
             server.await.unwrap();
         }

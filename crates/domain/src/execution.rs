@@ -856,6 +856,20 @@ impl VerificationReport {
         manifest: &ArtifactManifest,
         trusted_verifier: &str,
     ) -> Result<(), String> {
+        self.require_pass_with_checks(
+            plan,
+            manifest,
+            trusted_verifier,
+            &plan.task(&manifest.task_id)?.checks,
+        )
+    }
+    pub fn require_pass_with_checks(
+        &self,
+        plan: &PlanRevision,
+        manifest: &ArtifactManifest,
+        trusted_verifier: &str,
+        checks: &[AcceptanceCheck],
+    ) -> Result<(), String> {
         if plan.snapshot_policy.is_some() {
             let snapshot = self
                 .source_snapshot
@@ -887,7 +901,7 @@ impl VerificationReport {
         }
         let mut seen = BTreeSet::new();
         require(
-            self.checks.len() == spec.checks.len(),
+            self.checks.len() == checks.len(),
             "verification checks missing",
         )?;
         for result in &self.checks {
@@ -895,8 +909,7 @@ impl VerificationReport {
                 seen.insert(&result.check_id),
                 "duplicate verification check",
             )?;
-            let check = spec
-                .checks
+            let check = checks
                 .iter()
                 .find(|c| c.id == result.check_id)
                 .ok_or("unexpected verification check")?;

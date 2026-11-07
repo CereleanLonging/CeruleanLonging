@@ -316,14 +316,17 @@ async fn workflow_wire_submission_cancellation_and_failure_replay() {
         let job = tokio::spawn(peer(server, root.path().into(), mode, cancel));
         client.connect(Duration::from_secs(3)).await.unwrap();
         let result = dispatch(&mut store, &mut client, "task", "attempt", &mut rx).await;
+        if mode == "missing-artifact" {
+            assert!(!store.state().tasks["task"].verified);
+        }
         let expected = match mode {
-            "completed" => TaskState::Submitted,
+            "completed" | "missing-artifact" => TaskState::Submitted,
             "early-cancel" => TaskState::Cancelled,
             _ => TaskState::Unknown,
         };
         assert_eq!(
             result.is_ok(),
-            matches!(mode, "completed" | "early-cancel"),
+            matches!(mode, "completed" | "missing-artifact" | "early-cancel"),
             "{mode}: {result:?}"
         );
         assert_eq!(store.state().tasks["task"].state, expected, "{mode}");

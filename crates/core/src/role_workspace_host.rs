@@ -111,12 +111,15 @@ impl RuntimeHost {
             #[cfg(not(windows))]
             return Err("主指挥实字节审阅需要Windows".into());
         }
+        let bytes = serde_json::to_vec(&context)
+            .map_err(|e| e.to_string())?
+            .len();
         require(
-            serde_json::to_vec(&context)
-                .map_err(|e| e.to_string())?
-                .len()
-                <= 64 * 1024,
-            "需求和完整交付超出主指挥单次审阅容量；请拆分任务，不会截断后自动收口",
+            bytes <= purpose.context_limit_bytes(),
+            &format!(
+                "主指挥材料共 {bytes} 字节，超过本次 {} KiB 容量，请拆分需求后保存配置",
+                purpose.context_limit_bytes() / 1024
+            ),
         )?;
         Ok(context)
     }

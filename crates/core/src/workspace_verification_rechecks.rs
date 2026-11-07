@@ -62,12 +62,13 @@ impl RuntimeHost {
                 )?;
                 let checks = &plan.task(&job.task_id)?.checks;
                 require(
-                    !checks.is_empty() && checks.len() <= 64 && self.validators.len() <= 32,
-                    "原检查器或登记工具数量超出复验范围",
+                    !checks.is_empty() && checks.len() <= 64,
+                    "原检查数量超出复验范围",
                 )?;
                 let validators = self
                     .validators
                     .values()
+                    .filter(|tool| tool.id == cerulean_domain::objective_checker::ID)
                     .map(|tool| {
                         Ok(WorkspaceValidatorSummary {
                             id: tool.id.clone(),

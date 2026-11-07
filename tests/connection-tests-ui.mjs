@@ -6,6 +6,8 @@ import {chromium} from 'playwright-core';
 import {openConnectionMethod,deferModelChoice} from './connection-ui-helpers.mjs';
 
 const directory = await mkdtemp(resolve('reports/connection-tests-ui-'));
+assert(process.env.CERULEAN_CACHE_SESSION,'Use managed cache runner');
+const bundle=join(process.env.CERULEAN_CACHE_SESSION,'connection-tests-ui');
 const entry = join(directory,'entry.tsx');
 await writeFile(entry, `import React from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 import {ProjectPlanning} from '../../apps/desktop/src/ProjectPlanning';
@@ -19,7 +21,7 @@ window.showProject=data=>{window.fixture=data;flushSync(()=>root.render(<Project
 window.refreshProject=()=>flushSync(()=>root.render(<ProjectPlanning key={generation} mode="connections" data={{...window.fixture}} busy={false} send={send}/>));
 window.showHub=data=>flushSync(()=>root.render(<IntegrationHub key={++generation} data={data} busy={false} send={send} configure={()=>{}}/>));
 window.showLocal=request=>flushSync(()=>root.render(<LocalConnectionTest scope="fixture" request={request} busy={false}/>));`);
-await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(directory,'bundle'),emptyOutDir:false,lib:{entry,name:'ConnectionTestsUI',formats:['iife'],fileName:()=> 'ui.js'}}});
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:bundle,emptyOutDir:false,lib:{entry,name:'ConnectionTestsUI',formats:['iife'],fileName:()=> 'ui.js'}}});
 
 const observation = {window:{app:'qoder',hwnd:'1',pid:12,startTicks:'123',exe:'D:/synthetic/qoder.exe',title:'Fixture',version:'0.4.3.0'},capturedAt:'2026-11-04T00:00:00Z',modelLabel:'fixture-model',sessionId:'12345678-1234-1234-1234-123456789abc',documentRuntimeId:'fixture-document',contentDigest:'a'.repeat(64),layoutDigest:'b'.repeat(64),nodeCount:10,draftEmpty:true,busy:false};
 const binding = {id:'c'.repeat(64),projectId:'project',label:'Fixture Qoder',observation,confirmedAt:observation.capturedAt,bridgeSha256:'d'.repeat(64)};
@@ -33,7 +35,7 @@ try {
   await page.route('**/*',route=>route.fulfill({contentType:'text/html',body:'<html lang="zh-CN"><meta charset="utf-8"><div id="root"></div></html>'}));
   await page.goto('http://localhost/connection-test-fixture');
   await page.addStyleTag({path:resolve('apps/desktop/src/style.css')});
-  await page.addScriptTag({path:join(directory,'bundle/ui.js')});
+  await page.addScriptTag({path:join(bundle,'ui.js')});
   await page.evaluate(data=>window.showProject(data),fixture);
   const region = name => page.getByRole('region',{name,exact:true});
   const test = scope => scope.getByRole('button',{name:'测试连通',exact:true});
@@ -89,35 +91,31 @@ try {
   await region('主指挥').getByRole('status').filter({hasText:'当前会话可读取'}).waitFor();
   cases.push('Codex desktop tests the entered session, ignores an older in-flight result after edits, and supports retry');
 
-  await openConnectionMethod(page,'执行端','cli');
-  await test(region('执行端')).click();
-  assert.deepEqual((await commands()).at(-1),{type:'checkCodex',executable:'D:/synthetic/codex.exe'});
-  await page.locator('#planning-adapter').selectOption('omp');
+  assert.equal(await region('执行端').locator('[data-method="cli"]').count(),0);
+  assert.equal(await region('执行端').getByRole('button',{name:'扫描本地 Codex',exact:true}).count(),0);
+  await openConnectionMethod(page,'执行端','api');
+  await region('执行端').getByRole('button',{name:'将API 连接设为默认执行端',exact:true}).click();
   assert(await test(region('执行端')).isDisabled());
   await page.locator('#planning-executable').fill('D:/synthetic/omp.exe');
   await page.locator('#planning-worker').fill('deepseek-flash');
   await page.locator('summary').filter({hasText:'角色目录与隔离设置'}).click();
-  await page.locator('#planning-chief-directory').fill('');
-  await page.locator('#planning-omp-runtime').fill('D:/synthetic/runtime');
+  assert(await page.locator('#planning-chief-directory').evaluate(input=>input.readOnly));
+  assert.equal(await page.locator('#planning-omp-runtime').count(),0);
   await test(region('执行端')).click();
-  assert.deepEqual((await nativeCalls()).at(-1).args.request,{kind:'omp',executable:'D:/synthetic/omp.exe',model:'deepseek-flash',runtimeParent:'D:/synthetic/runtime'});
+  assert.deepEqual((await nativeCalls()).at(-1).args.request,{kind:'omp',executable:'D:/synthetic/omp.exe',model:'deepseek-flash',runtimeParent:undefined});
   await page.evaluate(()=>window.pending.shift().resolve({message:'OMP 协议与认证通过',checkedAt:new Date().toISOString()}));
   await region('执行端').getByRole('status').filter({hasText:'OMP 协议与认证通过'}).waitFor();
-  cases.push('Default Codex and OMP CLI buttons test the current executable, model and runtime directory');
+  cases.push('Removed Codex executor controls stay absent; OMP tests its current executable, model and runtime directory');
 
-  await region('执行端').getByRole('button',{name:'添加CLI 接入执行配置',exact:true}).click();
   const profile = region('执行配置 1');
-  await profile.getByLabel('Codex 程序完整路径').fill('D:/synthetic/extra/codex.exe');
-  await test(profile).click();
-  assert.deepEqual((await commands()).at(-1),{type:'checkCodex',executable:'D:/synthetic/extra/codex.exe'});
-  await page.locator('#profile-0-adapter').selectOption('omp');
+  await region('执行端').getByRole('button',{name:'添加API 连接执行配置',exact:true}).click();
   await page.locator('#profile-0-exe').fill('D:/synthetic/extra/omp.exe');
   await page.locator('#profile-0-model').fill('extra-model');
   await test(profile).click();
   assert.equal((await nativeCalls()).at(-1).args.request.model,'extra-model');
   await page.evaluate(()=>window.pending.shift().reject('所选模型不可用'));
   await profile.getByRole('alert').filter({hasText:'所选模型不可用'}).waitFor();
-  cases.push('Each additional CLI profile has an independent test using its own configuration');
+  cases.push('Each additional OMP profile has an independent test using its own configuration');
 
   await openConnectionMethod(page,'执行端','desktop');
   await region('执行端').getByRole('button',{name:'将桌面端接入设为默认执行端',exact:true}).click();
@@ -132,14 +130,14 @@ try {
   await page.screenshot({path:join(directory,'connections.png'),fullPage:true});
 
   await page.evaluate(data=>window.showHub({...data,workflows:[]}),fixture);
-  for(const [name,method] of [['主指挥','api'],['主指挥','key'],['主指挥','desktop'],['副指挥','api'],['副指挥','key'],['执行端','api'],['执行端','key'],['执行端','cli'],['执行端','desktop']]) {
+  for(const [name,method] of [['主指挥','api'],['主指挥','key'],['主指挥','desktop'],['副指挥','api'],['副指挥','key'],['执行端','api'],['执行端','key'],['执行端','desktop']]) {
     await openConnectionMethod(page,name,method);
     if (method === 'key') await deferModelChoice(page);
     const summary=region(name).locator(':scope > details[open]');
     if(name==='执行端'&&method==='desktop') await summary.getByText('关联项目后，填写 Qoder 会话 ID',{exact:false}).waitFor();
     else assert(await summary.getByRole('button',{name:'测试连通',exact:true}).count()>0);
   }
-  await region('执行端').getByLabel('CLI 程序').selectOption('omp');
+  assert.equal(await region('执行端').getByLabel('CLI 程序').count(),0);
   await region('执行端').getByLabel('OMP 程序完整路径').fill('D:/synthetic/omp.exe');
   assert.equal(await region('执行端').getByLabel('OMP 模型 ID').inputValue(),'deepseek-flash');
   cases.push('All unbound access groups also expose a test button with prerequisites');

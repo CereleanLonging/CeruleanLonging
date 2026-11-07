@@ -1,7 +1,7 @@
 use super::*;
 use std::time::{Duration, Instant};
 
-fn setup(checker: &str) -> (tempfile::TempDir, RuntimeHost, RecheckApproval) {
+fn setup(checker: &str) -> (FixtureRoot, RuntimeHost, RecheckApproval) {
     let (root, store, a) = runner::corrected(checker);
     drop(store);
     let host = RuntimeHost::open(&root.path().join("data")).unwrap();
@@ -47,6 +47,7 @@ fn request(command: Command) -> Request {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_persists_separate_job_and_keeps_original_failure_after_reopen() {
     let (root, mut host, a) = setup("corrected_checker");
     assert!(host
@@ -111,6 +112,7 @@ fn host_recheck_persists_separate_job_and_keeps_original_failure_after_reopen() 
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_cancel_is_unknown_and_blocks_old_recovery_or_rerun_after_reopen() {
     let (root, mut host, a) = setup("slow_checker");
     approve(&mut host, &a);
@@ -163,6 +165,7 @@ fn host_recheck_cancel_is_unknown_and_blocks_old_recovery_or_rerun_after_reopen(
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_publication_gap_recovers_original_result_without_checker_execution() {
     let (root, mut host, a) = setup("corrected_checker");
     approve(&mut host, &a);
@@ -207,6 +210,7 @@ fn host_recheck_publication_gap_recovers_original_result_without_checker_executi
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_partial_launch_claim_is_preserved_and_never_restarted() {
     let (root, mut host, a) = setup("corrected_checker");
     approve(&mut host, &a);
@@ -230,6 +234,7 @@ fn host_recheck_partial_launch_claim_is_preserved_and_never_restarted() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_damaged_projection_recovers_with_original_launch_identity() {
     let (root, mut host, a) = setup("corrected_checker");
     approve(&mut host, &a);
@@ -284,6 +289,7 @@ fn host_recheck_damaged_projection_recovers_with_original_launch_identity() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_approval_pauses_persisted_run_and_recovery_never_resumes_it() {
     use cerulean_domain::project_setup::{ProjectRun, RunState};
     // Seed only a disposable fixture's initial run authorization. The actual
@@ -361,6 +367,7 @@ fn host_recheck_approval_pauses_persisted_run_and_recovery_never_resumes_it() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_damaged_launch_authority_cannot_publish_existing_result() {
     let (root, mut host, a) = setup("corrected_checker");
     approve(&mut host, &a);
@@ -405,6 +412,7 @@ fn host_recheck_damaged_launch_authority_cannot_publish_existing_result() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_exit_receipts_are_required_and_bound_without_reexecuting_checker() {
     let (root, mut host, a) = setup("corrected_checker");
     approve(&mut host, &a);
@@ -495,6 +503,7 @@ fn host_recheck_exit_receipts_are_required_and_bound_without_reexecuting_checker
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn host_recheck_exit_receipt_survives_later_log_publication_failure() {
     let (root, mut host, a) = setup("slow_checker");
     approve(&mut host, &a);

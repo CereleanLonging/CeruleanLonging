@@ -95,7 +95,7 @@ pub(crate) fn validate_read_task_window(
     use cerulean_domain::desktop_sessions::DesktopApp;
     require(
         match window.app {
-            DesktopApp::Qoder => window.version == "0.4.3.0",
+            DesktopApp::Qoder => cerulean_domain::desktop_upgrade::qoder_candidate(&window.version),
             DesktopApp::Workbuddy => workbuddy_read_version(&window.version),
         },
         "当前桌面版本尚未接入原任务读取",
@@ -109,10 +109,10 @@ pub(crate) fn validate_task_window(
 ) -> Result<(), String> {
     use cerulean_domain::desktop_sessions::DesktopApp;
     require(
-        matches!(
-            (&window.app, window.version.as_str()),
-            (DesktopApp::Qoder, "0.4.3.0") | (DesktopApp::Workbuddy, "5.7.7.0" | "5.8.3.0")
-        ),
+        match window.app {
+            DesktopApp::Qoder => cerulean_domain::desktop_upgrade::qoder_candidate(&window.version),
+            DesktopApp::Workbuddy => workbuddy_read_version(&window.version),
+        },
         "当前桌面应用或版本尚未接入编程调度；需要先完成适配",
     )
 }
@@ -241,7 +241,13 @@ fn validate(store: &DurableWorkflow, r: &TaskReview) -> Result<(), String> {
     );
     require(
         r.marker == marker
-            && r.prompt == prompt(plan, &r.attempt, &marker)?
+            && r.prompt
+                == crate::task_rework::append_prompt(
+                    prompt(plan, &r.attempt, &marker)?,
+                    store.history(),
+                    &r.attempt.task_id,
+                    &r.attempt.id,
+                )?
             && r.max_wait_seconds == plan.policy.max_seconds.min(50)
             && r.prompt.len() <= 16000
             && !r.prompt.chars().any(char::is_control),
@@ -285,7 +291,12 @@ fn prepare_inner(
         id: String::new(),
         binding_id: selection.binding.id.clone(),
         marker: marker.clone(),
-        prompt: prompt(plan, &attempt, &marker)?,
+        prompt: crate::task_rework::append_prompt(
+            prompt(plan, &attempt, &marker)?,
+            store.history(),
+            task,
+            id,
+        )?,
         prompt_sha256: String::new(),
         bridge_sha256: selection.binding.bridge_sha256.clone(),
         observation,
@@ -465,6 +476,21 @@ fn reserve_observed(
 ) -> Result<ReservedSend, String> {
     r.observation.window.app.require_available()?;
     validate(store, r)?;
+    if !cerulean_domain::desktop_upgrade::qoder_established(&r.observation.window.version) {
+        let binding = &store
+            .revision()
+            .ok_or("方案缺失")?
+            .task(&r.attempt.task_id)?
+            .desktop_worker
+            .as_ref()
+            .ok_or("桌面配置缺失")?
+            .binding;
+        cerulean_domain::desktop_upgrade::require_upgrade_trial(
+            binding,
+            &crate::host::desktop_sessions::load_trials(root)?,
+            &crate::host::desktop_sessions::fingerprint(),
+        )?;
+    }
     continuity::validate_chain(root, store, r)?;
     fresh(&r.observation)?;
     require(

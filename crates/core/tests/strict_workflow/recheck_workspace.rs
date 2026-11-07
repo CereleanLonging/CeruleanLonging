@@ -49,6 +49,7 @@ fn status(reply: ServiceReply) -> RecheckStatus {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 async fn bounded_reads_discover_unstarted_approval_and_reopen_without_execution() {
     let (root, store, a) = runner::corrected("corrected_checker");
     drop(store);
@@ -66,7 +67,10 @@ async fn bounded_reads_discover_unstarted_approval_and_reopen_without_execution(
             environment: tool.environment.clone(),
         },
     });
-    assert!(registration.error.is_none(), "{:?}", registration.error);
+    assert!(
+        registration.error.is_some(),
+        "additional checker registration must remain disabled"
+    );
     let owned = data.clone();
     let service = tokio::spawn(async move { cerulean_core::ipc::serve_host(&owned, host).await });
     interface::connect(&data).await;
@@ -107,7 +111,7 @@ async fn bounded_reads_discover_unstarted_approval_and_reopen_without_execution(
     let v = inputs
         .validators
         .iter()
-        .find(|v| v.id == "corrected-tool")
+        .find(|v| v.id == cerulean_domain::objective_checker::ID)
         .unwrap();
     let registered = read(
         &data,
@@ -120,7 +124,9 @@ async fn bounded_reads_discover_unstarted_approval_and_reopen_without_execution(
     let Some(WorkspaceResult::RegisteredValidator(registered)) = registered.workspace else {
         panic!("validator missing")
     };
-    assert_eq!(registered.tool, *tool);
+    assert_eq!(registered.tool.executable, tool.executable);
+    assert!(registered.tool.inputs.is_empty());
+    assert!(registered.tool.environment.is_empty());
     assert_eq!(digest(registered.as_ref()).unwrap(), v.digest);
     for q in [
         WorkspaceQuery::RegisteredValidator {
@@ -263,6 +269,7 @@ async fn bounded_reads_discover_unstarted_approval_and_reopen_without_execution(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 async fn active_recheck_history_is_unavailable_but_exact_original_status_is_readable() {
     let (root, store, a) = runner::corrected("slow_checker");
     drop(store);

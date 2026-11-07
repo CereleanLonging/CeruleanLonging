@@ -97,6 +97,26 @@ impl RuntimeHost {
             "账户管理授权缺少 reader20 保护，请保留原记录核对",
         )?;
         for saved in self.project_setups.values() {
+            if saved.setup.artifact_paths.is_empty()
+                || saved
+                    .setup
+                    .profiles
+                    .iter()
+                    .any(|p| p.artifact_paths.is_empty())
+            {
+                require(
+                    crate::data_format::status(&self.root)?.minimum_reader_generation
+                        >= crate::planned_artifacts_guard::GENERATION,
+                    "方案交付清单缺少 reader23 保护",
+                )?;
+            }
+            if saved.setup.validator_id == cerulean_domain::objective_checker::ID {
+                require(
+                    crate::data_format::status(&self.root)?.minimum_reader_generation
+                        >= crate::objective_checker_guard::GENERATION,
+                    "独立检查方案缺少 reader22 保护",
+                )?;
+            }
             let binding = self
                 .projects
                 .get(&saved.setup.project_id)
@@ -123,7 +143,8 @@ impl RuntimeHost {
                 for stage in &profile.acceptance.stages {
                     let validator = self.registered_validator(&stage.validator_id)?;
                     require(
-                        stage.check.tool.as_ref() == Some(&validator.tool),
+                        stage.check.tool.as_ref() == Some(&validator.tool)
+                            || stage.validator_id == cerulean_domain::objective_checker::ID,
                         "执行配置检查与登记不符",
                     )?;
                 }
@@ -141,14 +162,16 @@ impl RuntimeHost {
             }
             let validator = self.registered_validator(&saved.setup.validator_id)?;
             require(
-                saved.setup.check.tool.as_ref() == Some(&validator.tool),
+                saved.setup.check.tool.as_ref() == Some(&validator.tool)
+                    || saved.setup.validator_id == cerulean_domain::objective_checker::ID,
                 "configured validator differs from registration",
             )?;
             if let Some(acceptance) = &saved.setup.acceptance {
                 for stage in &acceptance.stages {
                     let validator = self.registered_validator(&stage.validator_id)?;
                     require(
-                        stage.check.tool.as_ref() == Some(&validator.tool),
+                        stage.check.tool.as_ref() == Some(&validator.tool)
+                            || stage.validator_id == cerulean_domain::objective_checker::ID,
                         "configured stage validator differs from registration",
                     )?;
                 }
@@ -192,6 +215,55 @@ impl RuntimeHost {
                 .any(|p| p.supervision_override.is_some()),
         )?;
         draft.validate()?;
+        #[cfg(windows)]
+        for desktop in draft.desktop_worker.iter().chain(
+            draft
+                .profiles
+                .iter()
+                .filter_map(|p| p.desktop_worker.as_ref()),
+        ) {
+            self.validate_active_desktop_selection(&draft.project_id, desktop)?;
+        }
+        #[cfg(not(test))]
+        {
+            require(
+                draft.validator_id == cerulean_domain::objective_checker::ID
+                    && draft.check_args.is_empty(),
+                "检查入口固定，请重新保存当前工作台配置",
+            )?;
+            let stages = draft
+                .acceptance
+                .iter()
+                .flat_map(|a| &a.stages)
+                .chain(draft.profiles.iter().flat_map(|p| &p.acceptance.stages));
+            for stage in stages {
+                require(
+                    stage.validator_id == cerulean_domain::objective_checker::ID
+                        && stage.args.is_empty()
+                        && stage.expected_assertions.is_empty(),
+                    "检查代码及断言由主指挥在待批准方案中提供，不能改为外部工具",
+                )?;
+            }
+            require(
+                draft
+                    .acceptance
+                    .as_ref()
+                    .is_some_and(|a| a.stages.len() == 1)
+                    && draft
+                        .profiles
+                        .iter()
+                        .all(|p| p.acceptance.stages.len() == 1),
+                "每个执行配置固定一个独立检查入口",
+            )?;
+        }
+        if draft.validator_id == cerulean_domain::objective_checker::ID {
+            crate::objective_checker_guard::enable(&self.root)?;
+            if draft.artifact_paths.is_empty()
+                || draft.profiles.iter().any(|p| p.artifact_paths.is_empty())
+            {
+                crate::planned_artifacts_guard::enable(&self.root)?;
+            }
+        }
         crate::management_source_guard::require_protected(
             &self.root,
             draft.management_sources.is_some(),
@@ -428,6 +500,13 @@ impl RuntimeHost {
             .clone();
         require(saved.digest == wanted, "配置已改变，请重新读取后发起规划")?;
         saved.setup.require_available_adapters()?;
+        #[cfg(not(test))]
+        require(
+            saved.setup.validator_id == cerulean_domain::objective_checker::ID
+                && saved.setup.check.tool.as_ref()
+                    == Some(&crate::objective_checker::registration()?.tool),
+            "请保存固定独立检查配置后重新规划",
+        )?;
         if let Some(ManagementSources {
             chief: ChiefSource::CodexSession { session_id },
             ..
@@ -541,7 +620,20 @@ impl RuntimeHost {
         };
         let execution = tasks
             .iter()
-            .map(|t| setup.execution_for(&t.id, t.profile_id.as_deref()))
+            .map(|t| {
+                cerulean_domain::objective_checker::bind_execution(
+                    &setup,
+                    t,
+                    &serde_json::from_value(
+                        intent
+                            .context
+                            .get("objectiveRuntimes")
+                            .cloned()
+                            .unwrap_or_else(|| serde_json::json!({})),
+                    )
+                    .map_err(|_| "客观测试运行时上下文无效")?,
+                )
+            })
             .collect::<Result<Vec<_>, String>>()?;
         let revision = PlanRevision {
             management_setup_digest: (setup.management_sources.is_some()
@@ -607,6 +699,77 @@ pub(super) mod tests {
     use crate::management_execution::DecisionIntent;
     use cerulean_adapters::openai::DecisionObservation;
     use cerulean_domain::management::{DecisionEnvelope, ProposedTask};
+    #[test]
+    fn fixed_objective_checker_template_requires_approved_code_and_preserves_role_scope() {
+        use cerulean_domain::objective_checker::*;
+        let root = tempfile::tempdir().unwrap();
+        let (mut host, mut draft) = fixture(root.path());
+        assert!(host.validators.contains_key(ID));
+        draft.validator_id = ID.into();
+        draft.check_args.clear();
+        draft.chief_directory = Some(root.path().join("chief").to_string_lossy().into());
+        draft.acceptance = Some(AcceptanceDraft {
+            schema_version: 1,
+            stages: vec![AcceptanceStageDraft {
+                id: "tests".into(),
+                name: "Fixed checker".into(),
+                validator_id: ID.into(),
+                args: vec![],
+                timeout_seconds: 10,
+                expected_assertions: vec![],
+            }],
+        });
+        host.configure_project(draft).unwrap();
+        let setup = &host.project_setups["project"].setup;
+        let mut proposed = cerulean_domain::management::ProposedTask {
+            artifact_paths: None,
+            objective_test: None,
+            profile_id: None,
+            id: "task".into(),
+            goal: "sum".into(),
+            dependencies: vec![],
+            worker_id: "worker-codex".into(),
+            validator_id: ID.into(),
+        };
+        assert!(bind_execution(setup, &proposed, &Default::default()).is_err());
+        proposed.objective_test = Some(ScriptTest {
+            language: Language::JavaScript,
+            source: "actual test".into(),
+            assertions: vec!["sum".into()],
+        });
+        assert!(bind_execution(setup, &proposed, &Default::default()).is_err());
+        let runtimes = [(
+            Language::JavaScript,
+            ValidationFile {
+                path: "D:\\tools\\node.exe".into(),
+                sha256: "a".repeat(64),
+            },
+        )]
+        .into_iter()
+        .collect();
+        let execution = bind_execution(setup, &proposed, &runtimes).unwrap();
+        assert!(matches_setup(setup, &execution).unwrap());
+        assert_eq!(
+            setup.supervision_for_execution(&execution).unwrap(),
+            setup.supervision_for(None).unwrap()
+        );
+        let mut changed = execution.clone();
+        changed.artifact_paths = vec!["other.txt".into()];
+        assert!(!matches_setup(setup, &changed).unwrap());
+        changed = execution.clone();
+        changed.checks[0].timeout_seconds += 1;
+        assert!(!matches_setup(setup, &changed).unwrap());
+        changed = execution;
+        changed.checks[0].expected_assertions = vec!["fake".into()];
+        assert!(!matches_setup(setup, &changed).unwrap());
+        assert_eq!(
+            crate::data_format::status(&host.root)
+                .unwrap()
+                .minimum_reader_generation,
+            22
+        );
+        assert!(host.snapshot().validators.iter().all(|v| v.id == ID));
+    }
     #[test]
     fn isolated_configuration_requires_assertions_reuses_models_and_survives_reopen() {
         let root = tempfile::tempdir().unwrap();
@@ -901,6 +1064,8 @@ pub(super) mod tests {
     pub(in crate::host) fn proposal(validator: &str) -> ManagementDecision {
         ManagementDecision::Plan {
             tasks: vec![ProposedTask {
+                artifact_paths: None,
+                objective_test: None,
                 profile_id: None,
                 id: "task".into(),
                 goal: "Implement a sum function".into(),
@@ -1547,6 +1712,8 @@ mod run_tests {
         let decision = match i.purpose {
             Purpose::Plan => ManagementDecision::Plan {
                 tasks: vec![ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "task".into(),
                     goal: setup["requirement"].as_str().unwrap().into(),

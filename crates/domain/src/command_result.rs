@@ -82,6 +82,7 @@ impl Command {
             | Self::CancelCodex { .. }
             | Self::AbandonCodexStartup { .. }
             | Self::RecoverVerification { .. }
+            | Self::RetryVerificationStart { .. }
             | Self::RetireVerificationRecheck { .. }
             | Self::ApproveVerificationRecheck { .. }
             | Self::StartVerificationRecheck { .. }

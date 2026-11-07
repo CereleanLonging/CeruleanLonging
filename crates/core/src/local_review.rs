@@ -95,22 +95,13 @@ impl RuntimeHost {
     pub(super) fn chief_review_executable(
         &self,
     ) -> Result<cerulean_domain::execution::ValidationFile, String> {
-        let path = match &self.codex_connection {
-            Some(connection) => connection.executable.clone(),
-            None => {
-                crate::codex_discovery::scan(None)?
-                    .candidates
-                    .into_iter()
-                    .next()
-                    .ok_or("请先在接入配置中扫描并检查Codex程序")?
-                    .executable
-            }
-        };
+        let path = crate::codex_discovery::resolve_session_executable(
+            self.codex_connection
+                .as_ref()
+                .map(|connection| connection.executable.as_str()),
+        )?;
         crate::codex_discovery::validate_executable(Path::new(&path))?;
-        Ok(
-            crate::verifier::PinnedCheck::describe(Path::new(&path), &[], Default::default())?
-                .executable,
-        )
+        crate::async_codex::describe_executable(Path::new(&path))
     }
     pub(super) fn inspect_chief_review_model(
         &self,
@@ -211,6 +202,7 @@ impl RuntimeHost {
             }
             ReviewTransport::Desktop { session_id, .. } => {
                 let desktop = selected.desktop_worker.as_ref().ok_or("桌面评审配置缺失")?;
+                self.validate_active_desktop_selection(project, desktop)?;
                 require(
                     desktop.binding.observation.session_id.as_ref() == Some(session_id)
                         && desktop.model_label == seat.model,
@@ -276,13 +268,7 @@ impl LocalReview {
         let _pin = crate::backup::open(Path::new(&executable.path), false, false)
             .map_err(|_| "主指挥程序无法固定")?;
         require(
-            crate::verifier::PinnedCheck::describe(
-                Path::new(&executable.path),
-                &[],
-                Default::default(),
-            )?
-            .executable
-            .sha256
+            crate::async_codex::describe_executable(Path::new(&executable.path))?.sha256
                 == executable.sha256,
             "主指挥程序与评审准备不同",
         )?;
@@ -342,8 +328,12 @@ impl LocalReview {
     ) -> Result<cerulean_adapters::blind_review::Observation, String> {
         control.check()?;
         let request = &pending.request;
-        let packets =
-            cerulean_adapters::blind_review::local_packets(request, pending.readiness, material)?;
+        let packets = cerulean_adapters::blind_review::local_packets(
+            request,
+            pending.readiness,
+            material,
+            Some(&self.transport),
+        )?;
         let (reply, audit) = match &self.transport {
             ReviewTransport::Cli { adapter, .. } if adapter == "codex" => {
                 (self.codex(seat, request, &packets, control).await?, None)
@@ -408,13 +398,7 @@ impl LocalReview {
         let _pin = crate::backup::open(Path::new(&worker.executable.path), false, false)
             .map_err(|_| "Codex评审程序无法固定")?;
         require(
-            crate::verifier::PinnedCheck::describe(
-                Path::new(&worker.executable.path),
-                &[],
-                Default::default(),
-            )?
-            .executable
-            .sha256
+            crate::async_codex::describe_executable(Path::new(&worker.executable.path))?.sha256
                 == worker.executable.sha256,
             "Codex评审程序与批准摘要不同",
         )?;
@@ -549,10 +533,9 @@ impl LocalReview {
             control.check()?;
             let current = observe(
                 &self.root,
-                &ReadRequest::TaskPrepare {
+                &ReadRequest::ReviewPrepare {
                     version: 1,
                     window: window.clone(),
-                    previous: None,
                 },
             )?;
             let observation = current.observation.ok_or("桌面评审会话不可读取")?;
@@ -610,7 +593,9 @@ impl LocalReview {
             .review_text
             .ok_or("桌面评审回读缺失")?;
             require(result == reread, "桌面评审回读与原回复不同")?;
-            let audit = audit.finish(request, &message.prompt, &result, &message.marker)?;
+            let (original, audit) =
+                audit.finish(request, &message.prompt, &result, &message.marker)?;
+            result = original;
             if audit.status != ReviewToolStatus::Clean {
                 return Ok((result, audit));
             }

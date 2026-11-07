@@ -60,6 +60,7 @@ fn query_revision(project_version: &str, detail: &VerificationDetail) -> Result<
             &detail.stages,
             &detail.recovery,
             &detail.recovery_error,
+            detail.can_retry_start,
         ),
     ))
 }
@@ -85,6 +86,7 @@ fn metadata(
         message: detail.message,
         recovery: detail.recovery,
         recovery_error: detail.recovery_error,
+        can_retry_start: detail.can_retry_start,
         revision,
     })
 }
@@ -184,6 +186,12 @@ impl RuntimeHost {
                 Ok(review) => detail.recovery = Some(review),
                 Err(error) => detail.recovery_error = Some(error.chars().take(1000).collect()),
             }
+        }
+        #[cfg(windows)]
+        {
+            detail.can_retry_start = self
+                .verification_start_retry_available(project_id, operation_id)
+                .is_ok();
         }
         let revision = query_revision(&basis.project_version, &detail)?;
         let result = match query {

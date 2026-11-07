@@ -9,12 +9,14 @@ import {openConnectionMethod,deferModelChoice} from './connection-ui-helpers.mjs
 
 assert.equal(process.env.CERULEAN_NATIVE_OWNED_JOB,'1');
 const run=await mkdtemp(resolve('reports/credential-actions-native-'));
+assert(process.env.CERULEAN_CACHE_SESSION,'Use managed cache runner');
+const webview=join(process.env.CERULEAN_CACHE_SESSION,'credential-actions-webview');
 const data=join(run,'data'), project=join(run,'project');
 await mkdir(project);
 const marker='synthetic-offline-credential-actions';
 const wait=async predicate=>{for(let n=0;n<160;n++){const value=await predicate();if(value)return value;await new Promise(r=>setTimeout(r,150));}throw Error('Credential state timeout');};
 const server=createServer();server.listen(0,'127.0.0.1');await once(server,'listening');const port=server.address().port;await new Promise(r=>server.close(r));
-const app=spawn(process.env.CERULEAN_NATIVE_GUI,[],{windowsHide:true,stdio:'ignore',env:{...process.env,CERULEAN_TEST_DATA_DIR:data,CERULEAN_TEST_WEBVIEW_ROOT:join(run,'webview'),CERULEAN_TEST_ACCESS_ROOT:join(run,'settings'),CERULEAN_TEST_MAINTENANCE_ROOT:join(run,'maintenance'),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:`--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1`}});
+const app=spawn(process.env.CERULEAN_NATIVE_GUI,[],{windowsHide:true,stdio:'ignore',env:{...process.env,CERULEAN_TEST_DATA_DIR:data,CERULEAN_TEST_WEBVIEW_ROOT:webview,CERULEAN_TEST_ACCESS_ROOT:join(run,'settings'),CERULEAN_TEST_MAINTENANCE_ROOT:join(run,'maintenance'),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:`--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1`}});
 let browser,page;
 const cases=[];
 const invoke=(name,args)=>page.evaluate(({name,args})=>window.__TAURI_INTERNALS__.invoke(name,args),{name,args});
@@ -38,6 +40,13 @@ try{
   assert(!encrypted.includes(Buffer.from(marker)));
   await chief.getByRole('status').filter({hasText:'A6API Key 已加密保存'}).waitFor();
   cases.push('Unbound credential save enables delete and test using the real command receipt and refreshed snapshot');
+  await chief.getByLabel('A6API API Key',{exact:true}).fill('synthetic-unsaved-replacement');
+  assert.equal(await chief.getByRole('button',{name:'测试连通',exact:true}).isDisabled(),true);
+  await chief.getByRole('status').filter({hasText:'输入的新 Key 尚未保存'}).waitFor();
+  assert.deepEqual(await readFile(join(data,'credentials/a6api.dpapi')),encrypted);
+  await chief.getByLabel('A6API API Key',{exact:true}).fill('');
+  assert.equal(await chief.getByRole('button',{name:'测试连通',exact:true}).isDisabled(),false);
+  cases.push('An unsaved replacement cannot test the prior saved key; clearing the draft restores the saved-key test');
   const saveBox=await chief.getByRole('button',{name:'加密保存 A6API Key',exact:true}).boundingBox();
   const deleteBox=await chief.getByRole('button',{name:'删除本机 A6API Key',exact:true}).boundingBox();
   assert(Math.abs(saveBox.y-deleteBox.y)<1&&Math.abs(saveBox.height-deleteBox.height)<1);
@@ -65,6 +74,9 @@ try{
   await page.locator('.sidebar nav').getByRole('button',{name:'需求与计划',exact:false}).click();
   await page.locator('.sidebar nav').getByRole('button',{name:'接入管理',exact:false}).click();
   await page.locator('.project-connections').waitFor();
+  assert.equal(await page.locator('#planning-chief-directory').evaluate(input=>input.readOnly),true);
+  assert.equal((await page.locator('#planning-chief-directory').inputValue()).replace(/^\\\\\?\\/,''),project+'-chief');
+  cases.push('Native project configuration binds its generated chief directory as read-only');
   await openConnectionMethod(page,'副指挥','api');
   await page.locator('#planning-deputy-source').selectOption('provider:a6ApiVip');
   await openConnectionMethod(page,'副指挥','key');

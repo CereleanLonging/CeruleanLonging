@@ -1,3 +1,4 @@
+import {confirmConnectionContinue} from './connection-ui-helpers.mjs';
 import {openConfiguredConnections,openConnectionMethod} from "./connection-ui-helpers.mjs";
 // Offline production components. Storage survives real page reloads; IPC only records.
 import {mkdtemp,readFile,writeFile} from 'node:fs/promises';
@@ -7,7 +8,9 @@ import {build} from 'vite';
 import {chromium} from 'playwright-core';
 assert.equal(process.env.CERULEAN_NATIVE_OWNED_JOB,'1','Use owned runner');
 const dir=await mkdtemp(resolve('reports/access-persistence-ui-787-'));
-const snapshot={dataDirectory:'isolated-access-a',workflows:['one','two'].map(id=>({project:{id,root:'D:/synthetic/'+id},state:{tasks:{}},approval:null})),projectSetups:[],workerAccountSetups:[],validators:[{id:'tests',name:'Fixture checks'}],managementDecisions:[],managementHistory:{projects:[]},openaiConnection:{models:[],keyConfigured:false},codexConnection:{models:[],executable:'D:/synthetic/codex.exe'},providerConnections:[{provider:'a6api',target:{kind:'a6ApiVip'},state:'listed',keyConfigured:true,models:['original-fixture-model'],listLimited:false,checkedAt:'2026-11-04T00:00:00Z',endpoint:'https://api.a6api.vip/v1'}],projectRuns:[],codexJobs:[],apiJobs:[],adapters:[],desktopBindings:[]};
+assert(process.env.CERULEAN_CACHE_SESSION,'Use managed cache runner');
+const cache=join(process.env.CERULEAN_CACHE_SESSION,'access-persistence-ui');
+const snapshot={dataDirectory:'isolated-access-a',workflows:['one','two'].map(id=>({project:{id,root:'D:/synthetic/'+id},state:{tasks:{}},approval:null})),projectSetups:[],workerAccountSetups:[],validators:[{id:'cerulean-objective-checker',name:'Fixture checks'}],managementDecisions:[],managementHistory:{projects:[]},openaiConnection:{models:[],keyConfigured:false},codexConnection:{models:[],executable:'D:/synthetic/codex.exe'},providerConnections:[{provider:'a6api',target:{kind:'a6ApiVip'},state:'listed',keyConfigured:true,models:['original-fixture-model'],listLimited:false,checkedAt:'2026-11-04T00:00:00Z',endpoint:'https://api.a6api.vip/v1'}],projectRuns:[],codexJobs:[],apiJobs:[],adapters:[],desktopBindings:[]};
 const entry=join(dir,'entry.tsx');
 await writeFile(entry,`import React from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';import {ProjectPlanning} from '../../apps/desktop/src/ProjectPlanning';import {IntegrationHub} from '../../apps/desktop/src/IntegrationHub';import {saveAccessDraft,loadAccessDraft} from '../../apps/desktop/src/accessDraft';
 const root=createRoot(document.getElementById('root'));window.calls=[];window.routes=[];window.snapshot=${JSON.stringify(snapshot)};window.storeTest=saveAccessDraft;window.readTest=loadAccessDraft;
@@ -15,17 +18,17 @@ const send=async command=>{window.calls.push(command);return true;};
 window.showPlanning=(data=window.snapshot,mode='connections')=>{window.snapshot=data;root.render(<ProjectPlanning data={data} busy={false} send={send} mode={mode} onContinue={()=>window.showPlanning(window.snapshot,'planning')} onConnections={()=>window.showPlanning(window.snapshot,'connections')}/>);};
 window.showHub=(data=window.snapshot)=>{window.snapshot=data;flushSync(()=>root.render(<IntegrationHub data={data} busy={false} send={send} configure={(role,method)=>window.routes.push({role,method})}/>));};
 window.showPlanning();`);
-await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(dir,'bundle'),emptyOutDir:false,lib:{entry,name:'AccessPersistence',formats:['iife'],fileName:()=> 'ui.js'}}});
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:join(cache,'bundle'),emptyOutDir:false,lib:{entry,name:'AccessPersistence',formats:['iife'],fileName:()=> 'ui.js'}}});
 let browser,page,externalRequests=0;const cases=[],errors=[];
 try{
   async function open(){
-  browser=await chromium.launchPersistentContext(join(dir,'browser-profile'),{executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1200,height:900}});
+  browser=await chromium.launchPersistentContext(join(cache,'browser-profile'),{executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1200,height:900}});
   page=await browser.newPage();page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',r=>r.request().url()==='http://localhost/access-persistence-fixture'?r.fulfill({contentType:'text/html',body:'<html lang="zh-CN"><meta charset="utf-8"><main style="margin:0;padding:24px"><div id="root"></div></main></html>'}):(externalRequests++,r.abort()));
   }
   await open();
-  async function load(){await page.goto('http://localhost/access-persistence-fixture');await page.addStyleTag({path:'apps/desktop/src/style.css'});await page.addScriptTag({path:join(dir,'bundle/ui.js')});await page.locator('#planning-project').waitFor();}
-  const check=()=>page.getByRole('button',{name:'检查并保存接入配置',exact:true});
+  async function load(){await page.goto('http://localhost/access-persistence-fixture');await page.addStyleTag({path:'apps/desktop/src/style.css'});await page.addScriptTag({path:join(cache,'bundle/ui.js')});await page.locator('#planning-project').waitFor();}
+  const check=async()=>{await next().click();await confirmConnectionContinue(page);await page.getByRole('button',{name:'修改接入配置',exact:true}).click();await openConfiguredConnections(page);};
   const next=()=>page.getByRole('button',{name:'下一步：设置需求与计划',exact:true});
   const draftKey=(id='one',scope='isolated-access-a')=>JSON.stringify(['cerulean-access-draft',1,scope,id]);
   const stored=key=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
@@ -33,7 +36,7 @@ try{
   await openConfiguredConnections(page);
   await openConnectionMethod(page,'主指挥','desktop');await page.locator('#planning-chief-session').fill('session_fixture_1');await page.locator('#planning-deputy').fill('deputy-fixture');await page.locator('#planning-worker').fill('worker-fixture');
   await page.waitForFunction(key=>JSON.parse(localStorage.getItem(key))?.selection.workerModel==='worker-fixture',draftKey());
-  assert.equal((await stored(draftKey())).fieldsChecked,false);await check().click();await page.getByRole('status').filter({hasText:'格式检查通过，接入配置已自动保存'}).waitFor();
+  assert.equal((await stored(draftKey())).fieldsChecked,false);await check();await page.getByRole('status').filter({hasText:'格式检查通过，接入配置已自动保存'}).waitFor();
   assert.equal((await stored(draftKey())).fieldsChecked,true);assert.equal(await page.evaluate(()=>window.calls.length),0);
   await browser.close();await open();await load();assert.equal(await page.locator('#planning-chief-source').inputValue(),'codexSession');assert.equal(await page.locator('#planning-chief-session').inputValue(),'session_fixture_1');assert.equal(await page.locator('#planning-worker').inputValue(),'worker-fixture');await page.getByText('已恢复自动保存的接入配置，格式检查已通过；可直接修改。',{exact:true}).waitFor();
   await page.screenshot({path:join(dir,'restored-project-access.png'),fullPage:true});
@@ -44,13 +47,13 @@ try{
   await page.locator('#planning-chief-session').fill('custom_session_2');await page.waitForFunction(key=>JSON.parse(localStorage.getItem(key))?.fieldsChecked===false,draftKey());
   await load();assert.equal(await page.locator('#planning-chief-session').inputValue(),'custom_session_2');await page.getByText('已恢复自动保存的接入草稿，请检查后继续。',{exact:true}).waitFor();
   await openConfiguredConnections(page);
-  await next().click();await page.locator('#planning-requirement').fill('saved access with a new requirement');await page.locator('#planning-artifacts').fill('result.txt');await page.getByRole('button',{name:'保存需求与执行配置',exact:true}).click();await page.waitForFunction(()=>window.calls.length===1);
+  await next().click();await confirmConnectionContinue(page);await page.locator('#planning-requirement').fill('saved access with a new requirement');await page.getByRole('button',{name:'保存需求与执行配置',exact:true}).click();await page.waitForFunction(()=>window.calls.length===1);
   const submitted=await page.evaluate(()=>window.calls[0]);assert.equal(submitted.type,'configureProject');assert.equal(submitted.draft.managementSources.chief.sessionId,'custom_session_2');assert.equal(submitted.draft.requirement,'saved access with a new requirement');
   cases.push('Custom edits auto-save as unchecked; Next checks them and final save submits one full configuration');
 
   await page.getByRole('button',{name:'修改接入配置',exact:true}).click();await page.locator('#planning-project').selectOption('two');await page.waitForFunction(()=>document.querySelector('#planning-chief').value==='');
   await openConfiguredConnections(page);
-  await page.locator('#planning-chief').fill('chief-two');await page.locator('#planning-deputy').fill('deputy-two');await page.locator('#planning-worker').fill('worker-two');await check().click();
+  await page.locator('#planning-chief').fill('chief-two');await page.locator('#planning-deputy').fill('deputy-two');await page.locator('#planning-worker').fill('worker-two');await check();
   await load();assert.equal(await page.locator('#planning-project').inputValue(),'two');assert.equal(await page.locator('#planning-chief').inputValue(),'chief-two');
   await page.locator('#planning-project').selectOption('one');await page.locator('#planning-chief-session').waitFor({state:'attached'});assert.equal(await page.locator('#planning-chief-session').inputValue(),'custom_session_2');
   await page.evaluate(data=>window.showPlanning({...data,dataDirectory:'isolated-access-b'}),snapshot);await page.waitForFunction(()=>document.querySelector('#planning-chief').value==='');assert.equal(await page.locator('#planning-chief-session').count(),0);assert.equal((await stored(draftKey())).selection.managementSources.chief.sessionId,'custom_session_2');
@@ -59,7 +62,7 @@ try{
   const base={...submitted.draft,managementSources:{chief:{kind:'openAi'},deputy:{kind:'openAi'}},chiefModel:'backend-chief',version:1,worker:{executable:{path:submitted.draft.codexExecutable},model:submitted.draft.workerModel},check:{id:'project-check',args:[],timeoutSeconds:60},policy:{maxRequests:3,maxSeconds:180},acceptance:{schemaVersion:1,stages:submitted.draft.acceptance.stages.map(s=>({validatorId:s.validatorId,check:s}))}};
   const configured={...snapshot,dataDirectory:'isolated-version',projectSetups:[{digest:'revision-1',setup:base}]};
   await openConfiguredConnections(page);
-  await page.evaluate(data=>window.showPlanning(data),configured);await page.locator('#planning-chief').fill('local-custom-chief');await check().click();const original=await stored(draftKey('one','isolated-version'));
+  await page.evaluate(data=>window.showPlanning(data),configured);await page.locator('#planning-chief').fill('local-custom-chief');await check();const original=await stored(draftKey('one','isolated-version'));
   await page.evaluate(data=>window.showPlanning(data),{...configured,projectSetups:[{digest:'revision-2',setup:{...base,version:2,chiefModel:'new-backend-chief'}}]});await page.waitForFunction(()=>document.querySelector('#planning-chief').value==='new-backend-chief');assert.deepEqual(await stored(draftKey('one','isolated-version')),original);
   cases.push('A new backend configuration wins over a stale local draft; viewing it does not overwrite the old draft');
 
@@ -68,8 +71,8 @@ try{
   await page.locator('#planning-chief').fill('repaired-chief');await page.locator('#planning-deputy').fill('repaired-deputy');await page.locator('#planning-worker').fill('repaired-worker');
   await page.evaluate(()=>{window.originalSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('fixture quota','QuotaExceededError');};});
   await openConfiguredConnections(page);
-  await page.locator('#planning-worker').fill('not-yet-persisted');await check().click();await page.getByRole('alert').filter({hasText:'接入配置自动保存失败'}).waitFor();await next().click();assert.equal(await next().isVisible(),true);assert.equal(await page.locator('#planning-worker').inputValue(),'not-yet-persisted');
-  await page.evaluate(()=>Storage.prototype.setItem=window.originalSet);await check().click();assert.equal((await stored(draftKey())).selection.workerModel,'not-yet-persisted');assert.equal((await stored(draftKey())).fieldsChecked,true);
+  await page.locator('#planning-worker').fill('not-yet-persisted');await next().click();const confirmation=page.getByRole('dialog',{name:'确认接入配置',exact:true});await confirmation.getByRole('button',{name:'确认保存并继续',exact:true}).click();await confirmation.getByRole('alert').filter({hasText:'接入配置自动保存失败'}).waitFor();assert.equal(await confirmation.isVisible(),true);assert.equal(await page.locator('#planning-worker').inputValue(),'not-yet-persisted');await confirmation.getByRole('button',{name:'返回修改',exact:true}).click();
+  await page.evaluate(()=>Storage.prototype.setItem=window.originalSet);await check();assert.equal((await stored(draftKey())).selection.workerModel,'not-yet-persisted');assert.equal((await stored(draftKey())).fieldsChecked,true);
   cases.push('Corrupt storage is preserved until an edit; quota failure never claims saved or advances, retry succeeds');
 
   await page.evaluate(()=>window.showHub());await openConnectionMethod(page,'主指挥','api');const chief=page.getByRole('region',{name:'主指挥',exact:true});
@@ -86,8 +89,8 @@ try{
   await openConnectionMethod(page,'主指挥','key');await chief.getByLabel('凭证供应商',{exact:true}).selectOption('openai');await chief.getByLabel('OpenAI API Key',{exact:true}).fill('never-persist-secret-fixture');
   assert.equal(await page.evaluate(()=>Object.values(localStorage).some(v=>v.includes('never-persist-secret-fixture'))),false);await load();await page.evaluate(()=>window.showHub());assert.equal(await chief.locator('details[open]').count(),0);await openConnectionMethod(page,'主指挥','key');assert.equal(await chief.getByLabel('OpenAI API Key',{exact:true}).inputValue(),'');
   await openConnectionMethod(page,'主指挥','desktop');await chief.getByRole('button',{name:'配置主指挥模型',exact:true}).click();assert.deepEqual(await page.evaluate(()=>window.routes),[{role:'chief',method:undefined}]);
-  const worker=page.getByRole('region',{name:'执行端',exact:true});await worker.locator('summary').filter({hasText:/^CLI 接入$/}).click();await worker.getByLabel('Codex 程序完整路径').fill('D:/synthetic/custom-codex.exe');await load();await page.evaluate(()=>window.showHub({...window.snapshot,codexConnection:null}));await openConnectionMethod(page,'主指挥','api');await worker.locator('summary').filter({hasText:/^CLI 接入$/}).click();assert.equal(await worker.getByLabel('Codex 程序完整路径').inputValue(),'D:/synthetic/custom-codex.exe');assert.equal(await worker.getByText('连接检查通过',{exact:true}).count(),0);assert.equal(await page.evaluate(()=>window.calls.length),0);
-  cases.push('Passwords never enter UI storage; custom CLI path restores without stale status or implicit source replacement');
+  const worker=page.getByRole('region',{name:'执行端',exact:true});assert.equal(await worker.locator('summary').filter({hasText:/^CLI 接入$/}).count(),0);await load();await page.evaluate(()=>window.showHub({...window.snapshot,codexConnection:null}));await openConnectionMethod(page,'主指挥','desktop');assert.equal(await worker.getByLabel('Codex 程序完整路径').count(),0);assert.equal(await page.locator('#integration-chief-test-session').count(),1);assert.equal(await page.evaluate(()=>window.calls.length),0);
+  cases.push('Passwords never enter UI storage; removed worker CLI stays absent after reload and chief session binding remains');
 
   const structured={...submitted.draft,projectId:'one',apiWorker:{target:{kind:'provider',endpoint:{kind:'qwenBeijing',workspaceId:'roundtrip'}},model:'api-model',fileTools:['read-files'],maxRounds:2,maxToolCalls:3,maxOutputTokens:512,maxTotalTokens:4096,requestTimeoutSeconds:30},workerAdapter:'qwen',workerModel:'api-model',resourceKeys:['repo'],worktree:{baseCommit:'a'.repeat(40),poolRoot:'D:/synthetic/pool',gitExecutable:'D:/synthetic/git.exe'},profiles:[{id:'extra',description:'extra model',workerAdapter:'openai',workerModel:'extra-model',codexExecutable:'',artifactPaths:['extra.txt'],acceptance:{schemaVersion:1,stages:[{id:'check',name:'check',validatorId:'tests',args:[],timeoutSeconds:30}]},apiWorker:{target:{kind:'openAi'},model:'extra-model',fileTools:['read-files'],maxRounds:2,maxToolCalls:3,maxOutputTokens:512,maxTotalTokens:4096,requestTimeoutSeconds:30}}]};
   const result=await page.evaluate(({data,draft})=>{const ok=window.storeTest(data.dataDirectory,'D:/synthetic/one',null,draft,true);return {ok,restored:window.readTest(data,'one','D:/synthetic/one',null)};},{data:{...snapshot,dataDirectory:'structured-scope'},draft:structured});assert.equal(result.ok,true);assert.equal(result.restored.state,'restored');assert.deepEqual(result.restored.values.apiWorker,structured.apiWorker);assert.deepEqual(result.restored.values.profiles,structured.profiles.map(p=>({...p,desktopWorker:undefined})));assert.deepEqual(result.restored.values.worktree,structured.worktree);assert.deepEqual(result.restored.values.resourceKeys,['repo']);

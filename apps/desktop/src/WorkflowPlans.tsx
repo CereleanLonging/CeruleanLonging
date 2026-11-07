@@ -13,9 +13,11 @@ export function VerificationJobs({jobs,detail,send,busy}:{jobs:VerificationJob[]
   const [view,setView]=useState<VerificationDetail|null>(null);
   const [readFailed,setReadFailed]=useState(false);
   const [recoverReview,setRecoverReview]=useState(false);
+  const [retryStartReview,setRetryStartReview]=useState(false);
+  const [retryStartReason,setRetryStartReason]=useState("");
   useEffect(()=>{if(detail && selected?.projectId===detail.projectId && selected.operationId===detail.operationId)setView(detail);},[detail]);
   async function read(job:VerificationJob) {
-    setSelected(job);setView(null);setReadFailed(false);setRecoverReview(false);
+    setSelected(job);setView(null);setReadFailed(false);setRecoverReview(false);setRetryStartReview(false);setRetryStartReason("");
     if(!await send({type:"readVerificationDetail",projectId:job.projectId,operationId:job.operationId}))setReadFailed(true);
   }
   const [reason,setReason]=useState("");
@@ -44,6 +46,21 @@ export function VerificationJobs({jobs,detail,send,busy}:{jobs:VerificationJob[]
       <p className="secondary">读取于 {new Date(view.observedAt).toLocaleString("zh-CN")}。各项观察不等于整体验收通过，读取不会启动或重跑检查。</p>
       {view.message&&<p>{view.message}</p>}
       {view.recoveryError&&<p className="secondary">暂不能补记：{view.recoveryError}</p>}
+      {view.canRetryStart && !retryStartReview && <button className="secondary-button" disabled={busy} onClick={() => setRetryStartReview(true)}>审阅重新启动检查</button>}
+      {view.canRetryStart && retryStartReview && <section className="panel" aria-label="重新启动检查确认">
+        <h3>重新启动原提交的检查</h3>
+        <p>原检查在运行意图创建前失败。确认后将按原批准方案检查当前提交，保留原失败记录，并暂停项目后续调度。</p>
+        <label htmlFor="verification-start-reason">已修复的启动问题</label>
+        <textarea id="verification-start-reason" value={retryStartReason} maxLength={500} onChange={event => setRetryStartReason(event.target.value)} />
+        <div className="card-footer">
+          <button className="secondary-button" disabled={busy} onClick={() => setRetryStartReview(false)}>返回阶段结果</button>
+          <button className="primary" disabled={busy || !retryStartReason.trim()} onClick={async () => {
+            if (await send({type: "retryVerificationStart", projectId: view.projectId, originalOperationId: view.operationId, evidenceDigest: view.evidenceDigest, reason: retryStartReason.trim()})) {
+              setSelected(null); setView(null); setRetryStartReview(false);
+            }
+          }}>确认重新启动这一次检查</button>
+        </div>
+      </section>}
       {view.recovery&&!recoverReview&&<button className="secondary-button" disabled={busy} onClick={()=>setRecoverReview(true)}>审阅补记结果</button>}
       {view.recovery&&recoverReview&&<section className="panel" aria-label="补记验收结果确认">
         <HelpHeading as="h3" topic="WorkflowPlans">补记原验收结果</HelpHeading><p>已核对原方案、完整报告、阶段日志、工具与当前受测文件。结果为：{view.recovery.passed?"全部检查通过":"验收未通过"}。</p>

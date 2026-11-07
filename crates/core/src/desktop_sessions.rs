@@ -11,6 +11,10 @@ use std::{
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "op", rename_all = "lowercase")]
 pub(super) enum ReadRequest {
+    ReviewPrepare {
+        version: u32,
+        window: DesktopWindow,
+    },
     ReviewSend {
         version: u32,
         #[serde(rename = "taskReview")]
@@ -89,6 +93,7 @@ impl ReadRequest {
             }
             Self::Discover { .. } => return Ok(()),
             Self::Inspect { window, .. }
+            | Self::ReviewPrepare { window, .. }
             | Self::TrialPrepare { window, .. }
             | Self::TaskPrepare { window, .. } => window,
             Self::TrialSend { review, .. } | Self::TrialRead { review, .. } => {
@@ -165,7 +170,7 @@ pub(super) struct Probe {
     receiver: mpsc::Receiver<Result<ReadReply, String>>,
 }
 const BRIDGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/CeruleanDesktopObserver.exe"));
-pub(super) fn fingerprint() -> String {
+pub(crate) fn fingerprint() -> String {
     use sha2::Digest;
     format!("{:x}", sha2::Sha256::digest(BRIDGE))
 }
@@ -513,10 +518,17 @@ fn observe_cancellable(
     // canonical data directory. Keep the locked identity, convert only spelling.
     let executable = normal_path(&path)?;
     let working = normal_path(&directory)?;
-    let desktop_action = matches!(
+    let sending = matches!(
         request,
-        ReadRequest::TrialSend { .. } | ReadRequest::TaskSend { .. } | ReadRequest::TaskStop { .. }
+        ReadRequest::TrialSend { .. }
+            | ReadRequest::TaskSend { .. }
+            | ReadRequest::ReviewSend { .. }
     );
+    let desktop_action = sending
+        || matches!(
+            request,
+            ReadRequest::TaskStop { .. } | ReadRequest::ReviewPrepare { .. }
+        );
     let runner = if desktop_action {
         crate::verifier::process::run_desktop
     } else {
@@ -527,16 +539,7 @@ fn observe_cancellable(
         &[text],
         &working,
         &working,
-        Duration::from_secs(
-            if matches!(
-                request,
-                ReadRequest::TrialSend { .. } | ReadRequest::TaskSend { .. }
-            ) {
-                90
-            } else {
-                20
-            },
-        ),
+        Duration::from_secs(if sending { 90 } else { 20 }),
         cancel,
         &BTreeMap::new(),
     )?;
@@ -647,6 +650,24 @@ impl RuntimeHost {
                     == cerulean_domain::execution::WorkerDirectory::for_desktop(selection)?
                         .root(&scope.project.root)?,
             "桌面配置目录与登记项目不一致",
+        )
+    }
+    pub(super) fn validate_active_desktop_selection(
+        &self,
+        project: &str,
+        selection: &DesktopWorkerSelection,
+    ) -> Result<(), String> {
+        self.validate_desktop_selection(project, selection)?;
+        selection
+            .binding
+            .observation
+            .window
+            .app
+            .require_available()?;
+        cerulean_domain::desktop_upgrade::require_upgrade_trial(
+            &selection.binding,
+            &load_trials(&self.root)?,
+            &fingerprint(),
         )
     }
     fn launch_desktop(&mut self, request: ReadRequest, action: Action) -> Result<(), String> {
@@ -927,7 +948,7 @@ pub(super) mod desktop_progress;
 
 #[path = "desktop_trials.rs"]
 mod desktop_trials;
-pub(super) use desktop_trials::load as load_trials;
+pub(crate) use desktop_trials::load as load_trials;
 
 #[cfg(test)]
 #[path = "desktop_sessions_tests.rs"]
@@ -985,7 +1006,7 @@ impl RuntimeHost {
             .as_ref()
             .ok_or("桌面配置缺失")?
             .clone();
-        self.validate_desktop_selection(project, &selection)?;
+        self.validate_active_desktop_selection(project, &selection)?;
         require(
             selection.binding.bridge_sha256 == fingerprint(),
             "桌面桥接已变化，需重新观察、配置和批准",

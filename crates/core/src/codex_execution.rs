@@ -448,6 +448,7 @@ pub(crate) async fn dispatch_inner<C: WorkerChannel, S: CodexWorkflowAccess>(
     )?;
     crate::codex_workflow_access::require_budget(store)?;
     let prompt = approved_prompt(&plan, task)?;
+    let prompt = crate::task_rework::append_prompt(prompt, store.history(), task, id)?;
     require(prompt.len() <= 48 * 1024, "approved task prompt too large")?;
     let core = role(store, Role::Core)?;
     record(
@@ -611,6 +612,7 @@ pub(crate) async fn reconcile_scoped<C: WorkerChannel>(
     let known = known_turn(store, task, id);
     let anchors = store.started_cancellation_anchors(task, id).ok();
     let prompt = approved_prompt(&plan, task)?;
+    let prompt = crate::task_rework::append_prompt(prompt, store.history(), task, id)?;
     let proof = channel
         .read_evidence(
             &attempt.binding.session_id,

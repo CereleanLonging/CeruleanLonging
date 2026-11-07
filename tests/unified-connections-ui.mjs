@@ -1,3 +1,4 @@
+import {confirmConnectionContinue} from './connection-ui-helpers.mjs';
 import {openConfiguredConnections,openConnectionMethod,deferModelChoice} from "./connection-ui-helpers.mjs";
 // Production UI, isolated snapshots and recording IPC. Never contacts a provider.
 import {mkdtemp,readFile,writeFile} from 'node:fs/promises';
@@ -129,7 +130,7 @@ try {
   await worker.getByRole('region',{name:'Codex 连接检查',exact:true}).getByRole('button',{name:'测试连通',exact:true}).click();
   await page.waitForFunction(() => window.calls.some(call => call.args?.command?.type === 'checkCodex'));
   assert.equal((await commands()).find(command=>command.type==='checkCodex').executable,'D:/synthetic/scanned/codex.exe');
-  await next.click();
+  await next.click();await confirmConnectionContinue(page);
   await page.locator('#planning-requirement').waitFor({state:'visible'});
   assert.equal((await commands()).some(command=>command.type==='configureProject'),false);
   cases.push('Scanned Codex path is the task path; empty credential fields do not block Next and checks do not save or start a project');

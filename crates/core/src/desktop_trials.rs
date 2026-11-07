@@ -24,8 +24,9 @@ fn validate_review(r: &DesktopTrialReview) -> Result<(), String> {
         sha256(d)?;
     }
     require(
-        r.observation.window.app == DesktopApp::Qoder && r.observation.window.version == "0.4.3.0",
-        "当前仅支持Qoder 0.4.3.0固定消息验证；WorkBuddy及其他版本尚未开放发送",
+        r.observation.window.app == DesktopApp::Qoder
+            && cerulean_domain::desktop_upgrade::qoder_candidate(&r.observation.window.version),
+        "当前版本超出 Qoder 0.4 接口适配范围，请等待对应适配器更新",
     )?;
     require(
         r.marker.strip_prefix("CL_DESKTOP_").is_some_and(|s| {
@@ -75,7 +76,7 @@ fn validate_trial(t: &DesktopTrial) -> Result<(), String> {
 }
 /// Complete pending publications are read logically; partial or conflicting bytes
 /// stop further sends. No record is overwritten or automatically replayed.
-pub(in crate::host) fn load(root: &Path) -> Result<Vec<DesktopTrial>, String> {
+pub(crate) fn load(root: &Path) -> Result<Vec<DesktopTrial>, String> {
     let dir = root.join(DIRECTORY);
     if !dir.exists() {
         return Ok(vec![]);
@@ -247,10 +248,13 @@ impl RuntimeHost {
             .find(|b| b.id == id)
             .ok_or("关联不存在")?
             .clone();
+        binding.observation.window.app.require_available()?;
         require(
             binding.observation.window.app == DesktopApp::Qoder
-                && binding.observation.window.version == "0.4.3.0",
-            "当前仅支持Qoder 0.4.3.0固定消息验证；WorkBuddy及其他版本尚未开放发送",
+                && cerulean_domain::desktop_upgrade::qoder_candidate(
+                    &binding.observation.window.version,
+                ),
+            "当前版本超出 Qoder 0.4 接口适配范围，请等待对应适配器更新",
         )?;
         self.launch_desktop(
             ReadRequest::TrialPrepare {

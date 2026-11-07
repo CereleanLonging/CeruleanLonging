@@ -1,13 +1,14 @@
+import { CodexConnection } from "./CodexConnection";
 import { useState } from "react";
 import { HelpHeading } from "./HelpHeading";
 import { useAccessPreference } from "./accessPreferences";
 import { parseApiModelDefault, type ApiModelAssignment } from "./apiModels";
 import type { Command, Snapshot } from "./contracts";
-import { CodexConnection } from "./CodexConnection";
 import { DesktopSessions } from "./DesktopSessions";
 import { OpenAiConnection } from "./OpenAiConnection";
 import { ProviderCard, providers } from "./ProviderConnections";
 import { LocalConnectionTest } from "./LocalConnectionTest";
+import { OmpConnectionTest } from "./OmpCredentials";
 
 export type IntegrationRole = "chief" | "deputy" | "worker";
 export type ChiefMethod = "api" | "desktop";
@@ -37,25 +38,17 @@ function ApiEntry({ role, view, data, busy, send, modelPreference }: Omit<Props,
   </div>;
 }
 
-function WorkerCli({ data, busy, send, configure }: Props) {
-  const [program, setProgram, preferenceError] = useAccessPreference(data.dataDirectory, "worker-cli", "codex", ["codex","omp"]);
+function WorkerOmp({ data, busy, send, configure }: Props) {
   const [ompPath,setOmpPath] = useAccessPreference(data.dataDirectory,"omp-test-executable","");
   const [ompModel,setOmpModel] = useAccessPreference(data.dataDirectory,"omp-test-model","deepseek-flash");
   const [ompRuntime,setOmpRuntime] = useAccessPreference(data.dataDirectory,"omp-test-runtime","");
   return <div className="integration-entry">
-    {preferenceError&&<p role="alert">CLI 选项自动保存失败，请重新选择后重试。</p>}
-    <label htmlFor="integration-worker-cli-program">CLI 程序</label>
-    <select id="integration-worker-cli-program" value={program} disabled={busy} onChange={e => setProgram(e.target.value)}>
-      <option value="codex">Codex</option><option value="omp">OMP</option>
-    </select>
-    {program === "codex" ? <CodexConnection scope={data.dataDirectory} status={data.codexConnection} busy={busy} send={send} connected/>
-      : <div className="integration-note"><HelpHeading as="h3" topic="IntegrationHub">OMP</HelpHeading>
+    <div className="integration-note"><HelpHeading as="h3" topic="IntegrationHub">OMP · DeepSeek API</HelpHeading>
         <label htmlFor="integration-omp-path">OMP 程序完整路径</label><input id="integration-omp-path" value={ompPath} disabled={busy} onChange={e=>setOmpPath(e.target.value)}/>
         <label htmlFor="integration-omp-model">OMP 模型 ID</label><input id="integration-omp-model" value={ompModel} disabled={busy} onChange={e=>setOmpModel(e.target.value)}/>
         <label htmlFor="integration-omp-runtime">OMP 测试运行目录（可选）</label><input id="integration-omp-runtime" value={ompRuntime} disabled={busy} onChange={e=>setOmpRuntime(e.target.value)} placeholder="已存在的专用目录，留空使用工作台数据目录"/>
-        <LocalConnectionTest scope={data.dataDirectory} busy={busy} request={ompPath.trim()&&ompModel.trim()?{kind:"omp",executable:ompPath.trim(),model:ompModel.trim(),runtimeParent:ompRuntime.trim()||undefined}:null}
-          hint="先在 Key 管理中保存 DeepSeek Key，再测试 OMP 协议和 API 认证。运行目录及祖先目录须满足 OMP 的配置隔离要求。"/>
-        <button type="button" className="secondary-button" disabled={busy} onClick={() => configure("worker")}>配置 OMP 执行模型</button></div>}
+        <OmpConnectionTest data={data} busy={busy} send={send} executable={ompPath} model={ompModel} runtimeParent={ompRuntime.trim()||undefined}/>
+        <button type="button" className="secondary-button" disabled={busy} onClick={() => configure("worker")}>配置 OMP 执行模型</button></div>
   </div>;
 }
 
@@ -87,6 +80,10 @@ export function IntegrationHub(props: Props) {
             request={sessionId.trim()?{kind:"codexSession",sessionId:sessionId.trim(),executable:data.codexConnection?.executable}:null}
             hint="填写已有会话标识，测试本机 Codex 登录和目标聊天读取权限。"/>
           <button type="button" className="secondary-button" disabled={busy} onClick={()=>configure("chief","desktop")}>绑定 Codex 聊天</button>
+          <details><summary>程序升级检查</summary>
+            <CodexConnection status={data.codexConnection} send={send} busy={busy} connected
+              scope={data.dataDirectory} idPrefix="chief-upgrade"/>
+          </details>
         </div>:<ApiEntry role="chief" view={method} data={data} busy={busy} send={send} modelPreference={chiefModel}/>)}
       </details>)}
     </section>
@@ -100,10 +97,9 @@ export function IntegrationHub(props: Props) {
 
     <section className="panel integration-role" aria-labelledby="integration-worker-title">
       <div className="integration-role-heading"><div><span className="integration-role-eyebrow">执行与交付</span><HelpHeading as="h2" topic="IntegrationHub" id="integration-worker-title">执行端</HelpHeading></div><ConfigureButton role="worker" {...props}/></div>
-      <p className="secondary">按任务选择默认执行模型或附加执行配置。已有模型工作目录继续复用，模型切换需要保存新版项目配置。</p>
-      <details className="integration-group"><summary>API 连接</summary><ApiEntry role="worker" view="api" data={data} busy={busy} send={send} modelPreference={workerModel}/></details>
+      <p className="secondary">按任务选择默认执行模型或附加执行配置。Codex 仅保留主指挥会话接入。已有模型工作目录继续复用，模型切换需要保存新版项目配置。</p>
+      <details className="integration-group"><summary>API 连接</summary><WorkerOmp {...props}/></details>
       <details className="integration-group"><summary>Key 管理</summary><ApiEntry role="worker" view="key" data={data} busy={busy} send={send} modelPreference={workerModel}/></details>
-      <details className="integration-group"><summary>CLI 接入</summary><WorkerCli {...props}/></details>
       <details className="integration-group"><summary>桌面端接入</summary>
         <div className="integration-entry">
           <p>关联项目后，填写 Qoder 会话 ID，点击“测试并绑定会话”即可读取模型并保存关联。</p>

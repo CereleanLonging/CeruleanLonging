@@ -1,11 +1,10 @@
 import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { MarkdownImport } from "./MarkdownImport";
-import type { RefinementApi } from "./MarkdownRefinement";
 import { useEffect, useRef, useState } from "react";
-import type { SavedProjectSetup, Command, Plan, PlanPage, ProjectPage, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
+import type { Command, Plan, PlanPage, ProjectPage, WorkspaceOverview, WorkspaceQuery, WorkspaceResult } from "./contracts";
 export type WorkspaceReader = (query: WorkspaceQuery) => Promise<WorkspaceResult>;
-type Props = { refinementApi?: RefinementApi; refinementSetups?: SavedProjectSetup[]; configureChief?: (projectId?: string) => void; read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
+type Props = { read: WorkspaceReader; send: (command: Command) => Promise<boolean>; enabled: boolean; busy: boolean; showPlans: boolean; onOverview: (overview: WorkspaceOverview) => void };
 type Pending = { type: "create" } | { type: "approve"; id: string; digest: string };
 
 export function WorkspaceBrowser(props: Props) {
@@ -17,8 +16,6 @@ export function WorkspaceBrowser(props: Props) {
   const [planBack, setPlanBack] = useState<number[]>([]), [projectBack, setProjectBack] = useState<number[]>([]);
   const [detail, setDetail] = useState<Plan | null>(null), [pending, setPending] = useState<Pending | null>(null);
   const [title, setTitle] = useState(""), [tasks, setTasks] = useState("");
-  const [refinementProject,setRefinementProject]=useState("");
-  const chief=props.refinementSetups?.find(s=>s.setup.projectId===refinementProject)??(props.refinementSetups?.length===1?props.refinementSetups[0]:undefined);
   const [importedTasks, setImportedTasks] = useState<string[] | null>(null);
   const [message, setMessage] = useState(""), [projectError, setProjectError] = useState("");
   const blocked = loading || props.busy || !props.enabled;
@@ -108,17 +105,14 @@ export function WorkspaceBrowser(props: Props) {
   }
 
   return <section className="workspace-browser" aria-label="独立工作区记录">
-    <div className="section-heading"><HelpHeading as="h2" topic="WorkspaceBrowser">{props.showPlans ? "本地计划记录" : "项目清单"}</HelpHeading><button className="secondary-button" disabled={blocked} onClick={() => void run(refresh)}>刷新工作区记录</button></div>
+    <div className="section-heading"><HelpHeading as="h2" topic="WorkspaceBrowser">{props.showPlans ? "手工计划记录" : "项目清单"}</HelpHeading><button className="secondary-button" disabled={blocked} onClick={() => void run(refresh)}>刷新工作区记录</button></div>
     {!props.enabled && <p>请在桌面应用中读取本地记录。</p>}
     {overview?.message && <p role="alert"><ErrorText error={overview.message}/></p>}
     {message && <p role="status">{message}</p>}
     {props.showPlans ? <>
-      <section className="panel"><HelpHeading as="h3" topic="WorkspaceBrowser">创建计划</HelpHeading><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
+      <section className="panel"><HelpHeading as="h3" topic="WorkspaceBrowser">创建手工计划</HelpHeading><p className="secondary">这里用于手工记录任务。编程项目请使用主指挥规划与项目执行方案。</p>
         <form onSubmit={e => { e.preventDefault(); if (canWrite) void run(current => submit({ type: "createPlan", title, tasks: importedTasks ?? tasks.split("\n").filter(t => t.trim()) }, { type: "create" }, current)); }}>
-          <div className="document-chief-configuration"><label htmlFor="document-refinement-project">文档提炼使用的项目主指挥</label><select id="document-refinement-project" value={chief?.setup.projectId??""} onChange={e=>setRefinementProject(e.target.value)} disabled={!canWrite||!props.refinementSetups?.length}><option value="">{props.refinementSetups?.length?"请选择已配置项目":"尚无已保存的项目配置"}</option>{props.refinementSetups?.map(s=><option key={s.setup.projectId} value={s.setup.projectId}>{s.setup.projectId} · {s.setup.chiefModel}</option>)}</select>
-          {!props.refinementSetups?.length&&<p className="secondary">先关联项目目录并保存主指挥配置，才会在此显示。文档自动提炼需使用 API 主指挥；手工填写计划仍可继续。</p>}
-          {props.configureChief&&<button type="button" className="secondary-button" disabled={blocked} onClick={()=>props.configureChief?.(chief?.setup.projectId)}>配置项目主指挥</button>}</div>
-          <MarkdownImport chief={chief} api={props.refinementApi} mode="plan" contextKey={JSON.stringify([title,tasks])} disabled={!canWrite} onApply={(_text,plan)=>{if(plan){setTitle(plan.title);setTasks(plan.tasks.join("\n\n"));setImportedTasks(plan.tasks);}}}/>
+          <MarkdownImport mode="plan" contextKey={JSON.stringify([title,tasks])} disabled={!canWrite} onApply={(_text,plan)=>{if(plan){setTitle(plan.title);setTasks(plan.tasks.join("\n\n"));setImportedTasks(plan.tasks);}}}/>
           <label htmlFor="workspace-title">计划名称</label><input id="workspace-title" required maxLength={200} value={title} disabled={blocked || !!pending} onChange={e => setTitle(e.target.value)}/>
           <label htmlFor="workspace-tasks">{importedTasks ? "导入的任务内容，空行分隔" : "具体任务，每行一项"}</label><textarea id="workspace-tasks" required rows={5} value={tasks} disabled={blocked || !!pending} onChange={e => {setTasks(e.target.value);if(importedTasks)setImportedTasks(e.target.value.split(/\n\s*\n/).filter(t=>t.trim()));}}/>
           <button className="primary" disabled={!canWrite}>保存计划</button>

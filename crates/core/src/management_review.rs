@@ -12,7 +12,7 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
 };
-const LIMIT: usize = 256 * 1024;
+const LIMIT: usize = crate::management_execution::MAX_BYTES;
 const FOLDER: &str = "management-record-reviews";
 
 #[derive(Serialize, Deserialize)]

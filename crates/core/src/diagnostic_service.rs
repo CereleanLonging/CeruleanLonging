@@ -51,6 +51,7 @@ impl ServiceHost {
                     host.base.workspace_plans(query)
                 }
                 WorkspaceQuery::Projects { .. }
+                | WorkspaceQuery::ProjectActivity { .. }
                 | WorkspaceQuery::VerificationRechecks { .. }
                 | WorkspaceQuery::CurrentVerificationRecheck { .. }
                 | WorkspaceQuery::VerificationRecheckInputs { .. }

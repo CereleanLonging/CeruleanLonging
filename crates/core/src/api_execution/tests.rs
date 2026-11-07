@@ -546,9 +546,31 @@ async fn limits_errors_and_escape_stop_without_unapproved_writes() {
         let mut store = assigned(dir.path(), p);
         let (_tx, mut rx) = oneshot::channel();
         let (result, sends) = run(&mut store, mode, &mut rx, &mut |_| Ok(())).await;
-        assert!(result.is_err(), "{mode}");
+        assert_eq!(result.is_ok(), mode == "escape", "{mode}: {result:?}");
         assert_eq!(sends, if mode == "escape" { 2 } else { 1 });
-        assert_eq!(store.state().tasks["task"].state, TaskState::Unknown);
+        let expected = if mode == "escape" {
+            TaskState::Submitted
+        } else {
+            TaskState::Unknown
+        };
+        assert_eq!(store.state().tasks["task"].state, expected);
+        assert!(!store.state().tasks["task"].verified);
+        if mode == "escape" {
+            let (_, manifest) = store.completed_artifacts("task", "attempt").unwrap();
+            assert!(manifest.artifacts.is_empty());
+            let check = &store.revision().unwrap().execution[0].checks[0];
+            let pin = crate::verifier::PinnedCheck::from_approved(check).unwrap();
+            store
+                .run_verification(
+                    "escape-delivery-check",
+                    "task",
+                    "attempt",
+                    &[pin],
+                    &std::sync::atomic::AtomicBool::new(false),
+                )
+                .unwrap();
+            assert!(!store.state().tasks["task"].verified);
+        }
         CallInventory::read(&store).unwrap().check(None).unwrap();
         assert!(!dir.path().join("project/result.txt").exists());
         assert!(!dir.path().join("outside.txt").exists());

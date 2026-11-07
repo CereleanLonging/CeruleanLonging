@@ -7,13 +7,13 @@
     "commit": "b940084d7eb6a299eb4bfeb8e34901bc051e7ac4",
     "host": "x86_64-pc-windows-msvc"
   },
-  "configurationSha256": "8f28f0e409ada1f84e68dacbec7a125102c89139777dc7212651a3c99e4f0239",
+  "configurationSha256": "271e97eebe907aaf488687e2a2b931d70f640864070d96a0546e1a3a557def80",
   "files": {
     "repository": [
       {
         "path": "third-party/distribution-inputs.json",
-        "bytes": 200517,
-        "sha256": "a119868ed60bd02437d174a05c79fac8f394feca1b59dd717534443ee36bc4f6"
+        "bytes": 194820,
+        "sha256": "0d0225586594bb774dc27ff7092137d81a01c878d63a04af1c4fe750942fcab4"
       },
       {
         "path": "third-party/distribution-inputs.zip",
@@ -27,8 +27,8 @@
       },
       {
         "path": ".cargo/config.toml",
-        "bytes": 233,
-        "sha256": "4750fab5a331f46def2e4ccf76d643dda6455fcf12a20b1b42ec94fb4671d143"
+        "bytes": 242,
+        "sha256": "b9e3be41149a938a0fd0aa37d9db22633a11f95529a477524adf7f69ff68e564"
       },
       {
         "path": "apps/desktop/src-tauri/installer/hooks.nsh",

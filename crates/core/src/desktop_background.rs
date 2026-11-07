@@ -130,7 +130,7 @@ impl RuntimeHost {
             store.revision().ok_or("方案缺失")?,
             task,
         )?;
-        self.validate_desktop_selection(project, selection)?;
+        self.validate_active_desktop_selection(project, selection)?;
         require(
             selection.binding.bridge_sha256 == fingerprint(),
             "桥接版本变化，需要重新配置和批准",

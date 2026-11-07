@@ -1,5 +1,12 @@
 const labels = {api:'API 连接', key:'Key 管理', desktop:'桌面端接入', cli:'CLI 接入'};
 
+export async function confirmConnectionContinue(page) {
+  const dialog = page.getByRole('dialog', {name:'确认接入配置', exact:true});
+  await dialog.waitFor();
+  await dialog.getByRole('button', {name:'确认保存并继续', exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+}
+
 // Routing/layout regressions can defer model choice; the picker suite verifies it.
 export async function deferModelChoice(page) {
   const modal = page.getByRole('dialog', {name:'选择具体模型', exact:true});
@@ -30,6 +37,6 @@ export async function openConfiguredConnections(page) {
   await openConnectionMethod(page, '主指挥', source === 'codexSession' ? 'desktop' : 'api');
   await openConnectionMethod(page, '副指挥', 'api');
   const adapter = await page.locator('#planning-adapter').inputValue();
-  const method = ['codex','omp'].includes(adapter) ? 'cli' : ['qoder','workbuddy'].includes(adapter) ? 'desktop' : 'api';
+  const method = adapter === 'omp' ? 'api' : adapter === 'codex' ? 'cli' : ['qoder','workbuddy'].includes(adapter) ? 'desktop' : 'key';
   await openConnectionMethod(page, '执行端', method);
 }

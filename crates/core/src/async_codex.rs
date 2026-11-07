@@ -255,7 +255,7 @@ fn inspect_executable(path: &str) -> Result<(File, String), String> {
     }
     Ok((file, format!("{:x}", hasher.finalize())))
 }
-pub(crate) fn describe(executable: &Path, model: &str) -> Result<WorkerSelection, String> {
+pub(crate) fn describe_executable(executable: &Path) -> Result<ValidationFile, String> {
     require(
         executable.is_absolute(),
         "Codex executable must be absolute",
@@ -264,14 +264,17 @@ pub(crate) fn describe(executable: &Path, model: &str) -> Result<WorkerSelection
     let path = fs::canonicalize(executable).map_err(|e| e.to_string())?;
     let path = path.to_str().ok_or("non-Unicode Codex executable")?;
     let (_, hash) = inspect_executable(path)?;
+    Ok(ValidationFile {
+        path: path.into(),
+        sha256: hash,
+    })
+}
+pub(crate) fn describe(executable: &Path, model: &str) -> Result<WorkerSelection, String> {
     let worker = WorkerSelection {
         omp_runtime_parent: None,
         provider: "openai".into(),
         model: model.into(),
-        executable: ValidationFile {
-            path: path.into(),
-            sha256: hash,
-        },
+        executable: describe_executable(executable)?,
     };
     worker.validate()?;
     Ok(worker)

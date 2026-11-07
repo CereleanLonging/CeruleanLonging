@@ -1,3 +1,4 @@
+import {confirmConnectionContinue} from './connection-ui-helpers.mjs';
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -6,11 +7,13 @@ import { chromium } from "playwright-core";
 import { openConnectionMethod } from "./connection-ui-helpers.mjs";
 
 const run = await mkdtemp(resolve("reports/api-model-picker-ui-"));
+assert(process.env.CERULEAN_CACHE_SESSION,'Use managed cache runner');
+const bundle=join(process.env.CERULEAN_CACHE_SESSION,'api-model-picker-ui');
 const models = ["deepseek-ai/DeepSeek-V3.2", "DeepSeek-R1", "qwen3-32b", "Qwen3-235B-A22B", "claude-sonnet-4-5", "gpt-4.1",
   ...Array.from({length:144},(_,index)=>`synthetic-catalog-model-${index}`)];
 const snapshot = {
   dataDirectory:"synthetic-model-picker", workflows:[{project:{id:"project",root:"D:/synthetic/project"},state:{tasks:{}},approval:null}],
-  projectSetups:[], workerAccountSetups:[], validators:[{id:"tests",name:"Fixture checks"}], managementDecisions:[],
+  projectSetups:[], workerAccountSetups:[], validators:[{id:"cerulean-objective-checker",name:"Fixture checks"}], managementDecisions:[],
   managementHistory:{projects:[]}, openaiConnection:{state:"notConfigured",models:[],keyConfigured:false},
   codexConnection:{models:[],executable:"D:/synthetic/codex.exe"},
   providerConnections:[{provider:"a6api",target:{kind:"a6ApiVip"},state:"notConfigured",keyConfigured:false,models:[],listLimited:false}],
@@ -32,7 +35,7 @@ if(command.type==='checkOpenAi'){data.openaiConnection={state:'available',keyCon
 window.snapshot=data;window.render();return true;}
 window.render();`);
 await build({configFile:false,logLevel:"error",define:{"process.env.NODE_ENV":JSON.stringify("production")},oxc:{jsx:{runtime:"automatic"}},
-  build:{outDir:join(run,"bundle"),emptyOutDir:false,lib:{entry,name:"ModelPicker",formats:["iife"],fileName:()=>"ui.js"}}});
+  build:{outDir:bundle,emptyOutDir:false,lib:{entry,name:"ModelPicker",formats:["iife"],fileName:()=>"ui.js"}}});
 const browser = await chromium.launch({executablePath:"C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",headless:true});
 const cases=[], errors=[];
 let page;
@@ -41,7 +44,7 @@ try {
   page.on("pageerror",error=>errors.push(error.message));
   const css=await readFile("apps/desktop/src/style.css","utf8");
   await page.route("**/*",route=>route.request().url()==="https://cerulean.test/"?route.fulfill({contentType:"text/html",body:`<html lang="zh-CN"><meta charset="utf-8"><style>${css}body{padding:24px}</style><div id="root"></div></html>`}):route.abort());
-  await page.goto("https://cerulean.test/");await page.addScriptTag({path:join(run,"bundle/ui.js")});
+  await page.goto("https://cerulean.test/");await page.addScriptTag({path:join(bundle,"ui.js")});
   const modal=()=>page.getByRole("dialog",{name:"选择具体模型",exact:true});
   const confirm=()=>modal().getByRole("button",{name:"确认使用此模型",exact:true});
   const close=()=>modal().getByRole("button",{name:"稍后选择",exact:true}).click();
@@ -79,14 +82,20 @@ try {
   assert.equal(await page.locator("#planning-deputy").inputValue(),"claude-sonnet-4-5");
   cases.push("Existing keys prompt the deputy when its Key section opens; a successful recheck permits reselection and cancel preserves the prior model");
 
-  await openConnectionMethod(page,"执行端","api");await worker.getByRole("button",{name:"将API 连接设为默认执行端",exact:true}).click();
+  await openConnectionMethod(page,"执行端","key");
   await page.locator("#planning-adapter").selectOption("a6api");await page.locator("#planning-api-relay-origin").selectOption("a6ApiVip");
-  await worker.getByRole("button",{name:"选择或修改模型",exact:true}).first().click();await select("qwen3-32b","qw3 32b");
+  await modal().waitFor();await select("qwen3-32b","qw3 32b");
   assert.equal(await page.locator("#planning-worker").inputValue(),"qwen3-32b");
-  await worker.getByRole("button",{name:"添加API 连接执行配置",exact:true}).click();await page.locator("#profile-0-adapter").selectOption("a6api");
+  await worker.getByRole("button",{name:"添加Key 管理执行配置",exact:true}).click();await page.locator("#profile-0-adapter").selectOption("a6api");
   await page.locator("#profile-0-api-relay-origin").selectOption("a6ApiVip");
   const profile=worker.getByRole("region",{name:"执行配置 1",exact:true});
-  await profile.locator("summary").filter({hasText:/^Key 管理$/}).click();await modal().waitFor();await select("DeepSeek-R1","dsr1");
+  const shared=worker.getByRole("region",{name:"执行端共享凭证",exact:true});
+  if(!await modal().isVisible())await shared.getByRole("button",{name:"选择或修改模型",exact:true}).click();
+  await modal().waitFor();await modal().getByLabel("应用到",{exact:true}).selectOption("profile:0");await select("DeepSeek-R1","dsr1");
+  assert.equal(await worker.getByLabel("A6API API Key",{exact:true}).count(),1);
+  assert.equal(await profile.locator('input[type="password"]').count(),0);
+  assert.equal(await worker.locator('summary').filter({hasText:/^API 连接$/}).count(),1);
+  assert.equal(await worker.locator('summary').filter({hasText:/^Key 管理$/}).count(),1);
   assert.equal(await page.locator("#profile-0-model").inputValue(),"DeepSeek-R1");
   const draftKey=JSON.stringify(["cerulean-access-draft",1,snapshot.dataDirectory,"project"]);
   const stored=async()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)).selection,draftKey);
@@ -95,9 +104,9 @@ try {
   assert.equal(selectedDraft.profiles[0].workerModel,"DeepSeek-R1");assert.equal(selectedDraft.chiefModel,"deepseek-ai/DeepSeek-V3.2");
   cases.push("Default and additional workers write both workerModel and apiWorker.model, independently of management roles");
 
-  await page.locator("#profile-0-description").fill("Synthetic API worker");await page.locator("#profile-0-artifacts").fill("worker-result.txt");
-  await page.getByRole("button",{name:"下一步：设置需求与计划",exact:true}).click();
-  await page.locator("#planning-requirement").fill("Verify exact selected models reach the saved setup");await page.locator("#planning-artifacts").fill("result.txt");
+  await page.getByRole("button",{name:"下一步：设置需求与计划",exact:true}).click();await confirmConnectionContinue(page);
+
+  await page.locator("#planning-requirement").fill("Verify exact selected models reach the saved setup");
   await page.getByRole("button",{name:"保存需求与执行配置",exact:true}).click();
   const submitted=await page.evaluate(()=>window.calls.find(command=>command.type==='configureProject')?.draft);
   assert(submitted);assert.equal(submitted.chiefModel,"deepseek-ai/DeepSeek-V3.2");assert.equal(submitted.deputyModel,"claude-sonnet-4-5");
@@ -106,13 +115,18 @@ try {
   cases.push("The normal Next and Save flow submits each exact model through configureProject");
 
   await openConnectionMethod(page,"执行端","key");
-  await worker.locator(':scope > details[data-method="key"]').getByRole("button",{name:"选择或修改模型",exact:true}).click();
-  await modal().getByLabel("应用到",{exact:true}).selectOption("profile:0");await select("gpt-4.1","gpt41");
+  await shared.getByRole("button",{name:"选择或修改模型",exact:true}).click();
+  await modal().getByLabel("应用到",{exact:true}).selectOption("profile:0");
+  await select("gpt-4.1","gpt41");
   assert.equal(await page.locator("#planning-worker").inputValue(),"qwen3-32b");assert.equal(await page.locator("#profile-0-model").inputValue(),"gpt-4.1");
-  await openConnectionMethod(page,"执行端","api");await page.locator("#profile-0-api-relay-origin").selectOption("a6Api");
+  await openConnectionMethod(page,"执行端","key");await page.locator("#profile-0-api-relay-origin").selectOption("a6Api");
   await openConnectionMethod(page,"执行端","key");
-  assert.equal(await worker.locator(':scope > details[data-method="key"] .api-model-selection').count(),2);
-  cases.push("A shared-key picker applies only to the chosen worker; distinct relay endpoints keep separate lists and selectors");
+  assert.equal(await worker.locator(':scope > details[data-method="key"] .api-model-selection').count(),1);
+  assert.equal(await worker.getByLabel("A6API API Key",{exact:true}).count(),1);
+  await shared.getByLabel("凭证检查目标",{exact:true}).selectOption(JSON.stringify(['a6Api',null]));
+  await shared.getByRole("button",{name:"选择或修改模型",exact:true}).click();
+  assert.equal(await modal().getByRole('radio').count(),0);assert(await confirm().isDisabled());await close();
+  cases.push("One shared credential card serves each provider; assignments and distinct endpoint catalogues remain isolated");
 
   await openConnectionMethod(page,"主指挥","api");await page.locator("#planning-chief-source").selectOption("provider:a6Api");
   await chief.getByRole("button",{name:"选择或修改模型",exact:true}).click();assert.equal(await modal().getByRole("radio").count(),0);assert(await confirm().isDisabled());
@@ -140,7 +154,7 @@ try {
   assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('type')),"search");
   await page.screenshot({path:join(run,"model-picker-narrow.png")});await page.keyboard.press("Escape");await modal().waitFor({state:"hidden"});
   assert.equal(await page.locator("#planning-deputy").inputValue(),"gpt-4.1-mini");await page.setViewportSize({width:1280,height:960});
-  await page.reload();await page.addScriptTag({path:join(run,"bundle/ui.js")});
+  await page.reload();await page.addScriptTag({path:join(bundle,"ui.js")});
   assert.equal(await page.locator("#planning-deputy").inputValue(),"gpt-4.1-mini");assert.equal(await page.locator("#planning-worker").inputValue(),"qwen3-32b");
   cases.push("Modal fits narrow screens, focuses search, supports Escape, and confirmed project selections survive reload");
 

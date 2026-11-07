@@ -84,6 +84,17 @@ impl Round {
                 .ok_or("权重判据缺失")?
                 .validate()?;
         }
+        if let Some(evidence) = &self.material.independent_check_evidence {
+            let archive = self.check_archive.as_ref().ok_or("检查摘要缺少原始归档")?;
+            require(
+                evidence
+                    == &cerulean_domain::independent_verifier::summarize_checks(
+                        &self.material,
+                        archive,
+                    )?,
+                "检查摘要与原始归档不符",
+            )?;
+        }
         if let Some(result) = &self.weighted_result {
             let computed = cerulean_domain::review_weights::evaluate(
                 self.weight_policy.as_ref().ok_or("权重判据缺失")?,
@@ -284,6 +295,11 @@ impl Round {
         let revealed = self.deputy_ready && self.ballots.len() == self.seats.len();
         BlindReviewView {
             check_archive_digest: self.check_archive.as_ref().and_then(|a| digest(a).ok()),
+            assembled_delivery: self
+                .check_archive
+                .as_ref()
+                .and_then(|a| a.assembled.as_ref())
+                .and_then(|a| digest(a).ok()),
             weight_policy: self.weight_policy.clone(),
             weighted_result: revealed.then(|| self.weighted_result.clone()).flatten(),
             session_progress: None,
@@ -306,13 +322,21 @@ impl Round {
                 .iter()
                 .map(|s| match &s.transport {
                     Some(ReviewTransport::Cli { adapter, .. }) if adapter == "omp" => 1,
-                    Some(_) => serde_json::to_vec(&self.material)
-                        .map_or(0, |b| b.len().div_ceil(5997) as u32 + 1),
+                    Some(transport) => serde_json::to_vec(&self.material).map_or(0, |b| {
+                        let bytes =
+                            cerulean_adapters::blind_review::local_packet_bytes(Some(transport));
+                        b.len().div_ceil(bytes - 3) as u32 + 1
+                    }),
                     None => 1,
                 })
                 .sum::<u32>()
                 + 2,
-            max_output_tokens: 4096,
+            max_output_tokens: self
+                .seats
+                .iter()
+                .map(ReviewSeat::output_limit)
+                .max()
+                .unwrap_or(4096),
             timeout_seconds: 90,
             deadline: self
                 .deadline
@@ -412,6 +436,27 @@ impl Ledger {
                 "盲评账本链损坏",
             )?;
             entry.round.validate()?;
+            if entry
+                .round
+                .seats
+                .iter()
+                .any(|seat| seat.max_output_tokens.is_some())
+            {
+                require(
+                    root.join("events")
+                        .join(crate::review_material_guard::API_LIMITS_FILE_NAME)
+                        .is_file(),
+                    "评审 API 输出额度缺少阅读器保护",
+                )?;
+            }
+            if entry.round.material.independent_check_evidence.is_some() {
+                require(
+                    root.join("events")
+                        .join(crate::review_material_guard::FILE_NAME)
+                        .is_file(),
+                    "检查材料摘要缺少阅读器保护",
+                )?;
+            }
             transition(this.rounds.get(&entry.round.id), &entry.round)?;
             this.sequence = entry.sequence;
             this.previous = entry.hash;

@@ -41,7 +41,7 @@ if (windowsRuntime && triple !== "x86_64-pc-windows-msvc")
 const runtimeOverrides = new Set([
   "RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_BUILD_RUSTFLAGS",
   "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS", "CARGO_BUILD_TARGET",
-  "CARGO_BUILD_TARGET_DIR", "CERULEAN_VERIFIER_SHA256",
+  "CARGO_BUILD_TARGET_DIR", "CERULEAN_VERIFIER_SHA256", "CERULEAN_CHECKER_SHA256",
 ]);
 if (windowsRuntime && Object.entries(process.env).some(([name, value]) =>
   value && runtimeOverrides.has(name.toUpperCase())))
@@ -52,7 +52,12 @@ run("cargo", ["build", "-p", "cerulean-domain", "--bin", "cerulean-verifier", "-
   ...(windowsRuntime ? ["--target", triple, "--config", 'target.x86_64-pc-windows-msvc.rustflags=["-C","target-feature=+crt-static"]'] : []),
 ]);
 const verifier = join(cargoTarget, ...(windowsRuntime ? [triple] : []), release ? "release" : "debug", `cerulean-verifier${windowsRuntime ? ".exe" : ""}`);
-const boundEnvironment = {...process.env, CERULEAN_VERIFIER_SHA256:createHash("sha256").update(readFileSync(verifier)).digest("hex")};
+run("cargo", ["build", "-p", "cerulean-checker", "--locked",
+  ...(release ? ["--release"] : []),
+  ...(windowsRuntime ? ["--target", triple, "--config", 'target.x86_64-pc-windows-msvc.rustflags=["-C","target-feature=+crt-static"]'] : []),
+]);
+const checker = join(cargoTarget, ...(windowsRuntime ? [triple] : []), release ? "release" : "debug", `cerulean-checker${windowsRuntime ? ".exe" : ""}`);
+const boundEnvironment = {...process.env, CERULEAN_VERIFIER_SHA256:createHash("sha256").update(readFileSync(verifier)).digest("hex"), CERULEAN_CHECKER_SHA256:createHash("sha256").update(readFileSync(checker)).digest("hex")};
 run("cargo", [
   "build",
   "-p",
@@ -87,6 +92,9 @@ copyFileSync(verifier, join(cargoTarget, profile, `cerulean-verifier${ext}`));
 mkdirSync("apps/desktop/src-tauri/binaries", { recursive: true });
 copyFileSync(verifier, join("target", profile, `cerulean-verifier${ext}`));
 copyFileSync(verifier, `apps/desktop/src-tauri/binaries/cerulean-verifier-${triple}${ext}`);
+copyFileSync(checker, join(cargoTarget, profile, `cerulean-checker${ext}`));
+copyFileSync(checker, join("target", profile, `cerulean-checker${ext}`));
+copyFileSync(checker, `apps/desktop/src-tauri/binaries/cerulean-checker-${triple}${ext}`);
 copyFileSync(
   builtRuntime,
   `apps/desktop/src-tauri/binaries/cerulean-runtime-${triple}${ext}`,

@@ -4,6 +4,22 @@ use cerulean_adapters::omp_transport::worker::{PromptOutcome, WorkerTransport};
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 const PROMPT: &str = "Write the approved fixture";
+#[test]
+fn file_tool_contract_identifies_the_assigned_relative_root() {
+    let temp = tempfile::tempdir().unwrap();
+    let (service, _, _, _) = fixture(temp.path());
+    let definitions = service.definitions();
+    assert_eq!(definitions.len(), 2);
+    for definition in definitions {
+        assert!(definition
+            .description
+            .contains("host has already selected the directory"));
+        assert!(definition.parameters["properties"]["path"]["description"]
+            .as_str()
+            .unwrap()
+            .contains("relative to the assigned execution directory"));
+    }
+}
 #[tokio::test]
 async fn live_tool_checkpoints_wait_for_complete_prefix_and_verify_original_scope() {
     let temp = tempfile::tempdir().unwrap();

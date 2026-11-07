@@ -65,6 +65,12 @@ if($buildInfo.independentVerifierSchema -ne 1 -or $buildInfo.independentVerifier
 if((Get-FileHash -LiteralPath (Join-Path $root 'apps/desktop/src-tauri/binaries/cerulean-verifier-x86_64-pc-windows-msvc.exe') -Algorithm SHA256).Hash.ToLowerInvariant() -cne $verifierHash){throw 'Verifier staging mismatch'}
 Copy-Item -LiteralPath $verifier -Destination (Join-Path $target 'cerulean-verifier.exe')
 $resources+=@{path='cerulean-verifier.exe';bytes=(Get-Item -LiteralPath $verifier).Length;sha256=$verifierHash}
+$checker=Join-Path $root 'target/release/cerulean-checker.exe'
+$checkerHash=(Get-FileHash -LiteralPath $checker -Algorithm SHA256).Hash.ToLowerInvariant()
+if($buildInfo.objectiveCheckerSchema -ne 1 -or $buildInfo.objectiveCheckerSha256 -cne $checkerHash){throw 'Core does not bind the packaged checker'}
+if((Get-FileHash -LiteralPath (Join-Path $root 'apps/desktop/src-tauri/binaries/cerulean-checker-x86_64-pc-windows-msvc.exe') -Algorithm SHA256).Hash.ToLowerInvariant() -cne $checkerHash){throw 'Checker staging mismatch'}
+Copy-Item -LiteralPath $checker -Destination (Join-Path $target 'cerulean-checker.exe')
+$resources+=@{path='cerulean-checker.exe';bytes=(Get-Item -LiteralPath $checker).Length;sha256=$checkerHash}
 $manifest=[ordered]@{
     schema=1
     product=$config.productName

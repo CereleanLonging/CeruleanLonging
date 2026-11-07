@@ -32,6 +32,7 @@ pub(super) fn event(
         | WorkflowCommand::Verify { task, .. }
         | WorkflowCommand::Accept { task, .. }
         | WorkflowCommand::Advise { task, .. } => task,
+        WorkflowCommand::ReturnForRework { task, .. } => task,
     };
     let run = state
         .tasks
@@ -39,6 +40,7 @@ pub(super) fn event(
         .ok_or("handoff task missing from verified state")?;
     let status = match (command, run.state) {
         (WorkflowCommand::AbandonUnsent { .. }, _) => HandoffStatus::Blocked,
+        (WorkflowCommand::ReturnForRework { .. }, _) => HandoffStatus::Blocked,
         (_, TaskState::Accepted) => HandoffStatus::Accepted,
         (_, TaskState::Cancelled) => HandoffStatus::Cancelled,
         (_, TaskState::Submitted) => HandoffStatus::Submitted,
@@ -64,6 +66,9 @@ pub(super) fn event(
         }
         WorkflowCommand::Submit { summary, .. } => summary.clone(),
         WorkflowCommand::Advise { suggestion, .. } => suggestion.clone(),
+        WorkflowCommand::ReturnForRework { suggestion, .. } => {
+            format!("独立检查未通过，副指挥安排返工：{suggestion}")
+        }
         _ => serde_json::to_value(command).map_err(|e| e.to_string())?["kind"]
             .as_str()
             .ok_or("missing command kind")?
@@ -79,6 +84,7 @@ pub(super) fn event(
         task_id: task.clone(),
         attempt_id: match command {
             WorkflowCommand::AbandonUnsent { attempt, .. } => attempt.clone(),
+            WorkflowCommand::ReturnForRework { attempt, .. } => attempt.clone(),
             _ => run.attempt.clone().unwrap_or("unassigned".into()),
         },
         actor: entry.body.event.principal.clone(),
@@ -91,6 +97,9 @@ pub(super) fn event(
                 _,
             ) => "须申请修订并重新批准方案；原请求不得重发",
             (WorkflowCommand::AbandonUnsent { .. }, _) => "原尝试已关闭；后续须使用新尝试重新分配",
+            (WorkflowCommand::ReturnForRework { .. }, _) => {
+                "按副指挥反馈修正成果，再由独立检查工具复查"
+            }
             (_, HandoffStatus::Blocked) => "对账后继续，禁止自动重发",
             (_, HandoffStatus::Submitted) => "独立验证后验收",
             _ => "按计划推进",

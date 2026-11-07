@@ -1,3 +1,4 @@
+import { qoderCandidate, qoderEstablished, qoderUpgradeBlock } from "./qoderUpgrade";
 import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import {useState} from 'react';
@@ -14,7 +15,8 @@ export function DesktopSessions({data,busy,send,projectId,idPrefix="desktop",onB
   const current=!!review&&review===access?.observationDigest;
   return <section className="workflow-plans desktop-sessions" aria-label="已有桌面会话">
     <HelpHeading as="h2" topic="DesktopSessions">Qoder 已有会话</HelpHeading>
-    <p className="secondary">选择已打开的聊天，读取后关联工作台项目。Qoder 0.4.3.0 可另行确认固定文本验证。批准方案并启动后，副指挥分配的编程任务会在“需求与计划”等待你审阅发送；后续任务会先核对上一条任务及回复，历史或聊天身份变化时停止。</p>
+    <p className="secondary">选择已打开的聊天，读取后关联工作台项目。Qoder 0.4.3.0 和 0.4.8.0 已有实测记录。同系列后续版本先检查界面结构并完成固定消息验证，重新保存关联后再批准任务。批准方案并启动后，副指挥分配的编程任务会在“需求与计划”等待你审阅发送；后续任务会先核对上一条任务及回复，历史或聊天身份变化时停止。</p>
+    <p className="secondary">应用升级或重启后，请重新发现窗口并绑定原会话。未完成任务需先回读原记录或处理未知结果，再修订方案继续。</p>
     <button type="button" className="secondary-button" disabled={!access||disabled} onClick={()=>void send({type:'discoverDesktop'})}>发现已打开窗口</button>
     <LocalConnectionTest scope={data?.dataDirectory??""} busy={disabled} request={observation?{kind:"qoder",observation}:null}
       hint="先发现窗口并读取目标会话，再测试当前聊天的读取连接。"/>
@@ -37,7 +39,8 @@ export function DesktopSessions({data,busy,send,projectId,idPrefix="desktop",onB
       <p className="secondary">模型显示名：{binding.observation.modelLabel??"旧观察未记录，请重新读取并关联"}</p>
       <p className="secondary">保存于 {new Date(binding.confirmedAt).toLocaleString('zh-CN')} · 历史观察，使用前需重新读取核对。</p>
       {binding.observation.window.app==='workbuddy'&&<p>WorkBuddy 支持已移除，此关联仅作历史记录。</p>}
-      {binding.observation.window.app==='qoder'&&binding.observation.window.version==='0.4.3.0'&&<button type="button" className="secondary-button" disabled={disabled||unresolved} onClick={()=>void send({type:'prepareDesktopTrial',bindingId:binding.id})}>准备固定消息验证</button>}
+      {binding.observation.window.app==='qoder'&&!qoderEstablished(binding.observation.window.version)&&<p role="status">{qoderUpgradeBlock(binding, access.trials, access.bridgeSha256) ?? "当前版本、聊天与模型的升级验证已通过。"}</p>}
+      {binding.observation.window.app==='qoder'&&qoderCandidate(binding.observation.window.version)&&<button type="button" className="secondary-button" disabled={disabled||unresolved} onClick={()=>void send({type:'prepareDesktopTrial',bindingId:binding.id})}>准备固定消息验证</button>}
     </article>)}</details>}
     {trial&&<article className="panel"><HelpHeading as="h3" topic="DesktopSessions">验证消息已准备</HelpHeading><p>核对目标聊天和完整消息后，再确认发送。准备操作不会发送消息。</p><button type="button" className="primary" disabled={disabled} onClick={()=>{setTrialReview(trial.id);setTrialAck(false);}}>审阅验证消息</button></article>}
     {!!access?.trials.length&&<details open><summary>固定消息验证记录（{access.trials.length}）</summary>{access.trials.map(t=><article className="panel" key={t.review.id}>

@@ -162,10 +162,9 @@ pub(super) fn inspect_completion(
             && c.manifest.receipt_digest == digest(&c.receipt)?
             && c.manifest
                 .artifacts
-                .iter()
-                .map(|a| a.path.clone())
-                .collect::<Vec<_>>()
-                == paths,
+                .windows(2)
+                .all(|a| a[0].path < a[1].path)
+            && c.manifest.artifacts.iter().all(|a| paths.contains(&a.path)),
         "封存交付集合不符",
     )?;
     for a in &c.manifest.artifacts {

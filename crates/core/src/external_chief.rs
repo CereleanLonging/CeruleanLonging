@@ -78,6 +78,7 @@ impl RuntimeHost {
         )?;
         let operation = format!("ui-plan-{}-{}", &digest(&project)?[..32], count + 1);
         let context = crate::worker_boundaries::annotate(context, Purpose::Plan)?;
+        let context = self.planning_replies(context)?;
         let intent = DecisionIntent {
             operation_id: operation,
             project_id: project.into(),

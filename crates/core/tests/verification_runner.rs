@@ -10,6 +10,99 @@ use std::{
 };
 
 struct OwnedTestProcess(std::process::Child);
+
+// The existing native-check harness launches a pinned wrapper -> checker ->
+// interpreter, exercising the production sealed snapshot, bounded pipes, Job
+// tree ownership and independent report protocol without building the huge
+// core unit-test binary or creating a Windows account.
+#[test]
+fn objective_checker_real_process_and_one_way_report() {
+    use cerulean_domain::objective_checker::*;
+    let executable = std::env::current_exe().unwrap();
+    let checker = executable
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("cerulean-checker.exe");
+    assert!(checker.is_file(), "Build checker first");
+    let node = std::env::split_paths(&std::env::var_os("PATH").unwrap())
+        .map(|p| p.join("node.exe"))
+        .find(|p| p.is_absolute() && p.is_file())
+        .expect("Node installed for synthetic checks");
+    let runtime = PinnedCheck::describe(&node, &[], Default::default())
+        .unwrap()
+        .executable;
+    let source="import {sum} from './sum.mjs'; console.log(JSON.stringify({schemaVersion:1,assertions:[{id:'sum',passed:sum(2,3)===5&&sum(-1,1)===0,detail:'positive and negative sums'}]}));";
+    for (mode, code, passed) in [
+        ("pass", "export const sum=(a,b)=>a+b;", true),
+        ("wrong", "export const sum=(a,b)=>a-b;", false),
+        ("missing", "export const sum=()=>0;", false),
+        ("tampered-runtime", "export const sum=(a,b)=>a+b;", false),
+        ("timeout", "export const sum=(a,b)=>a+b;", false),
+        ("overflow", "export const sum=(a,b)=>a+b;", false),
+    ] {
+        let mut f = Fixture::prepare("success", 8);
+        fs::write(f.root.path().join("sum.mjs"), code).unwrap();
+        let mut recipe=BoundScript{schema_version:1,test:ScriptTest{language:Language::JavaScript,source:match mode {"missing"=>"console.log('ok')", "timeout"=>"import{spawn}from'node:child_process';const c=spawn(process.execPath,['--eval','setInterval(()=>{},1000)'],{stdio:'ignore'});console.log(c.pid);setInterval(()=>{},1000);", "overflow"=>"for(;;)console.log('x'.repeat(65536));",_=>source}.into(),assertions:vec!["sum".into()]},runtime:runtime.clone(),timeout_seconds:8};
+        if mode == "tampered-runtime" {
+            recipe.runtime.sha256 = "0".repeat(64);
+        }
+        let args = recipe.arguments().unwrap();
+        let launch=format!("import{{spawnSync}}from'node:child_process';const r=spawnSync({}, {}, {{stdio:['ignore','inherit','inherit'],windowsHide:true}});process.exit(r.status??2);",serde_json::to_string(&checker).unwrap(),serde_json::to_string(&args).unwrap());
+        let check = &mut f.plan.execution[0].checks[0];
+        check.program = node.to_string_lossy().into();
+        check.args = vec!["--input-type=module".into(), "--eval".into(), launch];
+        check.expected_assertions = vec!["sum".into()];
+        check.timeout_seconds = 8;
+        check.tool = Some(
+            PinnedCheck::describe(&node, std::slice::from_ref(&checker), Default::default())
+                .unwrap(),
+        );
+        f.approval.revision_digest = f.plan.approval_digest().unwrap();
+        f.attempt.revision_digest = f.approval.revision_digest.clone();
+        let evidence = tempfile::tempdir().unwrap();
+        let outcome = f.run(evidence.path(), &AtomicBool::new(false));
+        if mode == "overflow" {
+            assert!(outcome.is_err());
+            continue;
+        }
+        let report = outcome.unwrap_or_else(|e| panic!("{mode}: {e}"));
+        assert_eq!(
+            report
+                .require_pass(&f.plan, &f.observer().unwrap().capture().unwrap(), "core")
+                .is_ok(),
+            passed,
+            "{mode}"
+        );
+        let inspected = fs::read(evidence.path().join("verify-1/independent-check.json")).unwrap();
+        let record: cerulean_domain::independent_checks::CheckRecord =
+            serde_json::from_slice(&inspected).unwrap();
+        assert_eq!(record.checks[0].passed, passed);
+        assert!(
+            f.run(evidence.path(), &AtomicBool::new(false)).is_err(),
+            "must not rerun completed attempt"
+        );
+        if mode == "timeout" {
+            assert!(report.checks[0].timed_out);
+            let stdout = fs::read_to_string(evidence.path().join("verify-1/check.stdout")).unwrap();
+            let pid = stdout
+                .trim()
+                .parse::<u32>()
+                .expect("owned grandchild started");
+            use windows_sys::Win32::System::Threading::*;
+            let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+            if !process.is_null() {
+                let mut code = 0;
+                unsafe {
+                    GetExitCodeProcess(process, &mut code);
+                    windows_sys::Win32::Foundation::CloseHandle(process);
+                }
+                assert_ne!(code, 259, "descendant must exit with owned Job");
+            }
+        }
+    }
+}
 impl Drop for OwnedTestProcess {
     fn drop(&mut self) {
         let _ = self.0.kill();
@@ -216,6 +309,49 @@ impl Fixture {
         )
     }
 }
+#[test]
+fn missing_delivery_is_a_recorded_rejection_without_running_checks() {
+    for mode in ["missing", "directory", "parent-file"] {
+        let fixture = Fixture::prepare("success", 5);
+        fs::remove_file(fixture.root.path().join("src/result.txt")).unwrap();
+        match mode {
+            "directory" => fs::create_dir(fixture.root.path().join("src/result.txt")).unwrap(),
+            "parent-file" => {
+                fs::remove_dir(fixture.root.path().join("src")).unwrap();
+                fs::write(fixture.root.path().join("src"), "wrong type").unwrap();
+            }
+            _ => (),
+        }
+        let evidence = tempfile::tempdir().unwrap();
+        let report = fixture
+            .run(evidence.path(), &AtomicBool::new(false))
+            .unwrap();
+        let manifest = fixture.observer().unwrap().capture().unwrap();
+        assert!(manifest.artifacts.is_empty());
+        assert!(report
+            .require_pass(&fixture.plan, &manifest, "core")
+            .is_err());
+        assert_eq!(report.checks.len(), 1);
+        assert_eq!(report.checks[0].exit_code, None);
+        assert!(report.checks[0]
+            .assertion_error
+            .as_ref()
+            .unwrap()
+            .contains("src/result.txt"));
+        let record: cerulean_domain::independent_checks::CheckRecord = serde_json::from_slice(
+            &fs::read(evidence.path().join("verify-1/independent-check.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(!record.checks[0].passed);
+        assert!(fs::read(evidence.path().join("verify-1/check.stdout"))
+            .unwrap()
+            .is_empty());
+        assert!(fixture
+            .run(evidence.path(), &AtomicBool::new(false))
+            .is_err());
+    }
+}
+
 #[test]
 fn ordered_stages_keep_individual_outcomes_and_never_rerun() {
     for mode in ["success", "first-fail", "second-fail", "first-timeout"] {

@@ -332,6 +332,17 @@ pub mod catalog {
             let _recheck_guard =
                 read_pinned(&data.join(verification_recheck_guard::MARKER), &mut handles)?;
         }
+        // Feature activation can add newer reader guards after catalog creation.
+        // Preserve the original registration and pin each supported added guard
+        // before the core validates its contents and directory/owner binding.
+        for generation in
+            verification_recheck_guard::GENERATION + 1..=cerulean_core::DATA_READER_GENERATION
+        {
+            let marker = data.join(format!("events/00000000.reader{generation}.json"));
+            if marker.try_exists().map_err(err)? {
+                read_pinned(&marker, &mut handles)?;
+            }
+        }
         let guard_value: serde_json::Value = serde_json::from_slice(&guard).map_err(err)?;
         let archive = folder.join("initial-cold-backup");
         let backup_review = backup::verify(&archive)?;
@@ -344,7 +355,7 @@ pub mod catalog {
             "工作台保护或初始备份不匹配",
         )?;
         require(
-            (intent.minimum_reader..=verification_recheck_guard::GENERATION)
+            (intent.minimum_reader..=cerulean_core::DATA_READER_GENERATION)
                 .contains(&data_format::status(&data)?.minimum_reader_generation),
             "实验保护状态不匹配",
         )?;

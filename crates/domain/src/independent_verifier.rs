@@ -29,6 +29,10 @@ pub enum Operation {
     ArchiveChecks {
         archive: crate::independent_checks::CheckArchive,
     },
+    AttachCheckEvidence {
+        material: ReviewMaterial,
+        archive: crate::independent_checks::CheckArchive,
+    },
     WeightedTally {
         policy: crate::review_weights::WeightPolicy,
         archive: crate::independent_checks::CheckArchive,
@@ -142,6 +146,35 @@ fn check_ballot(
     )?;
     ballot.validate(material)
 }
+pub fn summarize_checks(
+    material: &ReviewMaterial,
+    archive: &crate::independent_checks::CheckArchive,
+) -> Result<ReviewCheckEvidence, String> {
+    material.validate()?;
+    require(
+        archive.basis_points()? == 10000,
+        "执行端独立检查尚未全部合格",
+    )?;
+    let total = archive
+        .records
+        .iter()
+        .map(|record| record.checks.len() as u32)
+        .sum();
+    require(material.objective_checks == total, "检查数量与封存报告不符")?;
+    Ok(ReviewCheckEvidence {
+        task_deliveries: archive.records.len() as u32,
+        checks_total: total,
+        checks_passed: total,
+        source_files: material
+            .fragments
+            .iter()
+            .map(|fragment| &fragment.file)
+            .collect::<BTreeSet<_>>()
+            .len() as u32,
+        assembled_delivery: archive.assembled.is_some(),
+    })
+}
+
 pub fn evaluate(operation: &Operation) -> Result<Output, String> {
     match operation {
         Operation::InspectChecks {
@@ -159,6 +192,18 @@ pub fn evaluate(operation: &Operation) -> Result<Output, String> {
             digest: digest(archive)?,
             basis_points: archive.basis_points()?,
         }),
+        Operation::AttachCheckEvidence { material, archive } => {
+            material.validate()?;
+            require(
+                material.independent_check_evidence.is_none(),
+                "材料已有检查摘要，禁止覆盖",
+            )?;
+            let evidence = summarize_checks(material, archive)?;
+            let mut material = material.clone();
+            material.independent_check_evidence = Some(evidence);
+            material.validate()?;
+            Ok(Output::Prepared { material })
+        }
         Operation::WeightedTally {
             policy,
             archive,
@@ -203,6 +248,7 @@ pub fn evaluate(operation: &Operation) -> Result<Output, String> {
                 .map(|b| (String::new(), b))
                 .collect::<Vec<_>>();
             let material = ReviewMaterial {
+                independent_check_evidence: None,
                 protocol: PROTOCOL.into(),
                 requirement: material::sanitize(requirement, redactions)?,
                 criteria: criteria
@@ -294,6 +340,90 @@ pub fn handle(bytes: &[u8]) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn check_archive() -> crate::independent_checks::CheckArchive {
+        use crate::independent_checks::{CheckArchive, CheckFact, CheckRecord};
+        CheckArchive {
+            schema_version: 1,
+            project_id: "private-project".into(),
+            revision: "a".repeat(64),
+            final_task: "private-task".into(),
+            final_source: "b".repeat(64),
+            assembled: None,
+            records: vec![CheckRecord {
+                schema_version: 1,
+                project_id: "private-project".into(),
+                revision: "a".repeat(64),
+                task_id: "private-task".into(),
+                attempt_id: "private-attempt".into(),
+                operation_id: "private-operation".into(),
+                source_digest: "b".repeat(64),
+                manifest_digest: "c".repeat(64),
+                report_digest: "d".repeat(64),
+                observed_at: "2026-11-07T00:00:00Z".into(),
+                checks: vec![CheckFact {
+                    id: "private-check".into(),
+                    command_digest: "e".repeat(64),
+                    tool_digest: "f".repeat(64),
+                    passed: true,
+                    reason: "private-report-content".into(),
+                }],
+            }],
+        }
+    }
+    #[test]
+    fn attached_evidence_is_anonymous_and_preserves_legacy_serialization() {
+        let original = material();
+        let bytes = serde_json::to_vec(&original).unwrap();
+        assert!(!String::from_utf8_lossy(&bytes).contains("independentCheckEvidence"));
+        let reread: ReviewMaterial = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(serde_json::to_vec(&reread).unwrap(), bytes);
+        let Output::Prepared { material } = evaluate(&Operation::AttachCheckEvidence {
+            material: original,
+            archive: check_archive(),
+        })
+        .unwrap() else {
+            panic!("prepared material expected")
+        };
+        assert_eq!(
+            material.independent_check_evidence,
+            Some(ReviewCheckEvidence {
+                task_deliveries: 1,
+                checks_total: 1,
+                checks_passed: 1,
+                source_files: 1,
+                assembled_delivery: false,
+            })
+        );
+        assert!(!serde_json::to_string(&material)
+            .unwrap()
+            .contains("private-"));
+        assert!(evaluate(&Operation::AttachCheckEvidence {
+            material,
+            archive: check_archive(),
+        })
+        .is_err());
+    }
+    #[test]
+    fn attached_evidence_rejects_failed_incomplete_and_foreign_archives() {
+        for case in 0..4 {
+            let mut archive = check_archive();
+            match case {
+                0 => archive.records[0].checks[0].passed = false,
+                1 => archive.records[0].checks.clear(),
+                2 => archive.records[0].project_id = "foreign".into(),
+                _ => {
+                    let mut extra = archive.records[0].checks[0].clone();
+                    extra.id = "extra".into();
+                    archive.records[0].checks.push(extra);
+                }
+            }
+            assert!(evaluate(&Operation::AttachCheckEvidence {
+                material: material(),
+                archive,
+            })
+            .is_err());
+        }
+    }
     fn material() -> ReviewMaterial {
         let Output::Prepared { material } = evaluate(&Operation::Prepare {
             requirement: "Build a CSV tool".into(),
@@ -311,6 +441,7 @@ mod tests {
         ["chief", "deputy", "worker"]
             .into_iter()
             .map(|r| ReviewSeat {
+                max_output_tokens: None,
                 id: r.into(),
                 role: r.into(),
                 target: Some(crate::api_worker::ApiTarget::OpenAi {}),

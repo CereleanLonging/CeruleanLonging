@@ -106,6 +106,7 @@ impl ScopedDecisionDraft {
                 .len(),
             max_output_tokens: 4096,
         };
+        fingerprint.validate()?;
         Ok(Self { body, fingerprint })
     }
 

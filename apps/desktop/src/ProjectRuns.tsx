@@ -1,3 +1,6 @@
+import { qoderUpgradeBlock } from "./qoderUpgrade";
+import { ProjectActivity } from "./ProjectActivity";
+import type { WorkspaceReader } from "./WorkspaceBrowser";
 import { HelpHeading } from "./HelpHeading";
 import { ErrorText } from "./ErrorText";
 import { useState } from "react";
@@ -33,8 +36,8 @@ function cancellationBlock(
     .flatMap(e=>e.desktopWorker?[e.desktopWorker]:[])??[];
   if(desktops.length){
     for(const desktop of desktops){
-      const window=desktop.binding.observation.window;
-      if(!(window.app==="qoder"&&window.version==="0.4.3.0"))return "当前桌面应用或版本尚未接入编程调度，需要先完成适配。";
+      const upgradeBlock = qoderUpgradeBlock(desktop.binding, data.desktopAccess?.trials ?? [], data.desktopAccess?.bridgeSha256 ?? "");
+      if (upgradeBlock) return upgradeBlock;
       if(desktop.binding.bridgeSha256!==data.desktopAccess?.bridgeSha256)return "桌面桥接版本变化，需要重新配置和批准。";
     }
     if(Object.values(workflow.state.tasks).some(t=>t?.state==="unknown"||t?.state==="cancelling"))return "原桌面任务结果待核对，完成回读或处置后再恢复调度。";
@@ -77,11 +80,13 @@ function cancellationBlock(
 export function ProjectRuns({
   data,
   send,
-  busy,
+  busy, read, enabled = true,
 }: {
   data: Snapshot | null;
   send: (command: Command) => Promise<boolean>;
   busy: boolean;
+  read: WorkspaceReader;
+  enabled?: boolean;
 }) {
   const [review, setReview] = useState<Review | null>(null);
   const reviewedWorkflow =
@@ -104,6 +109,7 @@ export function ProjectRuns({
       <p className="secondary">
         启动后，核心会按已批准方案调用副指挥、编程模型、独立验收与主指挥收口。执行端只能访问各自绑定目录，评审只读取批准片段。桌面任务会等待你审阅并确认发送。退出工作台会按确认流程正常停止后台；暂停会阻止后续调度，已发送任务继续收集结果。
       </p>
+      <ProjectActivity data={data} read={read} enabled={enabled}/>
       {data?.workflows
         .filter((w) => w.approval)
         .map((w) => {

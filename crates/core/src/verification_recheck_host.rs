@@ -101,6 +101,13 @@ impl RuntimeHost {
             self.save_verification_job(&job)?;
             self.jobs.insert(key, job);
         }
+        crate::windows_worker_account::retire_check_access(
+            &self.root,
+            self.projects
+                .get(&review.project_id)
+                .ok_or("原项目尚未恢复")?,
+            review,
+        )?;
         Ok(entry)
     }
     pub(super) fn is_verification_recheck(&self, project: &str, operation: &str) -> bool {

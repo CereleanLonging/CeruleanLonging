@@ -18,7 +18,7 @@ pub(crate) fn inspect(
     checks: &[AcceptanceCheck],
     report: &VerificationReport,
 ) -> Result<CheckRecord, String> {
-    match crate::independent_verifier::call(Operation::InspectChecks {
+    match crate::objective_checker::inspect(Operation::InspectChecks {
         project: project.into(),
         operation: operation.into(),
         manifest: manifest.clone(),

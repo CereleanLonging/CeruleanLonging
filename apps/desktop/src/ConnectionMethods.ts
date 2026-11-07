@@ -1,21 +1,29 @@
 import type { ProjectWorkerAdapter } from "./contracts";
 
-export type WorkerMethod = "api" | "cli" | "desktop";
+export type WorkerMethod = "api" | "key" | "cli" | "desktop";
 
 export const workerMethodLabels: Record<WorkerMethod, string> = {
   api: "API 连接",
+  key: "Key 管理",
   cli: "CLI 接入",
   desktop: "桌面端接入",
 };
 
-export function workerMethod(adapter: ProjectWorkerAdapter = "codex"): WorkerMethod {
-  if (adapter === "codex" || adapter === "omp") return "cli";
+export function workerMethod(adapter: ProjectWorkerAdapter = "deepseek"): WorkerMethod {
+  if (adapter === "omp") return "api";
+  if (adapter === "codex") return "cli";
   if (adapter === "qoder" || adapter === "workbuddy") return "desktop";
-  return "api";
+  return "key";
+}
+
+// UI groups describe configuration routes; OMP still uses a local Agent process.
+export function localWorker(adapter: ProjectWorkerAdapter = "deepseek"): boolean {
+  return adapter === "omp";
 }
 
 export const defaultWorkerAdapter: Record<WorkerMethod, ProjectWorkerAdapter> = {
-  api: "deepseek",
+  api: "omp",
+  key: "deepseek",
   cli: "codex",
   desktop: "qoder",
 };

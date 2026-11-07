@@ -1,0 +1,66 @@
+// Actual React/CSS, synthetic desktop bindings and recording IPC only.
+import assert from 'node:assert/strict';
+import {mkdtemp,writeFile} from 'node:fs/promises';
+import {join,resolve} from 'node:path';
+import {build} from 'vite';
+import {chromium} from 'playwright-core';
+assert.equal(process.env.CERULEAN_NATIVE_OWNED_JOB,'1');
+assert(process.env.CERULEAN_CACHE_SESSION);
+const run=await mkdtemp(resolve('reports/objective-checker-ui-'));
+const bundle=join(process.env.CERULEAN_CACHE_SESSION,'objective-checker-ui');
+const entry=join(run,'entry.tsx');
+await writeFile(entry,`import React from 'react';import{createRoot}from'react-dom/client';import{flushSync}from'react-dom';
+import{ProjectAccessSummary}from'../../apps/desktop/src/ProjectAccessSummary';import{ValidatorCatalog}from'../../apps/desktop/src/ValidatorCatalog';import{ObjectiveTestReview}from'../../apps/desktop/src/ObjectiveTestReview';import{loadAccessDraft,saveAccessDraft}from'../../apps/desktop/src/accessDraft';
+const root=createRoot(document.getElementById('root'));window.commands=[];window.read=loadAccessDraft;window.save=saveAccessDraft;
+window.render=(draft,check)=>flushSync(()=>root.render(<><ProjectAccessSummary draft={draft} accessReady={true} disabled={false} onConnections={()=>window.commands.push('connections')}/><ValidatorCatalog items={[]} connected={true} busy={false} send={async c=>{window.commands.push(c);return true;}}/><ObjectiveTestReview check={check}/></>));`);
+await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:bundle,emptyOutDir:false,lib:{entry,name:'CheckerUI',formats:['iife'],fileName:()=> 'ui.js'}}});
+const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+const page=await browser.newPage({viewport:{width:1280,height:960}});page.setDefaultTimeout(10000);
+let externalRequests=0;const errors=[],cases=[];
+page.on('pageerror',e=>errors.push(e.message));
+await page.route('**/*',r=>r.request().url()==='http://localhost/checker-fixture'?r.fulfill({contentType:'text/html',body:'<html lang="zh-CN"><meta charset="utf-8"><div id="root"></div></html>'}):(externalRequests++,r.abort()));
+async function load(){
+ await page.goto('http://localhost/checker-fixture');
+ await page.evaluate(()=>{window.ipc=[];window.__TAURI_INTERNALS__={invoke:async(name)=>{window.ipc.push(name);if(!['objective_checker_status','independent_verifier_status'].includes(name))throw Error('Unexpected IPC');return{ready:true,version:'fixture',path:'D:/synthetic/'+name+'.exe',sha256:'a'.repeat(64),error:null};}};});
+ await page.addStyleTag({path:'apps/desktop/src/style.css'});await page.addScriptTag({path:join(bundle,'ui.js')});
+}
+const binding={id:'qoder-binding',projectId:'project',label:'Qoder synthetic',bridgeSha256:'bridge',observation:{sessionId:'qoder-session-fixture',modelLabel:'qoder-model'}};
+const desktopWorker={binding,modelLabel:'qoder-model',projectRoot:'D:/synthetic/project/executors/qoder',workspaceConfirmed:true,externalToolsAcknowledged:true};
+const draft={projectId:'project',requirement:'synthetic project',chiefModel:'chief-fixture',deputyModel:'deputy-fixture',workerAdapter:'deepseek',workerModel:'api-worker',apiWorker:{target:{kind:'provider',endpoint:{kind:'deepSeek'}},model:'api-worker',fileTools:['read-files','write-files'],maxRounds:2,maxToolCalls:4,maxOutputTokens:1024,maxTotalTokens:8000,requestTimeoutSeconds:30},codexExecutable:'',validatorId:'cerulean-objective-checker',checkArgs:[],artifactPaths:['main.mjs'],workerMaxRequests:3,managementMaxRequests:10,maxSeconds:60,profiles:[{id:'desktop-extra',description:'Qoder work',workerAdapter:'qoder',workerModel:'qoder-model',desktopWorker,codexExecutable:'',artifactPaths:['qoder.mjs'],acceptance:{schemaVersion:1,stages:[]}}]};
+const recipe={schemaVersion:1,test:{language:'javaScript',source:"import {sum} from './sum.mjs';\nconsole.log(sum(2,3));",assertions:['sum']},runtime:{path:'D:/tools/node.exe',sha256:'b'.repeat(64)},timeoutSeconds:30};
+const check={id:'tests',program:'D:/tools/cerulean-checker.exe',args:['--approved-script-v1',JSON.stringify(recipe)],timeoutSeconds:30,expectedAssertions:['sum']};
+const render=async value=>page.evaluate(({value,check})=>window.render(value,check),{value,check});
+try{
+ await load();await render(draft);
+ const summary=page.getByRole('region',{name:'已选角色模型'});
+ await page.getByText('已绑定 · fixture · 程序摘要匹配',{exact:true}).first().waitFor();
+ for(const text of ['chief-fixture','deputy-fixture','api-worker','附加执行端 · desktop-extra','qoder-session-fixture',desktopWorker.projectRoot])assert((await summary.innerText()).includes(text));
+ assert.equal(await page.locator('#workbench-checker').evaluate(e=>e.readOnly),true);
+ assert.equal(await page.locator('#workbench-verifier').evaluate(e=>e.readOnly),true);
+ assert.equal(await page.locator('#validator-executable,#validator-name').count(),0);
+ assert.deepEqual((await page.evaluate(()=>window.ipc)).sort(),['independent_verifier_status','objective_checker_status']);
+ assert.equal(await page.getByRole('button',{name:'读取文件并登记',exact:true}).count(),0);
+ assert.equal(await page.getByRole('region',{name:'待批准的客观测试源码'}).locator('pre code').innerText(),recipe.test.source);
+ cases.push('Additional Qoder session, model and assigned directory appear alongside primary API worker; both fixed tools are separately bound and read-only');
+ await render({...draft,workerAdapter:'qoder',workerModel:'qoder-model',desktopWorker,apiWorker:undefined,profiles:[]});
+ assert((await summary.innerText()).includes('默认执行端 · Qoder 桌面'));
+ assert((await summary.innerText()).includes(binding.observation.sessionId));
+ cases.push('Default Qoder worker shows the same saved session binding');
+ const data={dataDirectory:'checker-summary-synthetic',desktopAccess:{bindings:[binding],bridgeSha256:'bridge'}};
+ await page.evaluate(({draft,data})=>{assertSave();function assertSave(){if(!window.save(data.dataDirectory,'D:/synthetic/project',null,draft,true))throw Error('save failed');}},{draft,data});
+ await load();
+ const restored=await page.evaluate(({draft,data})=>{const r=window.read(data,'project','D:/synthetic/project',null);if(r.state!=='restored')throw Error(r.state);return {...draft,...r.values};},{draft,data});
+ await render(restored);
+ assert((await summary.innerText()).includes(binding.observation.sessionId));
+ assert((await summary.innerText()).includes('请在接入管理确认当前执行目录与工具范围'));
+ cases.push('Real page reload restores the Qoder reference, while scope confirmations remain reset');
+ await page.setViewportSize({width:420,height:900});
+ await page.screenshot({path:join(run,'fixed-tools-and-qoder-narrow.png'),fullPage:true});
+ assert(await summary.evaluate(e=>e.scrollWidth<=e.clientWidth+1));
+ await page.getByRole('button',{name:'修改接入配置',exact:true}).click();
+ assert.deepEqual(await page.evaluate(()=>window.commands),['connections']);
+ assert.equal(externalRequests,0);assert.deepEqual(errors,[]);
+ cases.push('Narrow summary wraps long directories and keeps navigation; no provider calls or configuration writes');
+ await writeFile(join(run,'result.json'),JSON.stringify({passed:true,cases,externalRequests,scope:'real React/CSS and browser reload; synthetic records, no native model integration'},null,2));
+ console.log(JSON.stringify({passed:true,cases:cases.length,report:run}));
+}catch(error){await page.screenshot({path:join(run,'failure.png'),fullPage:true});await writeFile(join(run,'failure.json'),JSON.stringify({error:String(error),cases,errors},null,2));throw error;}finally{await browser.close();}

@@ -232,6 +232,44 @@ impl Scanner {
     }
 }
 
+/// Resolve a session transport after a desktop update moved its bundled CLI.
+/// An existing explicit path remains authoritative. Missing paths may be
+/// replaced only by a unique discovered installation or running CLI.
+pub fn resolve_session_executable(preferred: Option<&str>) -> Result<String, String> {
+    let preferred = preferred.map(str::trim).filter(|p| !p.is_empty());
+    if let Some(path) = preferred {
+        let path = Path::new(path);
+        match fs::symlink_metadata(path) {
+            Ok(_) => {
+                validate_executable(path)?;
+                return Ok(path.to_string_lossy().into_owned());
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                if !path.is_absolute() {
+                    return Err("Codex 程序路径需要是完整绝对路径".into());
+                }
+            }
+            Err(_) => return Err("Codex 程序无法读取，请核对权限后重新选择".into()),
+        }
+    }
+    select_session_candidate(scan(preferred)?)
+}
+
+fn select_session_candidate(result: ScanResult) -> Result<String, String> {
+    let running: Vec<_> = result
+        .candidates
+        .iter()
+        .filter(|candidate| candidate.source == "正在运行的 Codex")
+        .collect();
+    if !result.limited && running.len() == 1 {
+        return Ok(running[0].executable.clone());
+    }
+    if !result.limited && result.candidates.len() == 1 {
+        return Ok(result.candidates[0].executable.clone());
+    }
+    Err("Codex 升级后需要重新定位程序。请扫描本地 Codex，明确选择安装位置并检查登录，再核对原会话。".into())
+}
+
 /// The optional hint is the input field's directory or executable; selection is separate.
 pub fn scan(hint: Option<&str>) -> Result<ScanResult, String> {
     let mut scanner = Scanner::new();
@@ -357,6 +395,45 @@ fn running_paths() -> Result<Vec<PathBuf>, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn session_upgrade_discovery_requires_unique_complete_result() {
+        fn candidate(path: &str, source: &str) -> Candidate {
+            Candidate {
+                executable: path.into(),
+                directory: "D:/fixture".into(),
+                source: source.into(),
+            }
+        }
+        assert!(select_session_candidate(ScanResult::default()).is_err());
+        let one = ScanResult {
+            candidates: vec![candidate("new.exe", "安装目录")],
+            ..Default::default()
+        };
+        assert_eq!(select_session_candidate(one).unwrap(), "new.exe");
+        let two = ScanResult {
+            candidates: vec![
+                candidate("old.exe", "安装目录"),
+                candidate("new.exe", "安装目录"),
+            ],
+            ..Default::default()
+        };
+        assert!(select_session_candidate(two).is_err());
+        let running = ScanResult {
+            candidates: vec![
+                candidate("old.exe", "安装目录"),
+                candidate("new.exe", "正在运行的 Codex"),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(select_session_candidate(running).unwrap(), "new.exe");
+        let partial = ScanResult {
+            candidates: vec![candidate("new.exe", "正在运行的 Codex")],
+            limited: true,
+            warnings: vec![],
+        };
+        assert!(select_session_candidate(partial).is_err());
+    }
+
     #[test]
     fn directories_and_missing_files_have_actionable_messages() {
         let temp = tempfile::tempdir().unwrap();

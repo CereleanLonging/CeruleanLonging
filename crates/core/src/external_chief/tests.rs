@@ -23,6 +23,8 @@ fn response(request: &ManagementHandoff) -> ExternalChiefDecision {
             state_digest: request.state_digest.clone(),
             decision: ManagementDecision::Plan {
                 tasks: vec![ProposedTask {
+                    artifact_paths: None,
+                    objective_test: None,
                     profile_id: None,
                     id: "sum".into(),
                     goal: "Implement a sum function".into(),

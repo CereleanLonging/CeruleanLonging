@@ -1,5 +1,6 @@
 # Keep this shared validation workspace from accumulating incremental caches.
 # Dependencies and release artifacts remain cached; compilation may take longer.
 [build]
+jobs = 1
 incremental = false
 target-dir = ".temp/build-cache/manual/cargo"

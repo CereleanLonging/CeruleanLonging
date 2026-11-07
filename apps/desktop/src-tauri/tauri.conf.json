@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "CeruleanLonging",
   "mainBinaryName": "CeruleanLonging",
-  "version": "0.1.45",
+  "version": "0.1.48",
   "identifier": "local.ceruleanlonging.workbench",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,6 +14,7 @@
     "windows": [
       {
         "label": "main",
+        "dragDropEnabled": false,
         "create": false,
         "title": "CeruleanLonging",
         "width": 1280,
@@ -33,6 +34,7 @@
     ],
     "resources": {
       "binaries/cerulean-verifier-x86_64-pc-windows-msvc.exe": "cerulean-verifier.exe",
+      "binaries/cerulean-checker-x86_64-pc-windows-msvc.exe": "cerulean-checker.exe",
       "../../../third-party/SQLITE-NOTICES.txt": "SQLITE-NOTICES.txt",
       "../../../third-party/THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt",
       "../../../third-party/RUST-LIBRARY-COPYRIGHT.html": "RUST-LIBRARY-COPYRIGHT.html",

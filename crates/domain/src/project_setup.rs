@@ -498,7 +498,11 @@ impl ProjectSetupDraft {
                 .ok_or("隔离项目需要明确的验收检查及断言")?
                 .stages;
             require(
-                !checks.is_empty() && checks.iter().all(|s| !s.expected_assertions.is_empty()),
+                !checks.is_empty()
+                    && checks.iter().all(|s| {
+                        !s.expected_assertions.is_empty()
+                            || (s.validator_id == crate::objective_checker::ID && s.args.is_empty())
+                    }),
                 "隔离项目的每项检查至少需要一个预期断言；退出码0不能代替检查覆盖",
             )?;
         }
@@ -634,8 +638,9 @@ impl ProjectSetupDraft {
             "执行程序或验收参数无效",
         )?;
         require(
-            !self.artifact_paths.is_empty() && self.artifact_paths.len() <= 64,
-            "请指定 1–64 个产物文件",
+            (self.validator_id == crate::objective_checker::ID || !self.artifact_paths.is_empty())
+                && self.artifact_paths.len() <= 64,
+            "交付文件配置无效；空清单只允许在固定检查器的主指挥方案中补全",
         )?;
         let mut unique = std::collections::BTreeSet::new();
         for path in &self.artifact_paths {

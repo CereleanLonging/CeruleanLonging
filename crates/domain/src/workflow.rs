@@ -214,6 +214,13 @@ pub enum WorkflowCommand {
         task: String,
         attempt: String,
     },
+    ReturnForRework {
+        task: String,
+        attempt: String,
+        verification_operation: String,
+        report_digest: String,
+        suggestion: String,
+    },
     Advise {
         task: String,
         suggestion: String,
@@ -245,6 +252,7 @@ impl WorkflowCommand {
             | Self::Submit { task, .. }
             | Self::Verify { task, .. }
             | Self::Accept { task, .. }
+            | Self::ReturnForRework { task, .. }
             | Self::Advise { task, .. } => Some(task),
         }
     }
@@ -273,7 +281,8 @@ impl WorkflowCommand {
             | Self::Reconcile { attempt, .. }
             | Self::Submit { attempt, .. }
             | Self::Verify { attempt, .. }
-            | Self::Accept { attempt, .. } => Some(attempt),
+            | Self::Accept { attempt, .. }
+            | Self::ReturnForRework { attempt, .. } => Some(attempt),
         }
     }
 }
@@ -534,6 +543,7 @@ impl Workflow {
                 !matches!(
                     cmd,
                     WorkflowCommand::Advise { .. }
+                        | WorkflowCommand::ReturnForRework { .. }
                         | WorkflowCommand::RequestRevision { .. }
                         | WorkflowCommand::RetireSubmittedPlan { .. }
                         | WorkflowCommand::AuthorizePlanningBudget { .. }
@@ -804,6 +814,48 @@ impl Workflow {
         require(cmd.attempt() == run.attempt.as_deref(), "stale attempt")?;
         let run = state.tasks.get_mut(task_id).ok_or("unknown task")?;
         match cmd {
+            WorkflowCommand::ReturnForRework {
+                attempt,
+                verification_operation,
+                report_digest,
+                suggestion,
+                ..
+            } => {
+                role(principal, Role::Deputy)?;
+                id(verification_operation)?;
+                crate::execution::sha256(report_digest)?;
+                text(suggestion)?;
+                require(!suggestion.contains('\0'), "invalid rework suggestion")?;
+                require(
+                    run.state == TaskState::Submitted
+                        && !run.verified
+                        && self
+                            .journal
+                            .iter()
+                            .rev()
+                            .find(|e| {
+                                matches!(
+                                    &e.command, WorkflowCommand::Verify { task, attempt: a, .. }
+                                        if task == task_id && a == attempt
+                                )
+                            })
+                            .is_some_and(|e| {
+                                matches!(&e.command,
+                            WorkflowCommand::Verify { passed: false, evidence, .. }
+                                if evidence.contains(report_digest))
+                            }),
+                    "rework requires the current recorded failed check",
+                )?;
+                run.state = TaskState::Pending;
+                run.worker = None;
+                run.attempt = None;
+                run.evidence.clear();
+                run.cancellation_requested = None;
+                state.advice.push(Advice {
+                    task: task_id.into(),
+                    suggestion: suggestion.clone(),
+                });
+            }
             WorkflowCommand::RetireUnknownApi {
                 attempt, reason, ..
             }

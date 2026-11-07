@@ -11,9 +11,24 @@ pub enum Purpose {
     Accept,
     Advise,
 }
+impl Purpose {
+    /// Planning carries the saved requirement and its immutable directory copy.
+    /// Other management operations retain their existing review capacity.
+    pub fn context_limit_bytes(self) -> usize {
+        if self == Self::Plan {
+            256 * 1024
+        } else {
+            64 * 1024
+        }
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProposedTask {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artifact_paths: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub objective_test: Option<crate::objective_checker::ScriptTest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<String>,
     pub id: String,
@@ -136,6 +151,9 @@ impl DecisionEnvelope {
                 text(rationale)?;
                 let mut ids = std::collections::BTreeSet::new();
                 for task in tasks {
+                    if let Some(test) = &task.objective_test {
+                        test.validate()?;
+                    }
                     if let Some(id) = &task.profile_id {
                         identifier(id)?;
                     }
@@ -210,6 +228,8 @@ mod tests {
     #[test]
     fn proposed_plan_rejects_cycles_duplicate_dependencies_and_authority_fields() {
         let task = ProposedTask {
+            artifact_paths: None,
+            objective_test: None,
             profile_id: None,
             id: "one".into(),
             goal: "implement feature".into(),

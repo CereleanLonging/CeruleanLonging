@@ -2,21 +2,23 @@ import { HelpHeading } from "./HelpHeading";
 import type { RegisteredValidator, WorktreeSetupDraft } from "./contracts";
 import { IntegrationFields } from "./IntegrationFields";
 
-export function WorktreeFields({value, disabled, onChange, validators=[], disabledReason}: {
+export function WorktreeFields({value, disabled, onChange, validators=[], disabledReason, isolationEnabled=false}: {
   value: WorktreeSetupDraft | undefined;
   disabled: boolean;
+  isolationEnabled?: boolean;
   disabledReason?: string;
   validators?: RegisteredValidator[];
   onChange: (value: WorktreeSetupDraft | undefined) => void;
 }) {
   return <section className="panel" aria-label="任务工作目录">
     <HelpHeading as="h3" topic="WorktreeFields">任务工作目录</HelpHeading>
-    <label className="checkbox-label"><input type="checkbox" disabled={disabled} checked={!!value}
+    <label className="checkbox-label"><input type="checkbox" disabled={disabled||isolationEnabled} readOnly={isolationEnabled} checked={isolationEnabled||!!value}
       onChange={e => onChange(e.target.checked ? {baseCommit:"", poolRoot:"", gitExecutable:""} : undefined)} />
-      为每次编程尝试使用独立 Git 工作目录
+      {isolationEnabled?"为每个执行模型使用独立工作目录":"为每次编程尝试使用独立 Git 工作目录"}
     </label>
-    {disabled && <p className="secondary">{disabledReason??"已有桌面聊天使用原项目目录，暂不支持迁入独立工作目录。"}</p>}
-    {value && <>
+    {isolationEnabled?<p className="secondary">已默认启用，工作目录随项目和模型固定，此设置为只读。</p>
+      :disabled&&<p className="secondary">{disabledReason??"已有桌面聊天使用原项目目录，暂不支持迁入独立工作目录。"}</p>}
+    {!isolationEnabled&&value && <>
       <label htmlFor="planning-base-commit">固定基准提交</label>
       <input id="planning-base-commit" required pattern="([0-9a-f]{40}|[0-9a-f]{64})" value={value.baseCommit}
         onChange={e => onChange({...value, baseCommit:e.target.value})} placeholder="完整 Git 提交 ID" />

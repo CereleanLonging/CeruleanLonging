@@ -117,19 +117,25 @@ async fn fetch(
     } else {
         request = request.bearer_auth(key.expose());
     }
-    let mut response = request
-        .send()
-        .await
-        .map_err(|_| "连接失败或超时；未重试，请核对网络与地域")?;
+    let mut response = request.send().await.map_err(|error| {
+        if error.is_timeout() {
+            "连接或读取超时；未重试，请检查网络后重新测试"
+        } else {
+            "网络或 TLS 连接失败；未重试，尚不能判断 Key 是否有效"
+        }
+    })?;
     if !response.status().is_success() {
-        return Err(match response.status().as_u16() {
-            401 => "认证失败；请核对 Key 和地域",
-            403 => "访问被拒绝；请核对账户权限和地域",
+        let status = response.status().as_u16();
+        let detail = match status {
+            401 if matches!(target, ProviderEndpoint::DeepSeek {}) =>
+                "DeepSeek 官方拒绝了已保存的 Key。请在官方开放平台确认 Key 是否有效；必要时新建 Key，在本卡片加密保存后重新测试",
+            401 => "供应商拒绝了已保存的 Key；请核对 Key 是否有效、所选服务及地域是否与来源一致",
+            403 => "访问被拒绝；请核对账户权限及服务访问限制",
             429 => "限流或配额不足；未重试",
             300..=399 => "供应商要求重定向；已拒绝转发凭证",
             _ => "供应商返回失败状态；未重试",
-        }
-        .into());
+        };
+        return Err(format!("模型目录检查失败（HTTP {status}）：{detail}"));
     }
     require(response.url().as_str() == url, "供应商端点发生变化")?;
     require(

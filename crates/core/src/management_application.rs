@@ -381,6 +381,8 @@ mod tests {
     fn plan_decision() -> ManagementDecision {
         ManagementDecision::Plan {
             tasks: vec![ProposedTask {
+                artifact_paths: None,
+                objective_test: None,
                 profile_id: None,
                 id: "task".into(),
                 goal: "Implement a sum function".into(),

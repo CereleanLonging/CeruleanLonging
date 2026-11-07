@@ -1,3 +1,4 @@
+import {confirmConnectionContinue} from './connection-ui-helpers.mjs';
 import {openConfiguredConnections,openConnectionMethod} from "./connection-ui-helpers.mjs";
 // Real desktop restarts with fresh WebView caches and a synthetic workbench only.
 import {chromium} from 'playwright-core';
@@ -24,8 +25,8 @@ async function close(){
 try{
   await launch(1);
   await invoke('core_submit',{command:{type:'registerProject',project:{id:'fixture',root:project,timezone:'UTC'}}});
-  await page.locator('.sidebar nav').getByRole('button',{name:'接入管理',exact:false}).click();await page.locator('#planning-project').waitFor();assert.equal(await page.locator('.connection-method[open]').count(),0);await openConnectionMethod(page,'主指挥','desktop');await openConfiguredConnections(page);await openConnectionMethod(page,'主指挥','desktop');await page.locator('#planning-chief-session').fill('native_session_fixture');await page.locator('#planning-deputy').fill('deputy-fixture');await page.locator('#planning-worker').fill('worker-fixture');await page.locator('#planning-executable').fill('D:/synthetic/codex.exe');
-  await page.getByRole('button',{name:'检查并保存接入配置',exact:true}).click();await page.getByText('格式检查通过，接入配置已自动保存；可随时修改。',{exact:true}).waitFor();
+  await page.locator('.sidebar nav').getByRole('button',{name:'接入管理',exact:false}).click();await page.locator('#planning-project').waitFor();assert.equal(await page.locator('.connection-method[open]').count(),0);await openConnectionMethod(page,'主指挥','desktop');await openConfiguredConnections(page);await openConnectionMethod(page,'主指挥','desktop');await page.locator('#planning-chief-session').fill('native_session_fixture');await page.locator('#planning-deputy').fill('deputy-fixture');await page.locator('#planning-worker').fill('worker-fixture');assert.equal(await page.locator('#planning-executable').count(),0);
+  await page.getByRole('button',{name:'下一步：设置需求与计划',exact:true}).click();await confirmConnectionContinue(page);await page.getByRole('button',{name:'修改接入配置',exact:true}).click();await page.getByText('格式检查通过，接入配置已自动保存；可随时修改。',{exact:true}).waitFor();
   const entries=await invoke('access_settings_load');assert(Object.values(entries).some(v=>v.includes('native_session_fixture')));
   let denied=false;try{await invoke('access_setting_put',{key:JSON.stringify(['cerulean-access-preference',1,'D:/unbound-workbench','chief-method']),value:'"desktop"'});}catch{denied=true;}assert(denied);
   cases.push('Real desktop auto-save is acknowledged by durable native storage; cross-workbench writes are rejected');
@@ -37,7 +38,7 @@ try{
   await page.getByRole('button',{name:'退出工作台',exact:true}).click();await page.getByRole('button',{name:'确认退出并停止后台',exact:true}).click();await page.getByRole('dialog').getByRole('alert').filter({hasText:'接入设置尚未保存'}).waitFor();assert.equal(app.exitCode,null);
   await page.getByRole('button',{name:'返回工作台',exact:true}).click();await chmod(storageFile,0o666);await page.getByRole('button',{name:'重试保存接入设置',exact:true}).click();await page.getByRole('alert').filter({hasText:'接入设置尚未写入本机文件'}).first().waitFor({state:'detached'});
   cases.push('Native disk-write failure is visible and normal exit waits; explicit retry persists the retained edit');
-  await page.getByRole('button',{name:'检查并保存接入配置',exact:true}).click();await page.getByText('格式检查通过，接入配置已自动保存；可随时修改。',{exact:true}).waitFor();await close();
+  await page.getByRole('button',{name:'下一步：设置需求与计划',exact:true}).click();await confirmConnectionContinue(page);await page.getByRole('button',{name:'修改接入配置',exact:true}).click();await page.getByText('格式检查通过，接入配置已自动保存；可随时修改。',{exact:true}).waitFor();await close();
   const folders=await readdir(settings);const saved=JSON.parse(await readFile(join(settings,folders[0],'settings.json'),'utf8'));assert(Object.values(saved.entries).some(v=>v.includes('native_custom_session')));
   await launch(3);await page.locator('.sidebar nav').getByRole('button',{name:'接入管理',exact:false}).click();await page.locator('#planning-chief-session').waitFor({state:'attached'});assert.equal(await page.locator('.connection-method[open]').count(),0);await chmod(storageFile,0o444);await openConnectionMethod(page,'主指挥','desktop');await page.locator('#planning-chief-session').fill('discard_this_unsaved_edit');await page.getByRole('alert').filter({hasText:'接入设置尚未写入本机文件'}).first().waitFor();
   await page.getByRole('button',{name:'退出工作台',exact:true}).click();await page.getByRole('button',{name:'确认退出并停止后台',exact:true}).click();await page.getByRole('button',{name:'放弃未保存的接入修改并退出',exact:true}).click();await wait(()=>app.exitCode!==null);await browser.close().catch(()=>{});await chmod(storageFile,0o666);

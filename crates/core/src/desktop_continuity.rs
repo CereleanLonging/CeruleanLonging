@@ -55,17 +55,25 @@ fn accepted(
             .map(|e| e.body.event.clone())
             .collect::<Vec<_>>(),
     )?;
+    let returned = prefix.iter().any(|entry| {
+        matches!(
+            &entry.body.event.command,
+            WorkflowCommand::ReturnForRework { task, attempt, .. }
+                if task == &prior.attempt.task_id && attempt == &prior.attempt.id
+        )
+    });
     require(
-        replay
-            .state()
-            .tasks
-            .get(&prior.attempt.task_id)
-            .is_some_and(|t| {
-                t.state == TaskState::Accepted
-                    && t.verified
-                    && t.attempt.as_deref() == Some(&prior.attempt.id)
-            }),
-        "上一桌面任务尚未独立验收并收口",
+        returned
+            || replay
+                .state()
+                .tasks
+                .get(&prior.attempt.task_id)
+                .is_some_and(|t| {
+                    t.state == TaskState::Accepted
+                        && t.verified
+                        && t.attempt.as_deref() == Some(&prior.attempt.id)
+                }),
+        "上一桌面任务尚未独立检查收口或由副指挥安排返工",
     )?;
     Ok(proof)
 }

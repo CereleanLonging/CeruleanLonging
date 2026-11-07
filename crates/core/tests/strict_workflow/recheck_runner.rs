@@ -5,9 +5,9 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
-pub(super) fn corrected(checker: &str) -> (tempfile::TempDir, DurableWorkflow, RecheckApproval) {
-    let (root, store, mut a) = fixture(true);
-    a.review.replacement_checks[0].args[2] = format!("recheck_ledger::runner::{checker}");
+pub(super) fn corrected(checker: &str) -> (FixtureRoot, DurableWorkflow, RecheckApproval) {
+    let (root, store, mut a) = fixture_mode(true, true);
+    a.review.replacement_checks[0] = fixed_check(&a.review.replacement_checks[0], checker);
     (root, store, a)
 }
 fn directory(root: &Path, a: &RecheckApproval) -> std::path::PathBuf {
@@ -31,6 +31,7 @@ fn count(root: &Path, a: &RecheckApproval) -> Vec<u8> {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn runner_executes_corrected_checks_on_original_source_then_accepts_and_reopens() {
     let (root, mut s, a) = corrected("corrected_checker");
     let original = original_files(root.path(), &s);
@@ -92,6 +93,7 @@ fn runner_executes_corrected_checks_on_original_source_then_accepts_and_reopens(
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn runner_failed_check_retains_failed_result_and_does_not_accept_or_repeat() {
     let (root, mut s, a) = corrected("failed_checker");
     approve_recheck(&mut s, &a);
@@ -102,7 +104,9 @@ fn runner_failed_check_retains_failed_result_and_does_not_accept_or_repeat() {
         entry.body.event.command,
         WorkflowCommand::Verify { passed: false, .. }
     ));
-    assert_eq!(verified(&entry).report.checks[0].exit_code, Some(13));
+    // The packaged checker reports a failing runtime as exit code 2.
+    assert_eq!(verified(&entry).report.checks[0].exit_code, Some(2));
+    assert!(!verified(&entry).report.checks[0].assertions[0].passed);
     assert_eq!(verified(&entry).report.checks.len(), 2);
     assert!(!s.state().tasks["task"].verified);
     assert!(s
@@ -115,6 +119,7 @@ fn runner_failed_check_retains_failed_result_and_does_not_accept_or_repeat() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn runner_recovery_verifies_original_records_and_logs_without_running_again() {
     let (root, mut s, a) = corrected("corrected_checker");
     let original = original_files(root.path(), &s);
@@ -175,9 +180,11 @@ fn runner_recovery_verifies_original_records_and_logs_without_running_again() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn runner_timeout_records_only_observed_prefix_and_never_runs_next_stage() {
     let (root, mut s, mut a) = corrected("slow_checker");
     a.review.replacement_checks[0].timeout_seconds = 1;
+    a.review.replacement_checks[0] = fixed_check(&a.review.replacement_checks[0], "slow_checker");
     approve_recheck(&mut s, &a);
     let started = Instant::now();
     let entry = s
@@ -199,6 +206,7 @@ fn runner_timeout_records_only_observed_prefix_and_never_runs_next_stage() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn runner_cancellation_preserves_unresolved_intent_and_cannot_relaunch() {
     let (root, mut s, a) = corrected("slow_checker");
     approve_recheck(&mut s, &a);
@@ -238,21 +246,22 @@ fn runner_cancellation_preserves_unresolved_intent_and_cannot_relaunch() {
 }
 
 #[test]
+#[ignore = "explicit ordinary Windows accounts; run the native recheck suite"]
 fn runner_revalidates_pins_before_claiming_operation_or_launching() {
     let (root, mut s, mut a) = corrected("corrected_checker");
     assert!(s
         .run_verification_recheck(&a.operation_id, &AtomicBool::new(false))
         .is_err());
-    let script = root.path().join("corrected-check-input.txt");
-    fs::write(&script, b"approved checker input").unwrap();
-    a.review.replacement_checks[0].tool = Some(
-        cerulean_core::verifier::PinnedCheck::describe(
-            &std::env::current_exe().unwrap(),
-            std::slice::from_ref(&script),
-            Default::default(),
-        )
-        .unwrap(),
-    );
+    let check = &mut a.review.replacement_checks[0];
+    let mut recipe = cerulean_domain::objective_checker::BoundScript::parse(&check.args).unwrap();
+    let script = root.path().join("node.exe");
+    fs::copy(&recipe.runtime.path, &script).unwrap();
+    recipe.runtime =
+        cerulean_core::verifier::PinnedCheck::describe(&script, &[], Default::default())
+            .unwrap()
+            .executable;
+    check.tool.as_mut().unwrap().inputs = vec![recipe.runtime.clone()];
+    check.args = recipe.arguments().unwrap();
     approve_recheck(&mut s, &a);
     let original_log = root
         .path()

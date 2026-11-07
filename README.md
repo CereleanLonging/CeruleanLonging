@@ -1,14 +1,14 @@
 # CeruleanLonging
 
-**让每一步协作，有迹可循。**  
+**让每一步协作，有迹可循。**
 
 **Make every step of AI collaboration traceable.**
 
 [简体中文](#zh) · [English](#en) · [版本更新](#changelog-zh) / [Changelog](#changelog-en) · [界面预览 / Screenshots](#screenshots) · [项目反馈 / Feedback](#feedback)
 
-发布者 / Publisher：**lantu**  
+发布者 / Publisher：**lantu**
 
-平台 / Platform：**Windows x64**  
+平台 / Platform：**Windows x64**
 
 阶段 / Stage：**公开预览 · Public Preview**
 
@@ -31,13 +31,13 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 **批准对应具体方案。** 项目需求、执行范围、产物和检查方式在执行前形成可审阅的配置与方案。用户能够了解即将授权的工作；配置或方案发生变化时，需要重新核对对应的执行依据。
 
-**把验证放进交付流程。** 可以为任务登记独立检查工具和交付文件，也可以配置最终集成任务，对合并后的成果做整体检查。执行者的完成报告与实际检查结果分别记录，便于判断任务是否真正满足约定要求。
+**把验证放进交付流程。** 独立检查工具随工作台固定关联，由主指挥提出可审阅的客观测试，用户批准后在封存副本上运行；交付文件与最终集成范围保持明确。执行者的完成报告与实际检查结果分别记录，便于判断任务是否真正满足约定要求。
 
 **检查方式可修订，原交付有据可查。** 当验收脚本或检查参数需要更正时，可以为原提交审阅并批准一次新的复验。原失败记录与交付文件保留，批准和启动分别操作；复验通过后仍需主指挥核对交付结果。
 
 **角色与工作目录隔离。** 主指挥需求单独保存，副指挥通过核心提供的只读入口核对。副指挥与执行端共用的总目录内，最多保留五个执行身份的固定子目录；模型可替换，已登记身份复用自己的目录。API 文件工具限定访问范围，CLI、桌面执行及新隔离任务的客观检查使用绑定的普通 Windows 账户。
 
-**项目盲评，各席独立作出判断。** 统一独立检查核对各执行端的稳定提交和完整集成交付，报告归档后，用户审阅脱敏分片、名册与判据。副指挥确认就绪，主副指挥及各执行身份每席投一票，收齐后统一揭晓。除全票通过外，还核对单票和整体证据分；达标后由主指挥开展整体功能测试，最后由用户确认交付。API、CLI 和绑定桌面会话各自核验过程记录，缺失证据或工具违规不能按通过计票。脱敏和分片不能保证消除任意暗号；盲评不替代客观检查。详细边界见[独立检查与加权验收](docs/INDEPENDENT-CHECKS-WEIGHTS.md)。
+**项目盲评，各席独立作出判断。** 独立检查逐一核对各执行端交付的完整性与批准测试，失败结果交副指挥组织返工。全部成果合格并接受后，核心汇总只读交付与报告，用户审阅脱敏分片、名册与判据。副指挥确认就绪，主副指挥及各执行身份每席投一票，收齐后统一揭晓。除全票通过外，还核对单票和整体证据分；达标后由主指挥开展整体功能测试，最后由用户确认交付。API、CLI 和绑定桌面会话各自核验过程记录，缺失证据或工具违规不能按通过计票。脱敏和分片不能保证消除任意暗号；盲评不替代客观检查。详细边界见[独立检查与加权验收](docs/INDEPENDENT-CHECKS-WEIGHTS.md)。
 
 **实验有独立的工作空间。** 实验工作台使用单独的窗口和数据目录，方便试用配置或验证流程。凭证按工作台分别配置，创建实验本身不会派发模型任务。
 
@@ -76,7 +76,7 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 5. **核对交付。** 结合独立检查和实际产物审阅结果，保留交接记录供后续继续。
 
-6. **按需启用项目盲评。** 在满足账户隔离和 API 席位要求的工作台中，批准评审材料；全票后确认交付，需要修改时回到主指挥问答、方案修订和用户批准流程。
+6. **完成项目盲评与最终验收。** 审阅并批准汇总成果的评审材料，按各接入通道核验独立投票。全票与证据分达标后，由主指挥进行整体功能测试，再由用户核对交付；需要修改时回到主指挥问答、方案修订和用户批准流程。
 
 例如，为现有项目增加一项数据处理功能时，可以先约定需要修改的文件与验证脚本，再由执行者完成实现，使用独立检查确认输出，最后回看整体交付记录。
 
@@ -98,17 +98,37 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.44 为公开预览版**，增加工作台源码缓存的临时目录、任务结束清理和维护页累计监控，并完善接入配置持久化与折叠布局。详见 [支持范围](SUPPORT.md)、[缓存管理](docs/BUILD-CACHE-MANAGEMENT.md) 和 [版本说明](docs/releases/0.1.44.md)。
+**0.1.48 为公开预览版**，补齐逐执行端独立检查、只读交付汇总、整体盲评及主指挥功能测试的衔接，完善桌面升级适配、需求导入和接入配置。详见支持范围和版本说明。[支持范围](SUPPORT.md) · [版本说明](docs/releases/0.1.48.md)
 
-建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
+可在独立实验工作台试用完整流程，并在方案批准前配置检查账户。升级前请通过维护页备份。新检查材料需要 reader24，绑定 API 执行端评审输出额度的轮次需要 reader25。本版支持这些数据代际。
 
-安装包与源码包见 [0.1.44 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.44)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+安装包与源码包见 [0.1.48 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.48)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
 ### 版本更新记录
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
+
+#### 0.1.48 · 2026-11-07 · 公开预览
+
+独立检查逐一核验各执行端交付，失败结果返回副指挥安排返工。全部合格并接受后，核心汇总只读交付与报告，再进入独立盲评和主指挥整体功能测试。盲评材料附带独立验收进程生成的匿名检查事实，新材料启用 reader24。API 执行端评审沿用已批准的输出额度，逐席展示并绑定本轮批准摘要，相应轮次启用 reader25。
+
+桌面升级后会重新核验程序与会话身份。Codex 原路径消失时扫描可用程序，候选歧义需要明确选择；Qoder 同协议候选版本先完成固定消息验证，再重新绑定。日常工作台和独立实验台分别采用浅色、深色侧栏。接入页的“下一步”统一执行检查、保存与弹窗确认。
+
+Markdown 导入绑定工作台内置的本地提炼工具，无需主指挥配置或 Key；按文档结构整理内容，保留原文与行号，审阅确认后才读入草稿。项目需求、工作流和 Markdown 导入合为一个输入框，左下角“＋”导入工作流 JSON，回形针导入 `.md`，预览与确认按需弹出。
+
+需求框支持拖入单个 `.md` 或工作流 `.json` 文件，预览确认后读入草稿。请求主指挥按钮会说明配置待保存、凭证缺失等具体原因。主窗口保持管理员权限；“打开拖拽导入窗口”启动当前账户的普通权限文件窗口，校验文件后返回主窗口预览确认。
+
+项目盲评按已保存目录自动生成默认脱敏规则，支持自定义精确替换；规则按项目在本次应用会话中保留，修改后需重新准备并审阅材料。移除需求与计划页重复的监督、检查与验收绑定卡片，工具入口统一保留在项目设置；后台监督及检查权限保持，检查时限并入执行限制。项目执行方案、历史费用和费用核对归入默认折叠的“项目数据与费用统计”，位于盲评与请求记录之间。本轮真实服务合成项目实验已完成独立检查、四席盲评、主指挥功能测试及测试交付确认。回归结果与实际覆盖范围见本版说明。[版本说明](docs/releases/0.1.48.md)
+
+#### 0.1.47 · 2026-11-06 · 本地开发候选
+
+移除默认及附加执行端的手填分工、交付清单，改由主指挥在待批准方案中列明任务交付文件。项目持续执行新增可调整大小的模型工作记录窗口，支持增量同步、模型筛选、暂停刷新和历史回读；展示核心已收到的工作事件及状态。目录隔离、真实检查和批准门禁保留。新方案配置要求 reader23，旧版不能读取该配置。未发布至 GitHub，验证范围以本地回执为准。
+
+#### 0.1.46 · 2026-11-05 · 本地开发候选
+
+补齐独立客观检查程序，与盲评验收程序分离并固定唯一检查入口，取消外部工具新增配置。主指挥提出测试源码与断言，用户审阅后批准运行；保留失败、超时及缺证据状态。补全需求计划页的 Qoder 会话、附加执行端与工作目录摘要。未发布至 GitHub，验证范围以本地回执为准。
 
 #### 0.1.45 · 2026-11-05 · 开发候选
 
@@ -234,7 +254,7 @@ The aim is to make AI collaboration reviewable and resumable. Whether you are im
 
 **Approval tied to a specific plan.** Requirements, execution scope, artifacts, and checks form a reviewable configuration and plan before work starts. You can understand what you are authorizing; changes to the configuration or plan require the corresponding execution basis to be reviewed again.
 
-**Verification built into delivery.** Register independent checks and expected files for tasks, and configure a final integration task to check the combined result. A worker's completion report and the actual verification results are recorded separately, helping you assess whether the agreed requirements were met.
+**Verification built into delivery.** The independent checker is fixed to the workbench. The chief proposes reviewable objective tests, and the tool executes them against a sealed snapshot after user approval, with explicit deliverable and final-integration scope. A worker's completion report and the actual verification results are recorded separately, helping you assess whether the agreed requirements were met.
 
 **Revised checks with traceable original delivery.** If a validation script or its arguments need correction, you can review and approve a new check of the original submission. The original failure and delivered files are retained, approval and execution are separate actions, and a successful check still requires the lead planner's delivery review.
 
@@ -301,17 +321,39 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.44 is a public preview** adding source-build temporary directories, end-of-task cache cleanup and cumulative maintenance monitoring, alongside persistent and collapsible connection configuration. See [Support scope](SUPPORT.md), [Cache management](docs/BUILD-CACHE-MANAGEMENT.md) and [Release notes](docs/releases/0.1.44.md).
+**0.1.48 is a public preview** connecting per-executor checks, read-only delivery assembly, whole-project blind review and chief functional testing. It also improves desktop upgrade handling, requirement imports and connection configuration. [Support scope](SUPPORT.md) · [Release notes](docs/releases/0.1.48.md)
 
-Try blind review in a separate experiment workbench and prepare checking accounts before execution, either manually or through the optional authorization in plan review. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
+Use a separate experiment workbench to try the workflow and prepare checking accounts before approving the plan. Back up through Maintenance before upgrading. New check material requires reader24, and rounds with configured API executor review limits require reader25. This release supports both generations.
 
-Download the installer and source package from the [0.1.44 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.44). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+Download the installer and source package from the [0.1.48 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.48). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.48 · 2026-11-07 · Public Preview
+
+The independent checker validates each executor’s complete delivery and approved tests. Failures return to deputy-directed correction. After every result passes and is accepted, the core assembles a read-only delivery and reports for blind review, followed by the chief’s whole-project functional test. Review material includes anonymous facts produced by the independent verifier and enables reader24. API executor reviews use the approved output allowance, displayed per seat and bound to the round approval digest. These rounds enable reader25.
+
+A live-service experiment using a synthetic project completed independent checks, four-seat blind review, chief functional testing and test delivery confirmation. Validation scope and earlier attempts are documented in the release notes. [Release notes](docs/releases/0.1.48.md)
+
+Desktop upgrades trigger executable and session identity checks. Codex can rediscover a missing executable, with explicit selection for ambiguous candidates. Qoder candidates in the supported protocol family require a fixed-message check and a fresh binding. Daily and experiment workbenches use light and dark sidebars. Next on the connection page now checks, saves and requests confirmation in one flow.
+
+Markdown import uses a built-in offline extraction tool with no chief configuration or API key required. It organizes document structure, retains source text and line references, and applies drafts only after review. Requirements and both import controls share one composer: the lower-left plus imports workflow JSON and the paperclip imports `.md`, with previews shown on demand.
+
+Drop one `.md` or workflow `.json` file into the requirements field to review and import it. The plan request button explains pending configuration saves and missing credentials. The main window keeps administrator privileges. “Open drag-and-drop import window” launches a separate standard-privilege picker under the current account, verifies the file, and returns it to the main window for review and confirmation.
+
+Blind review generates directory redactions from saved project settings and accepts custom exact replacements. Drafts remain project-scoped for the current app session; changes require preparing and reviewing material again. Duplicate supervision, checker and verifier binding cards are removed from planning. Project settings retain the tool entry points; supervision and verification permissions remain, with check timeouts alongside execution limits. Execution plans and fee records now share a default-collapsed statistics group between blind review and management request history. See this version’s notes for local validation and publication status.
+
+#### 0.1.47 · 2026-11-06 · Local development candidate
+
+Removes manual worker assignment and deliverable forms. The chief proposes actual task files for user review and approval. A resizable project activity stream shows committed events and observed worker states, with incremental refresh, filtering, pause and history navigation. Directory isolation, objective checks and approval gates remain enforced. New proposal-driven configurations require reader23. Not published to GitHub; local receipts define the validation scope.
+
+#### 0.1.46 · 2026-11-05 · Local development candidate
+
+Adds the separate objective checker, fixes it as the single new-check entry, and removes external tool registration. Chief-proposed test source and assertions require user review before execution; failed, timed-out and missing evidence stays visible. The planning summary now includes Qoder sessions, additional executors and assigned directories. Not published to GitHub; local receipts define the verified scope.
 
 #### 0.1.45 · 2026-11-05 · Development candidate
 
@@ -459,7 +501,7 @@ Development-stage native maintenance window showing backup verification and revi
 
 ## 项目反馈 / Feedback
 
-**项目反馈 QQ 群号：137562063**  
+**项目反馈 QQ 群号：137562063**
 
 **Project feedback QQ group: 137562063**
 

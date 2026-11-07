@@ -38,9 +38,11 @@ pub(super) struct Gathered {
     seats: Vec<ReviewSeat>,
     pub final_task: String,
     pub source_digest: String,
+    pub functional_checks: Vec<AcceptanceCheck>,
 }
 fn seat(id: &str, role: &str, target: ApiTarget, model: &str) -> ReviewSeat {
     ReviewSeat {
+        max_output_tokens: None,
         id: id.into(),
         role: role.into(),
         target: Some(target),
@@ -189,7 +191,7 @@ impl RuntimeHost {
             None | Some(ChiefSource::OpenAi {}) => seat("chief","chief",ApiTarget::OpenAi {},&setup.chief_model),
             Some(ChiefSource::Provider { endpoint }) => seat("chief","chief",ApiTarget::Provider {endpoint:endpoint.clone()},&setup.chief_model),
             Some(ChiefSource::CodexSession { session_id }) => {
-                self.blind_reviews.latest(project).filter(|r|r.binding.setup == saved.digest).and_then(|r|r.seats.iter().find(|s|matches!(&s.transport,Some(ReviewTransport::CodexSession {session_id:bound,..}) if bound == session_id))).cloned().unwrap_or(ReviewSeat {id:"chief".into(),role:"chief".into(),target:None,transport:Some(ReviewTransport::CodexSession {session_id:session_id.clone(),provider:"pending".into()}),model:setup.chief_model.clone(),allowed_models:vec![setup.chief_model.clone()]})
+                self.blind_reviews.latest(project).filter(|r|r.binding.setup == saved.digest).and_then(|r|r.seats.iter().find(|s|matches!(&s.transport,Some(ReviewTransport::CodexSession {session_id:bound,..}) if bound == session_id))).cloned().unwrap_or(ReviewSeat {max_output_tokens: None,id:"chief".into(),role:"chief".into(),target:None,transport:Some(ReviewTransport::CodexSession {session_id:session_id.clone(),provider:"pending".into()}),model:setup.chief_model.clone(),allowed_models:vec![setup.chief_model.clone()]})
             },
         };
         let deputy = match setup.management_sources.as_ref().map(|s| &s.deputy) {
@@ -205,9 +207,20 @@ impl RuntimeHost {
         let mut identities = std::collections::BTreeSet::new();
         for task in &plan.execution {
             let mut reviewer = if let Some(api) = &task.api_worker {
-                seat("pending", "worker", api.target.clone(), &api.model)
+                let mut reviewer = seat("pending", "worker", api.target.clone(), &api.model);
+                // One model gets one seat. Respect every approved task's limit
+                // when the same API identity appears with different budgets.
+                reviewer.max_output_tokens = plan
+                    .execution
+                    .iter()
+                    .filter_map(|task| task.api_worker.as_ref())
+                    .filter(|other| other.target == api.target && other.model == api.model)
+                    .map(|other| other.max_output_tokens)
+                    .min();
+                reviewer
             } else if let Some(worker) = &task.worker {
                 ReviewSeat {
+                    max_output_tokens: None,
                     id: "pending".into(),
                     role: "worker".into(),
                     target: None,
@@ -220,6 +233,7 @@ impl RuntimeHost {
                 }
             } else if let Some(desktop) = &task.desktop_worker {
                 ReviewSeat {
+                    max_output_tokens: None,
                     id: "pending".into(),
                     role: "worker".into(),
                     target: None,
@@ -253,6 +267,7 @@ impl RuntimeHost {
         let mut evidence = vec![];
         let mut check_records = vec![];
         let mut deliveries = vec![];
+        let mut delivery_inputs = vec![];
         let mut checks = 0u32;
         let mut remaining_files = 512usize;
         let mut remaining_bytes = 512 * 1024u64;
@@ -261,6 +276,17 @@ impl RuntimeHost {
                 .attempt
                 .as_deref()
                 .ok_or("已接受任务缺少原尝试")?;
+            let latest_check = store
+                .history()
+                .iter()
+                .rev()
+                .find(|entry| {
+                    matches!(
+                        &entry.body.event.command, WorkflowCommand::Verify { task, attempt: a, .. }
+                            if task == task_id && a == attempt
+                    )
+                })
+                .ok_or("盲评缺少本次提交的检查记录")?;
             let job = self
                 .jobs
                 .values()
@@ -269,6 +295,7 @@ impl RuntimeHost {
                         && j.task_id == *task_id
                         && j.attempt_id == attempt
                         && j.state == VerificationState::Succeeded
+                        && j.operation_id == latest_check.body.operation_id
                 })
                 .max_by(|a, b| a.operation_id.cmp(&b.operation_id))
                 .ok_or("盲评缺少成功检查证据")?;
@@ -333,6 +360,31 @@ impl RuntimeHost {
                 &mut remaining_files,
                 &mut remaining_bytes,
             )?;
+            let accepted = store
+                .history()
+                .iter()
+                .rev()
+                .find(|entry| {
+                    matches!(
+                        &entry.body.event.command, WorkflowCommand::Accept { task, attempt: a }
+                            if task == task_id && a == attempt
+                    )
+                })
+                .ok_or("交付缺少任务接受记录")?;
+            delivery_inputs.push(cerulean_domain::project_delivery::DeliveryInput {
+                identity: account.record.identity.clone(),
+                acceptance: EventAnchor {
+                    sequence: accepted.body.event.sequence,
+                    hash: accepted.hash.clone(),
+                },
+                manifest: basis.manifest.clone(),
+                verification_operation: job.operation_id.clone(),
+                verification_report_digest: digest(&report)?,
+                source: seal.clone(),
+                source_files: frozen.manifest().tree.files.clone(),
+                source_directories: frozen.manifest().tree.directories.clone(),
+                checks: basis.approved_checks(task_id)?.to_vec(),
+            });
             deliveries.push((
                 task_id.clone(),
                 plan.execution_root(task_id, attempt)?,
@@ -340,62 +392,90 @@ impl RuntimeHost {
                 frozen,
             ));
         }
-        let final_index = if let Some(integration) = plan.integration() {
-            deliveries
+        let multiple = plan.integration().is_none()
+            && deliveries
                 .iter()
-                .position(|(id, _, _, _)| id == &integration.task_id)
-                .ok_or("集成交付缺失")?
+                .any(|(_, root, _, _)| root != &deliveries[0].1);
+        let policy = plan.snapshot_policy.as_ref().ok_or("完整交付范围缺失")?;
+        let (final_task, source_digest, files, delivery_digest, assembled) = if multiple {
+            let (manifest, files) = crate::project_delivery::assemble(
+                plan,
+                &saved.digest,
+                deliveries,
+                delivery_inputs.clone(),
+            )?;
+            let hash = digest(&manifest)?;
+            (
+                "core-assembled-delivery".into(),
+                hash.clone(),
+                files,
+                hash,
+                Some(manifest),
+            )
         } else {
-            require(
+            let final_index = if let Some(integration) = plan.integration() {
                 deliveries
                     .iter()
-                    .all(|(_, root, _, _)| root == &deliveries[0].1),
-                "多个执行目录需有明确的最终集成任务，不能拼接声称整库验收",
-            )?;
-            deliveries
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.2.cmp(&b.2))
-                .map(|(i, _)| i)
-                .ok_or("最终交付缺失")?
-        };
-        let (final_task, root, _, mut frozen) = deliveries.swap_remove(final_index);
-        let source_digest = digest(frozen.manifest())?;
-        require(
-            frozen.manifest().tree.files.len() <= 128
-                && frozen
-                    .manifest()
-                    .tree
-                    .files
+                    .position(|(id, _, _, _)| id == &integration.task_id)
+                    .ok_or("集成交付缺失")?
+            } else {
+                require(
+                    deliveries
+                        .iter()
+                        .all(|(_, root, _, _)| root == &deliveries[0].1),
+                    "多个执行目录需有明确的最终集成任务，不能拼接声称整库验收",
+                )?;
+                deliveries
                     .iter()
-                    .map(|f| u64::from(f.bytes))
-                    .sum::<u64>()
-                    <= MAX_MATERIAL_BYTES as u64,
-            "完整交付超过首版盲评容量，未截断材料",
-        )?;
-        let policy = plan.snapshot_policy.as_ref().ok_or("完整交付范围缺失")?;
-        let live = crate::source_snapshot::observe(Path::new(&root), policy)?;
-        require(live == frozen.manifest().tree, "最终交付已变化，请重新验证")?;
-        // Exclusions are fixed in the approved plan. Do not silently apply new ones here.
-        let names = frozen
-            .manifest()
-            .tree
-            .files
-            .iter()
-            .map(|a| a.path.clone())
-            .collect::<Vec<_>>();
-        let mut files = vec![];
-        for name in names {
-            let bytes = frozen.read_file(&name)?;
-            files.push((name, bytes));
-        }
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.2.cmp(&b.2))
+                    .map(|(i, _)| i)
+                    .ok_or("最终交付缺失")?
+            };
+            let (final_task, root, _, mut frozen) = deliveries.swap_remove(final_index);
+            let source_digest = digest(frozen.manifest())?;
+            require(
+                frozen.manifest().tree.files.len() <= 128
+                    && frozen
+                        .manifest()
+                        .tree
+                        .files
+                        .iter()
+                        .map(|f| u64::from(f.bytes))
+                        .sum::<u64>()
+                        <= MAX_MATERIAL_BYTES as u64,
+                "完整交付超过首版盲评容量，未截断材料",
+            )?;
+            let live = crate::source_snapshot::observe(Path::new(&root), policy)?;
+            require(live == frozen.manifest().tree, "最终交付已变化，请重新验证")?;
+            // Exclusions are fixed in the approved plan. Do not silently apply new ones here.
+            let names = frozen
+                .manifest()
+                .tree
+                .files
+                .iter()
+                .map(|a| a.path.clone())
+                .collect::<Vec<_>>();
+            let mut files = vec![];
+            for name in names {
+                let bytes = frozen.read_file(&name)?;
+                files.push((name, bytes));
+            }
+            let delivery_digest = digest(&(root, live, policy))?;
+            (final_task, source_digest, files, delivery_digest, None)
+        };
         let mut criteria = plan
             .workflow
             .tasks
             .iter()
             .map(|t| t.goal.clone())
             .collect::<Vec<_>>();
-        for (index, check) in plan.task(&final_task)?.checks.iter().enumerate() {
+        let functional_checks = delivery_inputs
+            .iter()
+            .filter(|input| multiple || input.manifest.task_id == final_task)
+            .flat_map(|input| input.checks.clone())
+            .collect::<Vec<_>>();
+        for (index, check) in functional_checks.iter().enumerate() {
             criteria.push(format!(
                 "整体功能检查 {} · {} · 断言 {}",
                 index + 1,
@@ -409,24 +489,26 @@ impl RuntimeHost {
             integration_task: plan.integration().map(|i| i.task_id.clone()),
         };
         let check_archive = cerulean_domain::independent_checks::CheckArchive {
-            schema_version: 1,
+            schema_version: if multiple { 2 } else { 1 },
             project_id: project.into(),
             revision: plan.approval_digest()?,
             final_task: final_task.clone(),
             final_source: source_digest.clone(),
             records: check_records,
+            assembled,
         };
         check_archive.validate()?;
         Ok(Gathered {
             check_archive,
             final_task,
             source_digest,
+            functional_checks,
             coverage,
             binding: ReviewBinding {
                 project_id: project.into(),
                 revision: plan.approval_digest()?,
                 setup: saved.digest.clone(),
-                delivery: digest(&(root, live, policy))?,
+                delivery: delivery_digest,
                 evidence: digest(&evidence)?,
                 material: "0".repeat(64),
                 policy: "0".repeat(64),
@@ -448,6 +530,9 @@ impl RuntimeHost {
                 "检查报告已变化，需要重新准备盲评",
             )?;
             crate::independent_checks::require_archived(&self.root, archive)?;
+            if let Some(delivery) = &archive.assembled {
+                crate::project_delivery::require_source(&self.root, delivery)?;
+            }
         } else {
             return Err("旧轮次未绑定统一检查和权重判据，请重新准备盲评".into());
         }
@@ -484,6 +569,27 @@ impl RuntimeHost {
                 "主指挥功能测试仍在进行，请等待或取消原操作",
             )?;
             match action {
+                BlindReviewAction::PrepareFunctionalEnvironment {
+                    project_id,
+                    round_id,
+                    digest,
+                } => {
+                    self.require_review_environment()?;
+                    let round = self.blind_reviews.checked(&project_id, &round_id)?;
+                    require(
+                        round.phase == ReviewPhase::AwaitingFunctionalTest
+                            && round.digest == digest
+                            && round.binding == self.current_blind_binding(&round_id)?,
+                        "当前盲评尚未开放功能测试环境",
+                    )?;
+                    if round
+                        .check_archive
+                        .as_ref()
+                        .is_some_and(|archive| archive.assembled.is_some())
+                    {
+                        crate::delivery_checker_account::provision(&self.root, &project_id)?;
+                    }
+                }
                 BlindReviewAction::StartFunctionalTest {
                     project_id,
                     round_id,
@@ -499,6 +605,9 @@ impl RuntimeHost {
                     require(self.blind_active.is_none(), "原盲评网络请求尚未结束")?;
                     let mut g = self.gather_blind_review(&project_id)?;
                     self.require_review_environment()?;
+                    if let Some(delivery) = &g.check_archive.assembled {
+                        crate::project_delivery::persist(&self.root, delivery, &g.files)?;
+                    }
                     if let Some(chief) = g.seats.iter_mut().find(|s| s.role == "chief") {
                         if let Some(ReviewTransport::CodexSession {
                             session_id,
@@ -541,6 +650,10 @@ impl RuntimeHost {
                         &redactions,
                         g.checks,
                     )?;
+                    let material = crate::independent_verifier::attach_check_evidence(
+                        material,
+                        &g.check_archive,
+                    )?;
                     material.validate()?;
                     g.binding.material = digest(&material)?;
                     g.binding.policy = digest(&(
@@ -554,6 +667,10 @@ impl RuntimeHost {
                     ))?;
                     crate::blind_review_guard::enable(&self.root)?;
                     crate::review_checks_guard::enable(&self.root)?;
+                    crate::review_material_guard::enable(&self.root)?;
+                    if g.seats.iter().any(|seat| seat.max_output_tokens.is_some()) {
+                        crate::review_material_guard::enable_api_limits(&self.root)?;
+                    }
                     crate::independent_checks::archive(&self.root, &g.check_archive)?;
                     self.blind_reviews.prepare_with_checks(
                         g.binding,
@@ -581,6 +698,7 @@ impl RuntimeHost {
                                 "request-preflight",
                                 false,
                                 &r.material,
+                                s.transport.as_ref(),
                             )?;
                         } else {
                             require(

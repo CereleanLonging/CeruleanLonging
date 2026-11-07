@@ -88,31 +88,25 @@ pub fn test_local_connection(
                 } => {
                     identifier(&session_id)?;
                     require(session_id.len() <= 80, "Codex 会话标识过长")?;
-                    let executable = match executable.filter(|value| !value.trim().is_empty()) {
-                        Some(value) => value,
-                        None => {
-                            crate::codex_discovery::scan(None)?
-                                .candidates
-                                .into_iter()
-                                .next()
-                                .ok_or("未找到本机 Codex，请先在 CLI 接入中扫描并检查 Codex 登录")?
-                                .executable
-                        }
-                    };
+                    let executable =
+                        crate::codex_discovery::resolve_session_executable(executable.as_deref())?;
                     crate::codex_discovery::validate_executable(Path::new(&executable))?;
                     let mut client =
                         CodexClient::launch_readonly(Path::new(&executable), &scratch)?;
                     let checked = timeout(Duration::from_secs(60), async {
                         let connection = client.connect().await?;
                         require(connection.account_type.is_some(), "请先在 Codex 中登录")?;
-                        client.check_session(&session_id).await
+                        client.check_session(&session_id).await?;
+                        Ok::<_, String>(connection.server_version)
                     })
                     .await
                     .map_err(|_| "Codex 连通测试超时，请稍后重试".to_string());
                     let closed = client.close().await;
-                    checked??;
+                    let version = checked??;
                     closed?;
-                    Ok("Codex 登录和协议连接通过，已读取所填会话标识。".into())
+                    Ok(format!(
+                        "Codex 登录、协议 {version} 和所填会话标识核验通过。当前程序 {executable}"
+                    ))
                 }
                 LocalConnectionRequest::Omp {
                     executable, model, ..

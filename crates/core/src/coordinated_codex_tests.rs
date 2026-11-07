@@ -175,7 +175,7 @@ fn scoped_native_wait_preserves_completion_cancel_anchors_and_unknown_without_re
             ));
             assert_eq!(
                 result.is_ok(),
-                matches!(mode, "completed" | "cancel-empty"),
+                matches!(mode, "completed" | "missing" | "cancel-empty"),
                 "{mode}: {result:?}"
             );
             if mode == "cancel-lost" {
@@ -216,7 +216,7 @@ fn scoped_native_wait_preserves_completion_cancel_anchors_and_unknown_without_re
         release.send(()).unwrap();
         thread.join().unwrap();
         let store = owner.finish(false).unwrap();
-        let expected = if mode == "completed" {
+        let expected = if matches!(mode, "completed" | "missing") {
             TaskState::Submitted
         } else if mode.starts_with("cancel") {
             TaskState::Cancelled

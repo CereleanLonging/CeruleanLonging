@@ -6,6 +6,13 @@ use std::{fs, path::Path};
 #[path = "strict_workflow/recheck.rs"]
 mod recheck_ledger;
 
+#[cfg(windows)]
+#[path = "strict_workflow/verification_start_retry.rs"]
+mod verification_start_retry;
+
+#[path = "strict_workflow/rework.rs"]
+mod rework;
+
 fn plan(root: &Path) -> PlanRevision {
     PlanRevision {
         management_setup_digest: None,
@@ -829,8 +836,7 @@ fn verification_recheck_review_preserves_real_failed_history_and_rejects_changed
         .path()
         .join("data/workflows/project/verification/stage-check");
     let report_before = fs::read(verification.join("result.json")).unwrap();
-    let mut replacement = plan.execution[0].checks.clone();
-    replacement[0].args.push("--test-threads=1".into());
+    let replacement = recheck_ledger::fixed_checks(&plan.execution[0].checks);
     let request = RecheckRequest {
         project_id: "project".into(),
         original_operation_id: "stage-check".into(),
@@ -2471,7 +2477,7 @@ fn assign(s: &mut DurableWorkflow, p: &PlanRevision) -> Attempt {
             adapter_version: "fixture-1".into(),
             session_id: "session".into(),
             identity_strength: IdentityStrength::ProviderId,
-            workspace: p.project.root.clone(),
+            workspace: p.execution_root("task", "attempt").unwrap(),
         },
     };
     apply(
@@ -2502,7 +2508,7 @@ fn dispatch(s: &mut DurableWorkflow, p: &PlanRevision) {
         },
         CommandContext {
             thread_id: Some("session".into()),
-            cwd: Some(p.project.root.clone()),
+            cwd: Some(p.execution_root("task", "attempt").unwrap()),
             ..Default::default()
         },
     )
@@ -3152,11 +3158,24 @@ fn async_fixture_in(
     PlanRevision,
     Vec<cerulean_core::verifier::PinnedCheck>,
 ) {
-    let project = root.path().join("project");
+    let (host, plan, pins) = async_fixture_setup(root.path(), mode, false);
+    (root, host, plan, pins)
+}
+#[cfg(windows)]
+fn async_fixture_setup(
+    root: &Path,
+    mode: &str,
+    isolated: bool,
+) -> (
+    RuntimeHost,
+    PlanRevision,
+    Vec<cerulean_core::verifier::PinnedCheck>,
+) {
+    let project = root.join("project");
     fs::create_dir(&project).unwrap();
     fs::write(project.join("result.txt"), "abc").unwrap();
     fs::write(project.join("validator-mode"), mode).unwrap();
-    let data = root.path().join("data");
+    let data = root.join("data");
     let mut host = RuntimeHost::open(&data).unwrap();
     let mut p = plan(&project);
     let snap = host
@@ -3190,6 +3209,9 @@ fn async_fixture_in(
         second.name = Some("单元测试".into());
         second.timeout_seconds = 30;
         p.execution[0].checks.push(second);
+    }
+    if isolated {
+        recheck_ledger::accounts::prepare(root, &mut p);
     }
     host.propose("project", "chief", p.clone()).unwrap();
     host.handle(Request {
@@ -3228,7 +3250,7 @@ fn async_fixture_in(
                 .unwrap()
         })
         .collect();
-    (root, RuntimeHost::open(&data).unwrap(), p, pins)
+    (RuntimeHost::open(&data).unwrap(), p, pins)
 }
 
 #[cfg(windows)]
