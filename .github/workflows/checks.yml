@@ -18,7 +18,18 @@ jobs:
           CERULEAN_CI_CORE_TEST_MEMORY_GIB: '4'
       - name: Check generated contract drift
         run: git diff --exit-code -- apps/desktop/src/contracts.ts
-      - name: Build core and desktop
-        run: npm run desktop:build
+      - name: Build Windows installer
+        run: npm run desktop:package
+      - name: Validate Windows candidate
+        if: github.event_name == 'push'
+        run: ./.github/scripts/stage-windows-candidate.ps1
       - name: Rust lint and sidecar isolation
         run: ./scripts/lint.ps1
+      - name: Retain validated Windows candidate
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-candidate-${{ github.sha }}
+          path: reports/ci-release-candidate/
+          if-no-files-found: error
+          retention-days: 7
