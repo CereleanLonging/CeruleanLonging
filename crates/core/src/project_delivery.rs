@@ -9,12 +9,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub(crate) type DeliveryFiles = Vec<(String, Vec<u8>)>;
+
 pub(crate) fn assemble(
     plan: &PlanRevision,
     setup: &str,
     mut snapshots: Vec<(String, String, String, FrozenSnapshot)>,
     inputs: Vec<DeliveryInput>,
-) -> Result<(DeliveryManifest, Vec<(String, Vec<u8>)>), String> {
+) -> Result<(DeliveryManifest, DeliveryFiles), String> {
     require(plan.integration().is_none(), "显式集成方案应沿用原集成任务")?;
     let manifest = DeliveryManifest::assemble(
         plan.project.id.clone(),

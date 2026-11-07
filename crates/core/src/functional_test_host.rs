@@ -20,8 +20,8 @@ impl Drop for ActiveFunctionalTest {
     }
 }
 enum PreparedFunctional {
-    Task(crate::scheduler::PreparedVerification),
-    Delivery(crate::delivery_functional::Prepared),
+    Task(Box<crate::scheduler::PreparedVerification>),
+    Delivery(Box<crate::delivery_functional::Prepared>),
 }
 impl PreparedFunctional {
     fn checks(&self) -> Result<&[AcceptanceCheck], String> {
@@ -74,12 +74,12 @@ impl RuntimeHost {
         // Use a deterministic unique operation, and persist authority before a request or process.
         let operation = format!("functional-{id}");
         let prepared = if let Some(delivery) = &gathered.check_archive.assembled {
-            PreparedFunctional::Delivery(crate::delivery_functional::Prepared::new(
+            PreparedFunctional::Delivery(Box::new(crate::delivery_functional::Prepared::new(
                 &self.root,
                 delivery.clone(),
                 &operation,
                 plan.policy.max_seconds,
-            )?)
+            )?))
         } else {
             let attempt = store
                 .state()
@@ -87,13 +87,13 @@ impl RuntimeHost {
                 .get(&gathered.final_task)
                 .and_then(|t| t.attempt.as_deref())
                 .ok_or("交付尝试缺失")?;
-            PreparedFunctional::Task(store.prepare_functional_verification(
+            PreparedFunctional::Task(Box::new(store.prepare_functional_verification(
                 &round,
                 &operation,
                 &gathered.final_task,
                 attempt,
                 gathered.functional_checks.clone(),
-            )?)
+            )?))
         };
         let checks = prepared.checks()?;
         let pins = checks
