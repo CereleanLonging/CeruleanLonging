@@ -17,7 +17,7 @@ function Get-CoreDigest([string]$path) {
     finally { $sha.Dispose();$stream.Dispose() }
 }
 $before=Get-CoreDigest $core
-cargo clippy --workspace --all-targets --features custom-protocol --locked -- -D warnings
+cargo clippy --workspace --all-targets --keep-going --features custom-protocol --locked -- -D warnings
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo test -p cerulean-desktop --features custom-protocol --locked
 if ($LASTEXITCODE) { exit $LASTEXITCODE }

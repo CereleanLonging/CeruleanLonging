@@ -155,7 +155,7 @@ mod tests {
         let (binding, trial) = fixture();
         let bridge = "f".repeat(64);
         assert!(require_upgrade_trial(&binding, &[], &bridge).is_err());
-        assert!(require_upgrade_trial(&binding, &[trial.clone()], &bridge).is_ok());
+        assert!(require_upgrade_trial(&binding, std::slice::from_ref(&trial), &bridge).is_ok());
         for field in 0..13 {
             let mut changed = binding.clone();
             let mut probe = trial.clone();
