@@ -10,6 +10,10 @@ if (-not $CacheSession) {
 if (-not $env:CERULEAN_CACHE_SESSION -or -not $env:CARGO_TARGET_DIR) { throw 'Managed cache session required' }
 cargo fmt --all -- --check
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+if ($env:CERULEAN_RUN_NATIVE_ACCOUNT_TESTS -eq '1') {
+    & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests/provision-native-preflight.ps1
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+}
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/provision-long-path.ps1
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 node tests/desktop-bridge-build.mjs

@@ -113,12 +113,14 @@ pub(crate) fn prepare(root: &Path, plan: &mut PlanRevision) {
         &script,
         &[std::ffi::OsStr::new("-PlanPath"), file.as_os_str()],
     );
-    assert!(
-        output.status.success(),
-        "Native provisioning failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
     let receipt: serde_json::Value =
         serde_json::from_slice(&fs::read(file.with_extension("result.json")).unwrap()).unwrap();
+    assert!(
+        output.status.success(),
+        "Native provisioning failed ({}): {}; stderr: {}",
+        output.status,
+        receipt["error"],
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert_eq!(receipt["success"], true, "{receipt}");
 }
