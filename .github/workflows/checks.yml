@@ -9,9 +9,19 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Prepare reviewed packaging tools
+        run: python ./.github/scripts/prepare-reviewed-tools.py
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
       - run: npm ci
+      - name: Validate packaging inputs before compilation
+        run: |
+          cargo fetch --locked
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python ./scripts/sqlite-notices.py --check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python ./scripts/distribution-notices.py --check
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - run: ./scripts/check.ps1
         env:
           CERULEAN_RUN_NATIVE_ACCOUNT_TESTS: '1'

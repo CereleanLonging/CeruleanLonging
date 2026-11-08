@@ -1,0 +1,3 @@
+# Package manifests bind exact source and third-party notice bytes.
+# Preserve each committed file's line endings on every checkout.
+* -text
