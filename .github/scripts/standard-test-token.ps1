@@ -30,7 +30,7 @@ $code=1
 $cleaned=$false
 try {
     $null=[IO.Directory]::CreateDirectory($fixture)
-    $account=New-LocalUser -Name $username -Password $secure -Description ('CeruleanLonging CI '+$identifier)
+    $account=New-LocalUser -Name $username -Password $secure -Description ('CL CI '+$identifier)
     Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $account
     $acl=Get-Acl -LiteralPath $fixture
     $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($account.SID,'Modify','ContainerInherit,ObjectInherit','None','Allow'))
@@ -54,7 +54,7 @@ try {
     [CeruleanCiCoreJob]::Close()
     if($account){
         $current=Get-LocalUser -SID $account.SID
-        if($current.Name -cne $username -or $current.Description -cne ('CeruleanLonging CI '+$identifier)){throw 'Native fixture account identity changed'}
+        if($current.Name -cne $username -or $current.Description -cne ('CL CI '+$identifier)){throw 'Native fixture account identity changed'}
         $profile=Get-CimInstance Win32_UserProfile -Filter ("SID='"+$account.SID.Value+"'")
         $deadline=[DateTime]::UtcNow.AddSeconds(10)
         while($profile -and $profile.Loaded -and [DateTime]::UtcNow -lt $deadline){
