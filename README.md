@@ -106,6 +106,8 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 #### 0.1.48 · 2026-11-08 · 公开预览
 
+副指挥和执行端的 OMP 统一归入桌面端接入，各自保存程序、模型与思考档位。OMP 独立后台默认选择已确认支持的最高档位，可手动调整。绑定客户端的会话沿用原会话配置。API、Key 与 Codex CLI 提供模型二级思考选项，CLI 从实际登录读取能力，配置变更需要重新保存与审阅。
+
 更新柔蓝主题与品牌标识，日常工作台和独立实验台采用浅深两套配色。表单、按钮与退出弹窗统一样式，支持键盘焦点和减少动画，切换页面后自动回到顶部。
 
 主页新增可滚动、放大的完整流程图，README 提供中英文版本，包含逐任务检查、整体盲评、主指挥功能测试与返工修订回路。
@@ -326,6 +328,8 @@ Download the installer and source package from the [0.1.48 release](https://gith
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
 
 #### 0.1.48 · 2026-11-08 · Public Preview
+
+OMP appears under Desktop access for both coordinator and workers, with separate program, model and reasoning settings. Its standalone backend defaults to the highest confirmed effort and supports manual adjustment. Client-bound chats retain their session settings. API, Key and Codex CLI model selection includes a second-step reasoning menu. CLI capabilities come from the actual login, and changed settings require saving and review.
 
 The refreshed blue theme and brand mark use light and dark palettes for daily and experiment workbenches. Forms, buttons and exit dialogs share consistent styling, with keyboard focus, reduced-motion support and scroll reset when changing pages.
 

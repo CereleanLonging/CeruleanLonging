@@ -10,7 +10,7 @@ export const workerMethodLabels: Record<WorkerMethod, string> = {
 };
 
 export function workerMethod(adapter: ProjectWorkerAdapter = "deepseek"): WorkerMethod {
-  if (adapter === "omp") return "api";
+  if (adapter === "omp") return "desktop";
   if (adapter === "codex") return "cli";
   if (adapter === "qoder" || adapter === "workbuddy") return "desktop";
   return "key";
@@ -18,11 +18,11 @@ export function workerMethod(adapter: ProjectWorkerAdapter = "deepseek"): Worker
 
 // UI groups describe configuration routes; OMP still uses a local Agent process.
 export function localWorker(adapter: ProjectWorkerAdapter = "deepseek"): boolean {
-  return adapter === "omp";
+  return adapter === "omp" || adapter === "codex";
 }
 
 export const defaultWorkerAdapter: Record<WorkerMethod, ProjectWorkerAdapter> = {
-  api: "omp",
+  api: "deepseek",
   key: "deepseek",
   cli: "codex",
   desktop: "qoder",

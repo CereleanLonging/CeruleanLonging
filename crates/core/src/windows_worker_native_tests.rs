@@ -53,6 +53,7 @@ async fn omp_account_handshake_and_context_guard() {
     let tool =
         crate::verifier::PinnedCheck::describe(&executable, &[], Default::default()).unwrap();
     let worker = WorkerSelection {
+        reasoning_effort: None,
         omp_runtime_parent: None,
         provider: "deepseek".into(),
         model: "deepseek-flash".into(),

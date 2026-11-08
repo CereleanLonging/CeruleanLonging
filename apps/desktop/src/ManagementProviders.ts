@@ -17,13 +17,13 @@ export function endpointProvider(endpoint: ProviderEndpoint) {
 export function managementKeyMissing(data: Snapshot, source: ChiefSource | DeputySource | undefined): boolean {
   if(source?.kind === "codexSession") return false;
   if(!source || source.kind === "openAi") return !data.openaiConnection.keyConfigured;
-  const provider = source.kind === "deepSeek" ? "deepseek" : endpointProvider(source.endpoint);
+  const provider = (source.kind === "deepSeek" || source.kind === "omp") ? "deepseek" : endpointProvider(source.endpoint);
   return !data.providerCredentials?.some(c=>c.provider === provider && c.keyConfigured);
 }
 export function managementModelList(data: Snapshot, source: ChiefSource | DeputySource | undefined): string[] {
   if(source?.kind === "codexSession") return [];
   if(!source || source.kind === "openAi") return data.openaiConnection.models;
-  const endpoint: ProviderEndpoint = source.kind === "deepSeek" ? {kind:"deepSeek"} : source.endpoint;
+  const endpoint: ProviderEndpoint = (source.kind === "deepSeek" || source.kind === "omp") ? {kind:"deepSeek"} : source.endpoint;
   return data.providerConnections?.find(c=>c.provider === endpointProvider(endpoint)
     && c.target?.kind === endpoint.kind
     && (endpoint.kind !== "qwenBeijing" || c.target.kind === "qwenBeijing" && c.target.workspaceId === endpoint.workspaceId))?.models ?? [];

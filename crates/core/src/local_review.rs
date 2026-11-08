@@ -140,6 +140,39 @@ impl RuntimeHost {
         seat: &ReviewSeat,
     ) -> Result<LocalReview, String> {
         let transport = seat.transport.clone().ok_or("本地评审通道缺失")?;
+        if let ReviewTransport::OmpDeputy { worker } = &transport {
+            seat.validate_source()?;
+            let setup = &self
+                .project_setups
+                .get(project)
+                .ok_or("副指挥设置缺失")?
+                .setup;
+            require(
+                setup
+                    .management_sources
+                    .as_ref()
+                    .ok_or("副指挥来源缺失")?
+                    .deputy_omp_worker(&setup.deputy_model)?
+                    == *worker,
+                "副指挥评审配置已经变化",
+            )?;
+            return Ok(LocalReview {
+                root: self.root.clone(),
+                plan: self
+                    .projects
+                    .get(project)
+                    .and_then(|s| s.revision())
+                    .ok_or("副指挥原方案缺失")?
+                    .clone(),
+                task: String::new(),
+                transport,
+                key: Some(crate::credential_vault::load_for(
+                    &self.root,
+                    cerulean_domain::credentials::CredentialProvider::DeepSeek,
+                )?),
+                chief_executable: None,
+            });
+        }
         if let ReviewTransport::CodexSession {
             session_id,
             provider,
@@ -172,7 +205,7 @@ impl RuntimeHost {
             ReviewTransport::Cli { task_id, .. } | ReviewTransport::Desktop { task_id, .. } => {
                 task_id
             }
-            ReviewTransport::CodexSession { .. } => {
+            ReviewTransport::CodexSession { .. } | ReviewTransport::OmpDeputy { .. } => {
                 unreachable!()
             }
         };
@@ -210,7 +243,9 @@ impl RuntimeHost {
                 )?;
                 None
             }
-            ReviewTransport::CodexSession { .. } => unreachable!(),
+            ReviewTransport::CodexSession { .. } | ReviewTransport::OmpDeputy { .. } => {
+                unreachable!()
+            }
         };
         Ok(LocalReview {
             root: self.root.clone(),
@@ -223,6 +258,38 @@ impl RuntimeHost {
     }
 }
 impl LocalReview {
+    pub(super) async fn analysis(
+        &self,
+        seat: &ReviewSeat,
+        request: &str,
+        material: &ReviewMaterial,
+        ballots: &[RevealedBallot],
+        weights: Option<&cerulean_domain::review_weights::WeightedResult>,
+        control: &Control,
+    ) -> Result<cerulean_adapters::blind_review::AnalysisObservation, String> {
+        let ReviewTransport::OmpDeputy { worker } = &self.transport else {
+            return Err("当前会话接入不支持副指挥分析".into());
+        };
+        let (instruction, input) = cerulean_adapters::blind_review::analysis_prompt(
+            seat, request, material, ballots, weights,
+        )?;
+        let prompt =
+            serde_json::to_string(&serde_json::json!({"instruction":instruction,"input":input}))
+                .map_err(|e| e.to_string())?;
+        control.message(seat, request, "fresh-omp-deputy", 0, 1, &prompt)?;
+        let (text, _) = super::omp_management_host::prompt_once(
+            &self.root,
+            request,
+            &self.plan.approval_digest()?,
+            worker,
+            &prompt,
+            self.key.as_ref().ok_or("OMP 凭证缺失")?,
+            Some(control),
+        )
+        .await?;
+        control.acknowledge()?;
+        cerulean_adapters::blind_review::parse_analysis_text(&text, seat, request)
+    }
     pub(super) async fn functional(
         &self,
         seat: &ReviewSeat,
@@ -335,6 +402,34 @@ impl LocalReview {
             Some(&self.transport),
         )?;
         let (reply, audit) = match &self.transport {
+            ReviewTransport::OmpDeputy { worker } => {
+                control.check()?;
+                let prompt = serde_json::to_string(&serde_json::json!({"materialPackets":packets.iter().map(|(p,_)|p).collect::<Vec<_>>(),"instruction":"All packets are delivered together. Do not emit intermediate ACKs. Return the final packet's strict JSON only. Never call tools."})).map_err(|e|e.to_string())?;
+                control.message(seat, request, "fresh-omp-deputy", 0, 1, &prompt)?;
+                let (reply, events) = super::omp_management_host::prompt_once(
+                    &self.root,
+                    request,
+                    &self.plan.approval_digest()?,
+                    worker,
+                    &prompt,
+                    self.key.as_ref().ok_or("OMP 凭证缺失")?,
+                    Some(control),
+                )
+                .await?;
+                control.record_audit(
+                    ReviewToolAudit {
+                        status: ReviewToolStatus::Clean,
+                        source: "omp-events".into(),
+                        request: request.into(),
+                        evidence_digest: digest(&(&events, &reply))?,
+                        tools: vec![],
+                        reason: "独立 OMP 无工具协议已核验实际模型与原请求终态".into(),
+                    },
+                    request,
+                )?;
+                control.acknowledge()?;
+                (reply, None)
+            }
             ReviewTransport::Cli { adapter, .. } if adapter == "codex" => {
                 (self.codex(seat, request, &packets, control).await?, None)
             }
@@ -416,7 +511,8 @@ impl LocalReview {
             false,
         )?;
         let result: Result<String, String> = async {
-            client.connect().await?;
+            let connection = client.connect().await?;
+            client.configure_worker_effort(&connection, &seat.model, seat.reasoning_effort)?;
             let binding = client.bind_review_session(&seat.model, None).await?;
             let mut result = String::new();
             for (index, (prompt, ack)) in packets.iter().enumerate() {

@@ -527,6 +527,7 @@ fn workspace_project_runs_nonshared_writer_refuses_instead_of_using_cached_snaps
                 attempt_id: key.1.clone(),
                 revision_digest: page.entries[0].revision_digest.clone(),
                 worker: WorkerSelection {
+                    reasoning_effort: None,
                     omp_runtime_parent: None,
                     provider: "fixture".into(),
                     model: "fixture".into(),

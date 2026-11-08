@@ -85,6 +85,8 @@ impl DecisionJournal {
         self.operations.insert(
             id.into(),
             Operation {
+                omp_request: None,
+                omp_response: None,
                 deputy_request: Some(request),
                 deputy_response: None,
                 external_request: None,

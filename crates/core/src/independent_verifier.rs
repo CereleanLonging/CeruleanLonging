@@ -248,6 +248,7 @@ mod tests {
         let seats = ["chief", "deputy", "worker"]
             .into_iter()
             .map(|role| ReviewSeat {
+                reasoning_effort: None,
                 max_output_tokens: None,
                 id: role.into(),
                 role: role.into(),

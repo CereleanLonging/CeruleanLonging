@@ -59,6 +59,8 @@ impl DecisionJournal {
         self.operations.insert(
             id.into(),
             Operation {
+                omp_request: None,
+                omp_response: None,
                 deputy_request: None,
                 deputy_response: None,
                 external_request: Some(request),
@@ -208,7 +210,9 @@ impl DecisionJournal {
             .envelope()
             .ok_or("management result pending or unknown; do not resend")?;
         envelope.validate(op.intent.purpose, &op.intent.state_digest)?;
-        if let Some(response) = &op.external_response {
+        if let Some(response) = &op.omp_response {
+            response.validate(&op.intent, op.omp_request.as_ref().ok_or("OMP 原请求缺失")?)?;
+        } else if let Some(response) = &op.external_response {
             validate_response(op, response)?;
         } else if let Some(response) = &op.deputy_response {
             response.validate(op.deputy_request.as_ref().ok_or("deputy request missing")?)?;

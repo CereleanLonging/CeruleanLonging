@@ -46,6 +46,9 @@ impl RuntimeHost {
         project: &str,
         purpose: Purpose,
     ) -> Option<credentials::CredentialProvider> {
+        if self.omp_deputy_selected(project, purpose) {
+            return Some(credentials::CredentialProvider::DeepSeek);
+        }
         self.selected_management_source(project, purpose, "selection")
             .and_then(|s| {
                 s.api_selection()
@@ -124,6 +127,9 @@ impl RuntimeHost {
         intent: crate::management_execution::DecisionIntent,
     ) -> Result<(), String> {
         self.require_review_dispatch_idle()?;
+        if self.omp_deputy_selected(&intent.project_id, intent.purpose) {
+            return self.start_omp_management(intent);
+        }
         if self
             .selected_management_provider(&intent.project_id, intent.purpose)
             .is_some()

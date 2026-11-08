@@ -95,6 +95,31 @@ fn unpriced(review: &ScopedPricingReview, value: &Value) {
 }
 
 #[test]
+fn scoped_reasoning_preserves_exact_count_and_generation_configuration() {
+    let context =
+        json!({"executionSetup":{"setup":{"managementSources":{"deputyReasoningEffort":"high"}}}});
+    let scoped = ScopedDecisionDraft::standard(
+        Purpose::Assign,
+        "gpt-6-astra",
+        &digest(&context).unwrap(),
+        &context,
+    )
+    .unwrap();
+    assert_eq!(
+        scoped.checked_count_body().unwrap()["reasoning"],
+        json!({"effort":"high"})
+    );
+    for value in [
+        json!("unreviewed"),
+        json!({"effort":"high","summary":"auto"}),
+    ] {
+        let mut body = scoped.body.clone();
+        body["reasoning"] = value;
+        assert!(count_projection(&body).is_err());
+    }
+}
+
+#[test]
 fn scoped_draft_explicit_standard_has_distinct_generation_same_reviewed_count_context() {
     for purpose in [
         Purpose::Plan,

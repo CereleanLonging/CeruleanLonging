@@ -68,6 +68,7 @@ fn fixture() -> (tempfile::TempDir, PathBuf) {
 }
 fn selection(exe: &Path, mode: &str) -> WorkerSelection {
     WorkerSelection {
+        reasoning_effort: None,
         omp_runtime_parent: None,
         provider: "deepseek".into(),
         model: mode.into(),

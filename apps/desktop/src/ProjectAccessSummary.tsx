@@ -1,12 +1,13 @@
 import { HelpHeading } from "./HelpHeading";
+import { reasoningLabel } from "./ReasoningOptions";
 import type { ProjectSetupDraft, ProjectWorkerAdapter } from "./contracts";
 
 const adapters: Record<ProjectWorkerAdapter, string> = {
-  codex: "Codex CLI（历史配置）", omp: "OMP · API", qoder: "Qoder 桌面",
+  codex: "Codex CLI", omp: "OMP · 桌面后台", qoder: "Qoder 桌面",
   workbuddy: "WorkBuddy（已移除）", openai: "OpenAI API", anthropic: "Claude API",
   deepseek: "DeepSeek API", qwen: "Qwen API", kimi: "Kimi API", grok: "Grok API", a6api: "中转 API",
 };
-type Worker = Pick<ProjectSetupDraft, "workerAdapter" | "workerModel" | "apiWorker" | "desktopWorker">;
+type Worker = Pick<ProjectSetupDraft, "workerAdapter" | "workerModel" | "apiWorker" | "desktopWorker" | "workerReasoningEffort">;
 
 function WorkerSummary({ label, worker }: { label: string; worker: Worker }) {
   const desktop = worker.workerAdapter === "qoder" || worker.workerAdapter === "workbuddy";
@@ -14,6 +15,7 @@ function WorkerSummary({ label, worker }: { label: string; worker: Worker }) {
   return <li>
     <strong>{label} · {adapters[worker.workerAdapter ?? "codex"]}</strong>
     <p>模型：{selection?.modelLabel || worker.workerModel || "未选择"}</p>
+    {!desktop && <p>思考强度 {reasoningLabel(worker.apiWorker?.reasoningEffort ?? worker.workerReasoningEffort)}</p>}
     {desktop && (selection ? <>
       <p className="desktop-bound-directory">会话 ID：<code>{selection.binding.observation.sessionId || "历史关联未记录会话 ID"}</code></p>
       <p className="desktop-bound-directory">执行目录：<code>{selection.projectRoot}</code></p>
@@ -30,6 +32,7 @@ export function ProjectAccessSummary({ draft, accessReady, disabled, onConnectio
   return <section className="panel" aria-label="已选角色模型">
     <HelpHeading as="h3" topic="ProjectPlanning">接入配置摘要</HelpHeading>
     <p>主指挥：{draft.chiefModel || "未选择"} · 副指挥：{draft.deputyModel || "未选择"}</p>
+    <p>{draft.managementSources?.chief.kind !== "codexSession" && <>主指挥思考强度 {reasoningLabel(draft.managementSources?.chiefReasoningEffort)} · </>}副指挥思考强度 {reasoningLabel(draft.managementSources?.deputyReasoningEffort)}</p>
     {draft.managementSources?.chief.kind === "codexSession" && <p className="secondary desktop-bound-directory">Codex 主指挥会话：{draft.managementSources.chief.sessionId || "待填写"}</p>}
     <ul className="project-worker-summary" aria-label="本项目执行端">
       <WorkerSummary label="默认执行端" worker={draft}/>

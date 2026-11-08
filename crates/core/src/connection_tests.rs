@@ -30,6 +30,8 @@ pub enum LocalConnectionRequest {
     Omp {
         executable: String,
         model: String,
+        #[serde(default)]
+        reasoning_effort: Option<cerulean_domain::reasoning::ReasoningEffort>,
         runtime_parent: Option<String>,
     },
     Qoder {
@@ -109,9 +111,13 @@ pub fn test_local_connection(
                     ))
                 }
                 LocalConnectionRequest::Omp {
-                    executable, model, ..
+                    executable,
+                    model,
+                    reasoning_effort,
+                    ..
                 } => {
                     let worker = WorkerSelection {
+                        reasoning_effort,
                         executable: crate::verifier::PinnedCheck::describe(
                             Path::new(&executable),
                             &[],
@@ -160,4 +166,45 @@ pub fn test_local_connection(
         message,
         checked_at: chrono::Utc::now().to_rfc3339(),
     })
+}
+
+/// Catalog metadata only. The temporary read-only client never starts a turn.
+pub async fn cli_model_catalog(
+    root: &Path,
+    executable: &str,
+) -> Result<Vec<cerulean_adapters::codex::Model>, String> {
+    let executable = Path::new(executable);
+    crate::codex_discovery::validate_executable(executable)?;
+    let root = crate::artifacts::root_path(root.to_str().ok_or("工作台目录无效")?)?;
+    let scratch = root.join(format!(
+        "cli-catalog-{}-{}-{}",
+        std::process::id(),
+        chrono::Utc::now().timestamp_millis(),
+        NEXT_TEST.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir(&scratch).map_err(|_| "无法创建 CLI 目录检查环境")?;
+    let result: Result<Vec<cerulean_adapters::codex::Model>, String> = async {
+        let mut client = CodexClient::launch_readonly(executable, &scratch)?;
+        let connection = timeout(Duration::from_secs(60), client.connect()).await;
+        let closed = client.close().await;
+        let connection = connection.map_err(|_| "CLI 模型目录读取超时")??;
+        closed?;
+        require(
+            connection.account_type.is_some(),
+            "请先登录 Codex CLI，或切换 Key 接入配置相应凭证",
+        )?;
+        Ok(connection.models)
+    }
+    .await;
+    let cleaned: Result<(), String> = (|| {
+        let resolved = crate::artifacts::root_path(scratch.to_str().ok_or("CLI 检查目录无效")?)?;
+        require(
+            resolved.parent() == Some(root.as_path()),
+            "CLI 检查目录边界发生变化",
+        )?;
+        fs::remove_dir_all(&resolved).map_err(|_| "CLI 目录检查环境待清理".into())
+    })();
+    let models = result?;
+    cleaned?;
+    Ok(models)
 }

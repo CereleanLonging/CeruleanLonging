@@ -9,6 +9,19 @@ use std::{
 };
 pub(crate) fn validate(record: &SavedProjectSetup) -> Result<(), String> {
     let s = &record.setup;
+    if let Some(cerulean_domain::project_setup::ManagementSources {
+        deputy:
+            cerulean_domain::project_setup::DeputySource::Omp {
+                executable_sha256, ..
+            },
+        ..
+    }) = &s.management_sources
+    {
+        require(
+            executable_sha256.is_some(),
+            "已保存的副指挥 OMP 程序缺少摘要",
+        )?;
+    }
     require(s.worker_directories.len() <= 5, "最多保留五个执行模型目录")?;
     require(
         s.chief_directory.is_some() || s.worker_directories.is_empty(),
@@ -38,6 +51,7 @@ pub(crate) fn validate(record: &SavedProjectSetup) -> Result<(), String> {
         "project setup worker selection mismatch",
     )?;
     ProjectSetupDraft {
+        worker_reasoning_effort: s.worker.as_ref().and_then(|w| w.reasoning_effort),
         chief_directory: s.chief_directory.clone(),
         management_sources: s.management_sources.clone(),
         resource_keys: s.resource_keys.clone(),

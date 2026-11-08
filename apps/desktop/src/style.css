@@ -1065,3 +1065,25 @@ dialog.api-model-picker::backdrop { background: rgb(13 31 42 / 48%); }
 .file-import-window > button:disabled { opacity: .55; cursor: default; }
 .file-import-window > span { font-size: 12px; color: var(--muted, #657080); }
 .file-import-window > [role="alert"] { flex-basis: 100%; color: #b42318; }
+.reasoning-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-block: 16px;
+}
+.reasoning-options > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.reasoning-options input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+.reasoning-options > p {
+  flex-basis: 100%;
+}

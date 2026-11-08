@@ -271,6 +271,7 @@ pub(crate) fn describe_executable(executable: &Path) -> Result<ValidationFile, S
 }
 pub(crate) fn describe(executable: &Path, model: &str) -> Result<WorkerSelection, String> {
     let worker = WorkerSelection {
+        reasoning_effort: None,
         omp_runtime_parent: None,
         provider: "openai".into(),
         model: model.into(),
@@ -591,6 +592,11 @@ async fn run(
                     .iter()
                     .any(|m| m.model == job.worker.model),
                 "approved model unavailable",
+            )?;
+            client.configure_worker_effort(
+                &connection,
+                &job.worker.model,
+                job.worker.reasoning_effort,
             )?;
             let binding = client.create_worker(&job.worker.model).await?;
             require(

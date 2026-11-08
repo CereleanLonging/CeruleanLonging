@@ -87,6 +87,7 @@ fn make_draft(
         ApiClient::new(SecretInput::new("sk-isolated-api-currency-fixture".into()).unwrap())
             .unwrap()
             .prepare_scoped(ApiRequest {
+                reasoning_effort: None,
                 target: ApiTarget::OpenAi {},
                 model: "fixture".into(),
                 instructions: "approved fixture".into(),
@@ -115,6 +116,7 @@ fn make_draft(
             }),
         },
         worker: ApiWorkerSelection {
+            reasoning_effort: None,
             write_scope: None,
             target: ApiTarget::OpenAi {},
             model: "fixture".into(),

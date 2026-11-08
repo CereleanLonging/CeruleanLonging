@@ -51,6 +51,10 @@ impl RuntimeHost {
         intent: DecisionIntent,
     ) -> Result<(), String> {
         intent.validate()?;
+        require(
+            !self.omp_deputy_selected(&intent.project_id, intent.purpose),
+            "OMP 副指挥必须使用专用后台通道",
+        )?;
         let project = intent.project_id.as_str();
         let purpose = intent.purpose;
         let model = intent.model.as_str();

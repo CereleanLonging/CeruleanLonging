@@ -6,6 +6,7 @@ use crate::management_execution::DecisionIntent;
 use cerulean_adapters::openai::{scoped_pricing::ScopedDecisionResult, DecisionResult};
 
 pub(super) enum ManagementCompletion {
+    Omp(Box<crate::management_execution::omp::OmpResponse>),
     Deputy {
         response: Box<cerulean_adapters::deputy_management::DeputyResult>,
         gateway: Option<crate::gateway_response_evidence::GatewayAttempt>,
@@ -116,6 +117,16 @@ impl RuntimeHost {
         id: &str,
         outcome: Result<ManagementCompletion, String>,
     ) -> Result<(), String> {
+        if let Some(request) = self.management.omp_request(id) {
+            let response = match outcome {
+                Ok(ManagementCompletion::Omp(response)) => *response,
+                Err(error) => {
+                    crate::management_execution::omp::OmpResponse::failed(request, error)?
+                }
+                _ => return Err("OMP 管理回执通道不符".into()),
+            };
+            return self.management.finish_omp(id, response);
+        }
         if self.management.is_deputy(id) {
             let (response, gateway) = match outcome {
                 Ok(ManagementCompletion::Deputy { response, gateway }) => (*response, gateway),

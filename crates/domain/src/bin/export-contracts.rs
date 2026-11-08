@@ -4,6 +4,7 @@ use cerulean_domain::*;
 use ts_rs::TS;
 fn main() {
     let declarations = [
+        reasoning::ReasoningEffort::decl(),
         blind_review::BlindReviewAction::decl(),
         blind_review::BlindReviewView::decl(),
         blind_review::FunctionalTestView::decl(),

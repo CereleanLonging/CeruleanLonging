@@ -107,6 +107,7 @@ fn fixture_with_cli(
             execution.adapter_id = adapter.into();
             execution.api_worker = None;
             execution.worker = Some(WorkerSelection {
+                reasoning_effort: None,
                 omp_runtime_parent: None,
                 provider: if adapter == "codex" {
                     "openai"

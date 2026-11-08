@@ -8,6 +8,8 @@ import { DesktopSessions } from "./DesktopSessions";
 import { OpenAiConnection } from "./OpenAiConnection";
 import { ProviderCard, providers } from "./ProviderConnections";
 import { LocalConnectionTest } from "./LocalConnectionTest";
+import { ModelOptionsButton } from "./ModelOptionsButton";
+import type { ReasoningEffort } from "./contracts";
 import { OmpConnectionTest } from "./OmpCredentials";
 
 export type IntegrationRole = "chief" | "deputy" | "worker";
@@ -23,7 +25,7 @@ function ApiEntry({ role, view, data, busy, send, modelPreference }: Omit<Props,
   const [modelDefault,setModelDefault,modelError] = modelPreference;
   const selectedModel = parseApiModelDefault(modelDefault);
   const modelAssignments: ApiModelAssignment[] = [{id:role,label:roleNames[role],model:selectedModel?.model??"",
-    target:selectedModel?.target??{kind:"openAi"},onSelect:(model,target)=>setModelDefault(JSON.stringify({target,model}))}];
+    reasoningEffort:selectedModel?.reasoningEffort,target:selectedModel?.target??{kind:"openAi"},onSelect:(model,target,reasoningEffort)=>setModelDefault(JSON.stringify({target,model,reasoningEffort}))}];
   return <div className="integration-entry">
     {(preferenceError||modelError)&&<p role="alert">接入选项自动保存失败，请重新选择后重试。</p>}
     <label htmlFor={`${prefix}-provider`}>{view === "key" ? "凭证供应商" : "API 服务"}</label>
@@ -38,17 +40,20 @@ function ApiEntry({ role, view, data, busy, send, modelPreference }: Omit<Props,
   </div>;
 }
 
-function WorkerOmp({ data, busy, send, configure }: Props) {
-  const [ompPath,setOmpPath] = useAccessPreference(data.dataDirectory,"omp-test-executable","");
-  const [ompModel,setOmpModel] = useAccessPreference(data.dataDirectory,"omp-test-model","deepseek-flash");
-  const [ompRuntime,setOmpRuntime] = useAccessPreference(data.dataDirectory,"omp-test-runtime","");
+function WorkerOmp({ data, busy, send, configure, role = "worker" }: Props & {role?: "deputy" | "worker"}) {
+  const preferencePrefix = role === "deputy" ? "deputy-" : "";
+  const [ompPath,setOmpPath] = useAccessPreference(data.dataDirectory,`${preferencePrefix}omp-test-executable`,"");
+  const [ompModel,setOmpModel] = useAccessPreference(data.dataDirectory,`${preferencePrefix}omp-test-model`,"deepseek-flash");
+  const [ompEffort,setOmpEffort] = useAccessPreference(data.dataDirectory,`${preferencePrefix}omp-test-effort`,"max",["","none","low","high","max"]);
+  const [ompRuntime,setOmpRuntime] = useAccessPreference(data.dataDirectory,`${preferencePrefix}omp-test-runtime`,"");
   return <div className="integration-entry">
-    <div className="integration-note"><HelpHeading as="h3" topic="IntegrationHub">OMP · DeepSeek API</HelpHeading>
-        <label htmlFor="integration-omp-path">OMP 程序完整路径</label><input id="integration-omp-path" value={ompPath} disabled={busy} onChange={e=>setOmpPath(e.target.value)}/>
-        <label htmlFor="integration-omp-model">OMP 模型 ID</label><input id="integration-omp-model" value={ompModel} disabled={busy} onChange={e=>setOmpModel(e.target.value)}/>
-        <label htmlFor="integration-omp-runtime">OMP 测试运行目录（可选）</label><input id="integration-omp-runtime" value={ompRuntime} disabled={busy} onChange={e=>setOmpRuntime(e.target.value)} placeholder="已存在的专用目录，留空使用工作台数据目录"/>
-        <OmpConnectionTest data={data} busy={busy} send={send} executable={ompPath} model={ompModel} runtimeParent={ompRuntime.trim()||undefined}/>
-        <button type="button" className="secondary-button" disabled={busy} onClick={() => configure("worker")}>配置 OMP 执行模型</button></div>
+    <div className="integration-note"><HelpHeading as="h3" topic="IntegrationHub">OMP · 独立后台</HelpHeading>
+        <label htmlFor={`integration-${role}-omp-path`}>OMP 程序完整路径</label><input id={`integration-${role}-omp-path`} value={ompPath} disabled={busy} onChange={e=>setOmpPath(e.target.value)}/>
+        <label htmlFor={`integration-${role}-omp-model`}>OMP 模型 ID</label><input id={`integration-${role}-omp-model`} value={ompModel} disabled={busy} onChange={e=>{setOmpModel(e.target.value);setOmpEffort("max");}}/>
+        <label htmlFor={`integration-${role}-omp-runtime`}>OMP 测试运行目录（可选）</label><input id={`integration-${role}-omp-runtime`} value={ompRuntime} disabled={busy} onChange={e=>setOmpRuntime(e.target.value)} placeholder="已存在的专用目录，留空使用工作台数据目录"/>
+        <ModelOptionsButton allowDefault={false} model={ompModel} target={{kind:"provider",endpoint:{kind:"deepSeek"}}} effort={ompEffort as ReasoningEffort||undefined} disabled={busy} onChange={effort=>setOmpEffort(effort??"")}/>
+        <OmpConnectionTest effort={ompEffort as ReasoningEffort||undefined} data={data} busy={busy} send={send} executable={ompPath} model={ompModel} runtimeParent={ompRuntime.trim()||undefined}/>
+        <button type="button" className="secondary-button" disabled={busy} onClick={() => configure(role,"desktop")}>配置 OMP {roleNames[role]}模型</button></div>
   </div>;
 }
 
@@ -90,17 +95,19 @@ export function IntegrationHub(props: Props) {
 
     <section className="panel integration-role" aria-labelledby="integration-deputy-title">
       <div className="integration-role-heading"><div><span className="integration-role-eyebrow">协调与监督</span><HelpHeading as="h2" topic="IntegrationHub" id="integration-deputy-title">副指挥</HelpHeading></div><ConfigureButton role="deputy" {...props}/></div>
-      <p className="secondary">副指挥当前通过 API 接入。可按项目选择不同供应商与模型，监督范围仍由批准方案决定。</p>
+      <p className="secondary">副指挥可选择 API 直连或桌面端下的 OMP 独立后台，每个项目使用一种接入。</p>
       <details className="integration-group" name="unbound-deputy-method"><summary>API 连接</summary><ApiEntry role="deputy" view="api" data={data} busy={busy} send={send} modelPreference={deputyModel}/></details>
+      <details className="integration-group" name="unbound-deputy-method"><summary>桌面端接入</summary><WorkerOmp {...props} role="deputy"/></details>
       <details className="integration-group" name="unbound-deputy-method"><summary>Key 管理</summary><ApiEntry role="deputy" view="key" data={data} busy={busy} send={send} modelPreference={deputyModel}/></details>
     </section>
 
     <section className="panel integration-role" aria-labelledby="integration-worker-title">
       <div className="integration-role-heading"><div><span className="integration-role-eyebrow">执行与交付</span><HelpHeading as="h2" topic="IntegrationHub" id="integration-worker-title">执行端</HelpHeading></div><ConfigureButton role="worker" {...props}/></div>
-      <p className="secondary">按任务选择默认执行模型或附加执行配置。Codex 仅保留主指挥会话接入。已有模型工作目录继续复用，模型切换需要保存新版项目配置。</p>
-      <details className="integration-group"><summary>API 连接</summary><WorkerOmp {...props}/></details>
+      <p className="secondary">按任务选择默认执行模型或附加执行配置。Codex CLI 执行使用分配的隔离账户。已有模型工作目录继续复用，模型切换需要保存新版项目配置。</p>
+      <details className="integration-group"><summary>CLI 接入</summary><div className="integration-entry"><p>在关联项目中选择执行程序和 CLI 模型，再确认思考强度。</p><ConfigureButton role="worker" {...props}/></div></details>
       <details className="integration-group"><summary>Key 管理</summary><ApiEntry role="worker" view="key" data={data} busy={busy} send={send} modelPreference={workerModel}/></details>
       <details className="integration-group"><summary>桌面端接入</summary>
+        <WorkerOmp {...props}/>
         <div className="integration-entry">
           <p>关联项目后，填写 Qoder 会话 ID，点击“测试并绑定会话”即可读取模型并保存关联。</p>
           <ConfigureButton role="worker" {...props}/>

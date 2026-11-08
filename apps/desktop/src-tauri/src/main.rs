@@ -81,6 +81,27 @@ async fn test_local_connection(
     .map_err(|_| "本机连通测试未完成，请稍后重试".to_string())?
 }
 
+#[tauri::command]
+fn model_reasoning_options(
+    target: cerulean_domain::api_worker::ApiTarget,
+    model: String,
+) -> Vec<cerulean_domain::reasoning::ReasoningEffort> {
+    cerulean_domain::reasoning::api_options(&target, &model)
+}
+
+#[tauri::command]
+async fn cli_model_catalog(
+    executable: String,
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, State>,
+) -> Result<serde_json::Value, String> {
+    let _access = state.lifecycle.enter(window.label()).await?;
+    let directory = state.workbenches.directory(window.label())?;
+    let models =
+        cerulean_core::connection_tests::cli_model_catalog(&directory, &executable).await?;
+    serde_json::to_value(models).map_err(|_| "CLI 模型目录编码失败".into())
+}
+
 struct State {
     #[cfg(windows)]
     file_imports: std::sync::Arc<file_import_service::Service>,
@@ -686,6 +707,8 @@ fn main() {
             cancel_workbench_exit,
             scan_codex_installations,
             test_local_connection,
+            model_reasoning_options,
+            cli_model_catalog,
             independent_verifier_status,
             objective_checker_status,
             review_workflow_template,

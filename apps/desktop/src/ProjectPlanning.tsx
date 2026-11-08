@@ -8,17 +8,20 @@ import { IntegrationHub, type ConfigurationRequest } from "./IntegrationHub";
 import { ProjectConnections } from "./ProjectConnections";
 import { ProjectAccessSummary } from "./ProjectAccessSummary";
 import { defaultWorkerAdapter, localWorker, revealConnectionField, workerMethod, type WorkerMethod } from "./ConnectionMethods";
-import { hasOmpKey, OmpConnectionTest, OmpKeyDialog } from "./OmpCredentials";
+import { hasOmpKey, ompPreference, OmpConnectionTest, OmpKeyDialog } from "./OmpCredentials";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { flushAccessStorage, useAccessPersistence } from "./accessStorage";
 import { accessContents, accessKey, loadAccessDraft, saveAccessDraft } from "./accessDraft";
 import { preferenceKey, readPreference, writePreference } from "./accessPreferences";
 import { managementKeyMissing, managementModelList } from "./ManagementProviders";
+import { ModelOptionsButton } from "./ModelOptionsButton";
+import { CliModelPicker } from "./CliModelPicker";
+import { ModelCredentialDialog } from "./ModelCredentialDialog";
 import { readApiModelDefault } from "./apiModels";
 import { endpointProvider } from "./ManagementProviders";
 import { automaticTaskDescription, suggestedWorkerResource, synchronizeWorkerProfiles, withAutomaticResource, workerConfigurationIdentity } from "./workerConfiguration";
-import type { AcceptanceStageDraft, Command, ProjectSetupDraft, ProjectWorkerAdapter, Snapshot, SavedProjectSetup, WorkerProfileDraft } from "./contracts";
+import type { AcceptanceStageDraft, Command, ProjectSetupDraft, ProjectWorkerAdapter, ReasoningEffort, Snapshot, SavedProjectSetup, WorkerProfileDraft } from "./contracts";
 
 import { ApiWorkerFields, apiWorkerOptions, newApiWorker } from "./ApiWorkerFields";
 import { DesktopWorkerFields } from "./DesktopWorkerFields";
@@ -40,7 +43,7 @@ function removeUnusedCodexDefault(value:ProjectSetupDraft, preferred?:ReturnType
   if (value.workerModel.trim()) return {...value,workerAdapter:"codex"};
   const adapter=preferred?(preferred.target.kind==="openAi"?"openai":endpointProvider(preferred.target.endpoint)):"deepseek";
   const apiWorker=newApiWorker(adapter)!;
-  return {...value,workerAdapter:adapter,apiWorker:preferred?{...apiWorker,target:preferred.target,model:preferred.model}:apiWorker,codexExecutable:"",workerModel:preferred?.model??"",desktopWorker:undefined,ompRuntimeParent:undefined};
+  return {...value,workerAdapter:adapter,apiWorker:preferred?{...apiWorker,target:preferred.target,model:preferred.model,reasoningEffort:preferred.reasoningEffort}:apiWorker,codexExecutable:"",workerModel:preferred?.model??"",desktopWorker:undefined,ompRuntimeParent:undefined};
 }
 const states:Record<string,string>={awaitingExternal:"等待绑定的 Codex 聊天回填方案",running:"主指挥正在规划",ready:"回复待处理",applying:"方案正在入账",applied:"回复已处理",unknown:"请求结果待核对",discarded:"请求已放弃",abandoned:"应用事务已关闭",startupClosed:"启动记录已关闭"};
 export function ProjectPlanning({data,busy,send,configuration,onConfigurationReady,onSetup,mode="all",onContinue,onConnections}:{data:Snapshot|null;busy:boolean;send:(command:Command,onError?:(message:string)=>void)=>Promise<boolean>;configuration?:ConfigurationRequest|null;onConfigurationReady?:(token:number)=>void;onSetup?:()=>void;mode?:"all"|"connections"|"planning";onContinue?:()=>void;onConnections?:()=>void}) {
@@ -49,6 +52,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
   const [automaticResources,setAutomaticResources]=useState<Record<string,string>>({});
   const [allocationNotice,setAllocationNotice]=useState("");
   const [ompKeyPrompt,setOmpKeyPrompt]=useState(false);
+  const [modelKeyPrompt,setModelKeyPrompt] = useState(false);
   const [reviewedAccess,setReviewedAccess]=useState<string|null>(null);
   const durable=useAccessPersistence();
   const [accessChecking,setAccessChecking]=useState(false);
@@ -87,12 +91,12 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
   useEffect(()=>{if(storageEnabled)writePreference(preferenceKey(data?.dataDirectory,"planning-project"),projectId);},[storageEnabled,data?.dataDirectory,projectId]);
   useEffect(()=>{
     const s=saved?.setup;
-    const nextDraft:ProjectSetupDraft = s ? {chiefDirectory:s.chiefDirectory,managementSources:s.managementSources,currencyBudget:s.policy.currencyBudget,resourceKeys:s.resourceKeys,profiles:s.profiles?.map(restoreProfile),worktree:s.worktree?{integration:s.worktree.integration?{taskId:s.worktree.integration.taskId,artifactPaths:s.worktree.integration.artifactPaths,validatorId:s.worktree.integration.validatorId,args:s.worktree.integration.check.args,timeoutSeconds:s.worktree.integration.check.timeoutSeconds}:undefined,inheritDependencies:s.worktree.input==="committed-raw-blobs-with-accepted-dependencies"?true:undefined,baseCommit:s.worktree.baseCommit,poolRoot:s.worktree.poolRoot,gitExecutable:s.worktree.git.path}:undefined,workerAdapter:s.workerAdapter??"codex",apiWorker:s.apiWorker,desktopWorker:s.desktopWorker,ompRuntimeParent:s.worker?.ompRuntimeParent,supervision:s.policy.supervision,projectId,requirement:s.requirement,codexExecutable:s.worker?.executable.path??"",workerModel:s.desktopWorker?.modelLabel??s.apiWorker?.model??s.worker?.model??"",chiefModel:s.chiefModel,deputyModel:s.deputyModel,validatorId:s.validatorId,checkArgs:s.check.args,artifactPaths:s.artifactPaths,workerMaxRequests:s.policy.maxRequests,managementMaxRequests:s.managementMaxRequests,maxSeconds:s.policy.maxSeconds} : {...empty,projectId,chiefDirectory:(data?.workflows.find(w=>w.project.id===projectId)?.project.root??"")+"-chief",codexExecutable:"",validatorId:data?.validators[0]?.id??""};
+    const nextDraft:ProjectSetupDraft = s ? {chiefDirectory:s.chiefDirectory,managementSources:s.managementSources,currencyBudget:s.policy.currencyBudget,resourceKeys:s.resourceKeys,profiles:s.profiles?.map(restoreProfile),worktree:s.worktree?{integration:s.worktree.integration?{taskId:s.worktree.integration.taskId,artifactPaths:s.worktree.integration.artifactPaths,validatorId:s.worktree.integration.validatorId,args:s.worktree.integration.check.args,timeoutSeconds:s.worktree.integration.check.timeoutSeconds}:undefined,inheritDependencies:s.worktree.input==="committed-raw-blobs-with-accepted-dependencies"?true:undefined,baseCommit:s.worktree.baseCommit,poolRoot:s.worktree.poolRoot,gitExecutable:s.worktree.git.path}:undefined,workerAdapter:s.workerAdapter??"codex",apiWorker:s.apiWorker,desktopWorker:s.desktopWorker,ompRuntimeParent:s.worker?.ompRuntimeParent,workerReasoningEffort:s.worker?.reasoningEffort,supervision:s.policy.supervision,projectId,requirement:s.requirement,codexExecutable:s.worker?.executable.path??"",workerModel:s.desktopWorker?.modelLabel??s.apiWorker?.model??s.worker?.model??"",chiefModel:s.chiefModel,deputyModel:s.deputyModel,validatorId:s.validatorId,checkArgs:s.check.args,artifactPaths:s.artifactPaths,workerMaxRequests:s.policy.maxRequests,managementMaxRequests:s.managementMaxRequests,maxSeconds:s.policy.maxSeconds} : {...empty,projectId,chiefDirectory:(data?.workflows.find(w=>w.project.id===projectId)?.project.root??"")+"-chief",codexExecutable:"",validatorId:data?.validators[0]?.id??""};
     if (!s && data) {
       const chiefDefault = readApiModelDefault(data.dataDirectory,"chief");
       const deputyDefault = readApiModelDefault(data.dataDirectory,"deputy");
       const workerDefault = readApiModelDefault(data.dataDirectory,"worker");
-      if (chiefDefault || deputyDefault) nextDraft.managementSources = {chief:chiefDefault?.target??{kind:"openAi"},deputy:deputyDefault?.target??{kind:"openAi"}};
+      if (chiefDefault || deputyDefault) nextDraft.managementSources = {chiefReasoningEffort:chiefDefault?.reasoningEffort,deputyReasoningEffort:deputyDefault?.reasoningEffort,chief:chiefDefault?.target??{kind:"openAi"},deputy:deputyDefault?.target??{kind:"openAi"}};
       nextDraft.chiefModel = chiefDefault?.model??"";
       nextDraft.deputyModel = deputyDefault?.model??"";
       if (workerDefault) {
@@ -100,7 +104,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
         const worker = newApiWorker(adapter);
         if (worker) {
           nextDraft.workerAdapter = adapter;
-          nextDraft.apiWorker = {...worker,target:workerDefault.target,model:workerDefault.model};
+          nextDraft.apiWorker = {...worker,target:workerDefault.target,model:workerDefault.model,reasoningEffort:workerDefault.reasoningEffort};
           nextDraft.workerModel = workerDefault.model;
           nextDraft.codexExecutable = "";
         }
@@ -177,7 +181,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
   }
   function checkAccessFields() {
     if(busy||pending||retiredAdapter||accessCheckLock.current)return false;
-    if(data && !hasOmpKey(data) && [draft,...(draft.profiles??[])].some(item=>item.workerAdapter==="omp")){setOmpKeyPrompt(true);return false;}
+    if(data && !hasOmpKey(data) && ([draft,...(draft.profiles??[])].some(item=>item.workerAdapter==="omp")||draft.managementSources?.deputy.kind==="omp")){setOmpKeyPrompt(true);return false;}
     if(data?.desktopAccess?.checking){setAccessNotice("桌面会话仍在核对，请等待绑定完成。");setAccessSaveError(true);return false;}
     if(draft.profiles?.some(profile=>!automaticResources[profile.id])){setAccessNotice("正在生成执行端资源，请稍后检查保存。");return false;}
     const invalid=Array.from(connectionFields.current?.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>("input,select,textarea")??[])
@@ -213,9 +217,9 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
   function changeProfiles(profiles:WorkerProfileDraft[]) {
     setDraft(previous=>({...previous,profiles:profiles.length?profiles:undefined}));setDirty(true);
   }
-  function changeProfileModel(index:number,model:string) {
+  function changeProfileModel(index:number,model:string,reasoningEffort?:ReasoningEffort) {
     try {
-      const profiles=(draft.profiles??[]).map((profile,n)=>n===index?{...profile,workerModel:model,apiWorker:profile.apiWorker?{...profile.apiWorker,model}:undefined}:profile);
+      const profiles=(draft.profiles??[]).map((profile,n)=>n===index?{...profile,workerModel:model,apiWorker:profile.apiWorker?{...profile.apiWorker,model,reasoningEffort}:undefined}:profile);
       const synchronized=synchronizeWorkerProfiles(profiles,index,draft.resourceKeys??[],{files:false,resources:false});
       changeProfiles(synchronized.profiles);
       if(synchronized.notices.length)setAllocationNotice(synchronized.notices.join("；"));
@@ -230,7 +234,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
   const pending=(statistics?.pending??0)>0;
   const workflow=data?.workflows.find(w=>w.project.id===projectId);
   const desktopAdapter=draft.workerAdapter==="qoder"||draft.workerAdapter==="workbuddy";
-  const retiredAdapter=draft.workerAdapter==="workbuddy"||(draft.workerAdapter??"codex")==="codex"||(draft.profiles??[]).some(p=>p.workerAdapter==="workbuddy"||p.workerAdapter==="codex");
+  const retiredAdapter=draft.workerAdapter==="workbuddy"||(draft.profiles??[]).some(p=>p.workerAdapter==="workbuddy");
   const defaultAdapter = draft.workerAdapter ?? "codex";
   const defaultSupervisionConflict = supervisionConflictFor(defaultAdapter, draft.supervision);
   const supervisionConflict=defaultSupervisionConflict || (draft.profiles??[]).some(p=>supervisionConflictFor(p.workerAdapter,effectiveSupervision(p.supervisionOverride,draft.supervision)));
@@ -253,9 +257,24 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
       const sources=draft.managementSources??{chief:{kind:"openAi" as const},deputy:{kind:"openAi" as const}};
       const desktop=configuration.chiefMethod==="desktop";
       if(desktop!==(sources.chief.kind==="codexSession")){
-        setDraft(d=>({...d,chiefModel:desktop?"external-codex-session":"",managementSources:{...sources,chief:desktop?{kind:"codexSession",sessionId:""}:{kind:"openAi"}}}));
+        setDraft(d=>({...d,chiefModel:desktop?"external-codex-session":"",managementSources:{...sources,chiefReasoningEffort:undefined,chief:desktop?{kind:"codexSession",sessionId:""}:{kind:"openAi"}}}));
         setDirty(true);
       }
+    }
+    if(configuration.role==="deputy"&&configuration.chiefMethod==="desktop"){
+      const sources=draft.managementSources??{chief:{kind:"openAi" as const},deputy:{kind:"openAi" as const}};
+      if(sources.deputy.kind!=="omp"){
+        const preferred=ompPreference(data!.dataDirectory,"deputy");
+        setDraft(d=>({...d,deputyModel:preferred.model,managementSources:{...sources,deputyReasoningEffort:preferred.effort,
+          deputy:{kind:"omp",executable:preferred.executable,runtimeParent:preferred.runtimeParent}}}));
+        setDirty(true);
+      }
+    }
+    if(configuration.role==="worker"&&configuration.chiefMethod==="desktop"&&draft.workerAdapter!=="omp"){
+      const preferred=ompPreference(data!.dataDirectory,"worker");
+      setDraft(d=>({...d,workerAdapter:"omp",workerModel:preferred.model,workerReasoningEffort:preferred.effort,
+        codexExecutable:preferred.executable,ompRuntimeParent:preferred.runtimeParent,apiWorker:undefined,desktopWorker:undefined}));
+      setDirty(true);
     }
     const frame=requestAnimationFrame(()=>{
       const field=document.getElementById(`planning-${configuration.role==="worker"?"adapter":configuration.role+"-source"}`);
@@ -271,7 +290,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
     const sources = draft.managementSources ?? {chief:{kind:"openAi" as const},deputy:{kind:"openAi" as const}};
     const desktop = method === "desktop";
     if (desktop === (sources.chief.kind === "codexSession")) return;
-    setDraft({...draft, chiefModel:desktop?"external-codex-session":"", managementSources:{...sources,
+    setDraft({...draft, chiefModel:desktop?"external-codex-session":"", managementSources:{...sources,chiefReasoningEffort:undefined,
       chief:desktop?{kind:"codexSession",sessionId:""}:{kind:"openAi"}}});
     setDirty(true);
   }
@@ -279,7 +298,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
     const adapter = defaultWorkerAdapter[method];
     if (adapter === "omp" && data && !hasOmpKey(data)) setOmpKeyPrompt(true);
     setDraft({...draft, workerAdapter:adapter, apiWorker:newApiWorker(adapter), desktopWorker:undefined,
-      codexExecutable:"", workerModel:"",
+      codexExecutable:"", workerModel:"",workerReasoningEffort:adapter==="omp"?"max":undefined,
       ompRuntimeParent:undefined, worktree:method==="desktop"?undefined:draft.worktree});
     setDirty(true);
   }
@@ -287,21 +306,29 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
   const FormContainer = connections ? "div" : "form";
   const workerFields = data ? <section className={connections?"role-configuration-fields":"role-model-fields"} aria-label="执行端模型配置">{!connections&&<HelpHeading as="h3" topic="ProjectPlanning">执行端</HelpHeading>}
           <div className="planning-fields">
-            <div><label htmlFor="planning-adapter">编程执行器</label><select id="planning-adapter" value={draft.workerAdapter??"codex"} onChange={e=>{setDraft(d=>({...d,workerAdapter:e.target.value as ProjectWorkerAdapter,worktree:["qoder","workbuddy"].includes(e.target.value)?undefined:d.worktree,apiWorker:newApiWorker(e.target.value as ProjectWorkerAdapter),desktopWorker:undefined,codexExecutable:"",workerModel:"",ompRuntimeParent:undefined}));setDirty(true);}}>{draft.workerAdapter==="codex"&&<option value="codex" disabled>Codex · 执行接入已移除</option>}
-              {(!connections||selectedWorkerMethod==="api")&&<option value="omp">OMP · DeepSeek API</option>}
+            <div><label htmlFor="planning-adapter">编程执行器</label><select id="planning-adapter" value={draft.workerAdapter??"codex"} onChange={e=>{setDraft(d=>({...d,workerAdapter:e.target.value as ProjectWorkerAdapter,worktree:["qoder","workbuddy"].includes(e.target.value)?undefined:d.worktree,apiWorker:newApiWorker(e.target.value as ProjectWorkerAdapter),desktopWorker:undefined,codexExecutable:"",workerModel:"",workerReasoningEffort:e.target.value==="omp"?"max":undefined,ompRuntimeParent:undefined}));setDirty(true);}}>{(!connections||selectedWorkerMethod==="cli")&&<option value="codex">Codex CLI · 独立执行</option>}
+              {(!connections||selectedWorkerMethod==="desktop")&&<option value="omp">OMP · 独立后台</option>}
               {(!connections||selectedWorkerMethod==="desktop")&&<><option value="qoder">Qoder · 已有桌面会话</option>{draft.workerAdapter==="workbuddy"&&<option value="workbuddy" disabled>WorkBuddy · 支持已移除</option>}</>}
               {(!connections||selectedWorkerMethod==="key")&&apiWorkerOptions.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></div>
-            {draft.workerAdapter==="omp"&&<div><label htmlFor="planning-executable">编程程序路径</label><input id="planning-executable" required value={draft.codexExecutable} onChange={e=>update("codexExecutable",e.target.value)} placeholder="OMP 可执行文件的绝对路径" /></div>}
-            {!desktopAdapter&&draft.workerAdapter!=="codex"&&<div><label htmlFor="planning-worker">编程模型 ID</label><input id="planning-worker" required value={draft.workerModel} onChange={e=>{const model=e.target.value;setDraft(d=>({...d,workerModel:model,apiWorker:d.apiWorker?{...d.apiWorker,model}:undefined}));setDirty(true);}} /></div>}
+            {localWorker(draft.workerAdapter)&&<div><label htmlFor="planning-executable">编程程序路径</label><input id="planning-executable" required value={draft.codexExecutable} onChange={e=>update("codexExecutable",e.target.value)} placeholder="执行程序的绝对路径" /></div>}
+            {!desktopAdapter&&draft.workerAdapter!=="codex"&&<div><label htmlFor="planning-worker">编程模型 ID</label><input id="planning-worker" required value={draft.workerModel} onChange={e=>{const model=e.target.value;setDraft(d=>({...d,workerModel:model,workerReasoningEffort:d.workerAdapter==="omp"?"max":undefined,apiWorker:d.apiWorker?{...d.apiWorker,model,reasoningEffort:undefined}:undefined}));setDirty(true);}} /></div>}
           </div>
           {draft.workerAdapter==="workbuddy"&&<p role="alert">WorkBuddy 支持已移除，历史配置保留。请选择其他执行器后保存新版配置。</p>}
-          {draft.workerAdapter==="codex"&&<p role="alert">Codex 执行接入已移除，历史配置保留。请选择其他执行器；主指挥的 Codex 会话不受影响。</p>}
+          {draft.workerAdapter==="codex"&&<CliModelPicker executable={draft.codexExecutable} model={draft.workerModel} effort={draft.workerReasoningEffort} busy={busy}
+            onMissing={()=>setModelKeyPrompt(true)} onSelect={(workerModel,workerReasoningEffort)=>{setDraft({...draft,workerModel,workerReasoningEffort});setDirty(true);}}/>}
+          {draft.workerAdapter!=="codex"&&!desktopAdapter&&<ModelOptionsButton allowDefault={draft.workerAdapter!=="omp"} model={draft.workerModel} target={draft.apiWorker?.target??{kind:"provider",endpoint:{kind:"deepSeek"}}}
+            effort={draft.apiWorker?.reasoningEffort??draft.workerReasoningEffort} disabled={busy} onChange={reasoningEffort=>{setDraft({...draft,workerReasoningEffort:draft.apiWorker?undefined:reasoningEffort,apiWorker:draft.apiWorker?{...draft.apiWorker,reasoningEffort}:undefined});setDirty(true);}}/>}
+          {modelKeyPrompt&&<ModelCredentialDialog data={data} busy={busy} send={send} model={draft.workerModel} focusTarget="planning-worker" onClose={()=>setModelKeyPrompt(false)} onSelect={(model,target,reasoningEffort)=>{
+            const adapter=target.kind==="openAi"?"openai":endpointProvider(target.endpoint);
+            const api=newApiWorker(adapter)!;
+            setDraft({...draft,workerAdapter:adapter,workerModel:model,apiWorker:{...api,target,model,reasoningEffort},workerReasoningEffort:undefined,codexExecutable:"",ompRuntimeParent:undefined});setDirty(true);
+          }}/>}
           {draft.workerAdapter==="qoder"&&<DesktopWorkerFields isolationEnabled={!!draft.chiefDirectory} data={data} projectId={projectId} app="qoder" send={send} busy={busy} worker={draft.desktopWorker} onChange={worker=>{setDraft(d=>({...d,desktopWorker:worker,workerModel:worker?.modelLabel??""}));setDirty(true);}}/>}
           {draft.apiWorker&&<ApiWorkerFields compact={connections} worker={draft.apiWorker} onChange={api=>update("apiWorker",api)}/>}
           <NativeWorkerCost adapter={draft.workerAdapter??"codex"}/>
           {draft.workerAdapter==="omp"&&(draft.chiefDirectory?<p className="secondary">OMP 运行配置固定保存在该模型目录内，与其他执行模型隔离。</p>:<><label htmlFor="planning-omp-runtime">OMP 独立运行目录（可选）</label><input id="planning-omp-runtime" value={draft.ompRuntimeParent??""} onChange={e=>update("ompRuntimeParent",e.target.value||undefined)} placeholder="已存在、可写的专用目录绝对路径"/><p className="secondary">用户目录含其他 Agent 配置时，请选择独立位置。须与项目和工作台数据目录分开，祖先目录不能含隐含配置。留空沿用工作台数据目录；更改后需重新规划和批准，历史运行文件保留。</p></>)}
           {connections&&draft.workerAdapter==="omp"&&<OmpConnectionTest data={data} busy={busy} send={send}
-            executable={draft.codexExecutable} model={draft.workerModel} runtimeParent={draft.chiefDirectory?undefined:draft.ompRuntimeParent}/>}
+            executable={draft.codexExecutable} model={draft.workerModel} effort={draft.workerReasoningEffort} onMissing={()=>setModelKeyPrompt(true)} runtimeParent={draft.chiefDirectory?undefined:draft.ompRuntimeParent}/>}
           <datalist id="planning-chief-models">{managementModelList(data,draft.managementSources?.chief).map(m=><option key={m} value={m}/>)}</datalist><datalist id="planning-deputy-models">{managementModelList(data,draft.managementSources?.deputy).map(m=><option key={m} value={m}/>)}</datalist>
           <WorktreeFields isolationEnabled={!!draft.chiefDirectory} validators={data.validators} value={draft.worktree??undefined} disabled={desktopAdapter||(draft.profiles??[]).some(p=>p.workerAdapter==="qoder"||p.workerAdapter==="workbuddy")} onChange={value=>update("worktree",value)}/>
           <ResourceFields id="planning-resources" value={draft.resourceKeys} onChange={value=>update("resourceKeys",value)}/>
@@ -326,7 +353,7 @@ export function ProjectPlanning({data,busy,send,configuration,onConfigurationRea
           <fieldset ref={connectionFields} className="planning-step-fields" hidden={mode==="planning"} disabled={mode==="planning"}>
           {connections ? <ProjectConnections key={projectId} data={data} busy={busy} send={send} draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}
             chief={<ManagementSourceFields role="chief" embedded method={draft.managementSources?.chief.kind==="codexSession"?"desktop":"api"} draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}/>}
-            deputy={<ManagementSourceFields role="deputy" embedded method="api" draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}/>}
+            deputy={<ManagementSourceFields role="deputy" embedded method={draft.managementSources?.deputy.kind==="omp"?"desktop":"api"} draft={draft} onChange={next=>{setDraft(next);setDirty(true);}}/>}
             worker={workerFields} onChiefMethod={chooseChiefMethod} onDefaultWorker={chooseDefaultWorker} onProfileModel={changeProfileModel}
             profiles={method=><WorkerProfiles automaticResources={automaticResources} methodFilter={method} send={send} busy={busy} showConnections
               isolationEnabled={!!draft.chiefDirectory} supervision={draft.supervision} commonResources={draft.resourceKeys??[]}

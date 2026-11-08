@@ -321,6 +321,7 @@ fn retired_workbuddy_configurations_remain_readable_but_cannot_start_new_work() 
     extra
         .profiles
         .push(cerulean_domain::project_setup::WorkerProfileDraft {
+            worker_reasoning_effort: None,
             supervision_override: None,
             resource_keys: vec![],
             id: "retired".into(),

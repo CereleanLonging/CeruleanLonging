@@ -65,6 +65,8 @@ fn fixture_source(root: &Path, limit: u32, delivery_enabled: bool, deepseek: boo
     let (mut host, mut draft) = super::super::project_planning::tests::fixture(root);
     if deepseek {
         draft.management_sources = Some(project_setup::ManagementSources {
+            chief_reasoning_effort: None,
+            deputy_reasoning_effort: None,
             chief: project_setup::ChiefSource::OpenAi {},
             deputy: project_setup::DeputySource::DeepSeek {},
         });

@@ -17,6 +17,7 @@ fn fixture_with_revision(
     drop(store);
     if let Some((exe, model)) = worker {
         plan.execution[0].worker = Some(WorkerSelection {
+            reasoning_effort: None,
             omp_runtime_parent: None,
             provider: "deepseek".into(),
             model: model.into(),

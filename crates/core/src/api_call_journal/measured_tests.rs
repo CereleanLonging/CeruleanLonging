@@ -58,6 +58,7 @@ fn client_request_for(target: ApiTarget) -> (ApiClient, PreparedRequest, CallIde
         ApiClient::new(SecretInput::new("synthetic-rejected-usage-543".into()).unwrap()).unwrap();
     let prepared = client
         .prepare(ApiRequest {
+            reasoning_effort: None,
             target,
             model: "fixture".into(),
             instructions: "Local controlled test".into(),

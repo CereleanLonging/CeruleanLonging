@@ -222,6 +222,7 @@ pub enum ApiMessage {
 }
 #[derive(Clone, Debug)]
 pub struct ApiRequest {
+    pub reasoning_effort: Option<cerulean_domain::reasoning::ReasoningEffort>,
     pub target: ApiTarget,
     pub model: String,
     pub instructions: String,
@@ -259,6 +260,7 @@ impl ApiRequest {
     fn validate(&self) -> Result<(), String> {
         self.target.url()?;
         token(&self.model)?;
+        cerulean_domain::reasoning::validate_api(&self.target, &self.model, self.reasoning_effort)?;
         text(&self.instructions, 32768, false)?;
         require(
             self.max_output_tokens > 0 && (1..=600).contains(&self.timeout_seconds),

@@ -245,6 +245,7 @@ mod tests {
         let (mut host, draft) = project_planning::tests::fixture(temp.path());
         host.configure_project(draft).unwrap();
         let worker = WorkerSelection {
+            reasoning_effort: None,
             omp_runtime_parent: None,
             provider: "fixture".into(),
             model: "fixture".into(),
@@ -294,6 +295,7 @@ mod tests {
                 attempt_id: "same-id".into(),
                 revision_digest: "a".repeat(64),
                 worker: ApiWorkerSelection {
+                    reasoning_effort: None,
                     write_scope: None,
                     target: ApiTarget::OpenAi {},
                     model: "fixture".into(),

@@ -64,6 +64,7 @@ async fn native_codex_cancel_service_fixture() {
     )
     .unwrap();
     host.configure_project(ProjectSetupDraft {
+        worker_reasoning_effort: None,
         chief_directory: None,
         management_sources: None,
         resource_keys: vec![],

@@ -68,6 +68,7 @@ pub(crate) fn assigned(root: &Path, money: bool) -> (DurableWorkflow, PlanRevisi
             adapter_id: "omp".into(),
             artifact_paths: vec!["result.txt".into()],
             worker: Some(WorkerSelection {
+                reasoning_effort: None,
                 omp_runtime_parent: None,
                 provider: "deepseek".into(),
                 model: "fixture".into(),

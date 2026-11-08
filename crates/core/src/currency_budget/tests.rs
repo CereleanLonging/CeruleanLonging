@@ -466,6 +466,7 @@ fn api_fixture(
         ApiClient::new(SecretInput::new("sk-synthetic-budget-fixture".into()).unwrap()).unwrap();
     let request = client
         .prepare(ApiRequest {
+            reasoning_effort: None,
             target: ApiTarget::OpenAi {},
             model: "fixture-alias".into(),
             instructions: "Approved synthetic scope".into(),

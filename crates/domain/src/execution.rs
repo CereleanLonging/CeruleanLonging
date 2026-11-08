@@ -229,6 +229,8 @@ pub struct TaskExecution {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WorkerSelection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<crate::reasoning::ReasoningEffort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub omp_runtime_parent: Option<String>,
     pub provider: String,
     pub model: String,
@@ -236,6 +238,15 @@ pub struct WorkerSelection {
 }
 impl WorkerSelection {
     pub fn validate(&self) -> Result<(), String> {
+        if self.provider == "deepseek" {
+            crate::reasoning::validate_api(
+                &crate::api_worker::ApiTarget::Provider {
+                    endpoint: crate::credentials::ProviderEndpoint::DeepSeek {},
+                },
+                &self.model,
+                self.reasoning_effort,
+            )?;
+        }
         if let Some(path) = &self.omp_runtime_parent {
             require(
                 self.provider == "deepseek"

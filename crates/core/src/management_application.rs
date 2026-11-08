@@ -878,6 +878,7 @@ mod bridge_tests {
     }
     fn fixture_worker() -> WorkerSelection {
         WorkerSelection {
+            reasoning_effort: None,
             omp_runtime_parent: None,
             provider: "openai".into(),
             model: "fixture-model".into(),

@@ -32,6 +32,7 @@ fn fixture(root: &Path) -> (Ledger, String) {
     ]
     .into_iter()
     .map(|(id, role)| ReviewSeat {
+        reasoning_effort: None,
         max_output_tokens: None,
         id: id.into(),
         role: role.into(),

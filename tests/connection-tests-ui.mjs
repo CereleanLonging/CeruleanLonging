@@ -91,10 +91,11 @@ try {
   await region('主指挥').getByRole('status').filter({hasText:'当前会话可读取'}).waitFor();
   cases.push('Codex desktop tests the entered session, ignores an older in-flight result after edits, and supports retry');
 
-  assert.equal(await region('执行端').locator('[data-method="cli"]').count(),0);
+  assert.equal(await region('执行端').locator('[data-method="cli"]').count(),1);
   assert.equal(await region('执行端').getByRole('button',{name:'扫描本地 Codex',exact:true}).count(),0);
-  await openConnectionMethod(page,'执行端','api');
-  await region('执行端').getByRole('button',{name:'将API 连接设为默认执行端',exact:true}).click();
+  await openConnectionMethod(page,'执行端','desktop');
+  await region('执行端').getByRole('button',{name:'将桌面端接入设为默认执行端',exact:true}).click();
+  await page.locator('#planning-adapter').selectOption('omp');
   assert(await test(region('执行端')).isDisabled());
   await page.locator('#planning-executable').fill('D:/synthetic/omp.exe');
   await page.locator('#planning-worker').fill('deepseek-flash');
@@ -102,23 +103,26 @@ try {
   assert(await page.locator('#planning-chief-directory').evaluate(input=>input.readOnly));
   assert.equal(await page.locator('#planning-omp-runtime').count(),0);
   await test(region('执行端')).click();
-  assert.deepEqual((await nativeCalls()).at(-1).args.request,{kind:'omp',executable:'D:/synthetic/omp.exe',model:'deepseek-flash',runtimeParent:undefined});
+  await page.getByRole('dialog',{name:'确认本次 OMP 接入'}).getByRole('button',{name:'确认并检查'}).click();
+  assert.deepEqual((await nativeCalls()).at(-1).args.request,{kind:'omp',executable:'D:/synthetic/omp.exe',model:'deepseek-flash',runtimeParent:undefined,reasoningEffort:'max'});
   await page.evaluate(()=>window.pending.shift().resolve({message:'OMP 协议与认证通过',checkedAt:new Date().toISOString()}));
   await region('执行端').getByRole('status').filter({hasText:'OMP 协议与认证通过'}).waitFor();
-  cases.push('Removed Codex executor controls stay absent; OMP tests its current executable, model and runtime directory');
+  cases.push('CLI is optional; desktop OMP confirms and tests its exact executable, model, effort and runtime');
 
   const profile = region('执行配置 1');
-  await region('执行端').getByRole('button',{name:'添加API 连接执行配置',exact:true}).click();
+  await region('执行端').getByRole('button',{name:'添加桌面端接入执行配置',exact:true}).click();
+  await page.locator('#profile-0-adapter').selectOption('omp');
   await page.locator('#profile-0-exe').fill('D:/synthetic/extra/omp.exe');
   await page.locator('#profile-0-model').fill('extra-model');
   await test(profile).click();
+  await page.getByRole('dialog',{name:'确认本次 OMP 接入'}).getByRole('button',{name:'确认并检查'}).click();
   assert.equal((await nativeCalls()).at(-1).args.request.model,'extra-model');
   await page.evaluate(()=>window.pending.shift().reject('所选模型不可用'));
   await profile.getByRole('alert').filter({hasText:'所选模型不可用'}).waitFor();
   cases.push('Each additional OMP profile has an independent test using its own configuration');
 
   await openConnectionMethod(page,'执行端','desktop');
-  await region('执行端').getByRole('button',{name:'将桌面端接入设为默认执行端',exact:true}).click();
+  await page.locator('#planning-adapter').selectOption('qoder');
   const desktop = region('桌面编程会话配置');
   const bindDesktop = desktop.getByRole('button',{name:'测试并绑定会话',exact:true});
   assert(await bindDesktop.isDisabled());
@@ -130,7 +134,7 @@ try {
   await page.screenshot({path:join(directory,'connections.png'),fullPage:true});
 
   await page.evaluate(data=>window.showHub({...data,workflows:[]}),fixture);
-  for(const [name,method] of [['主指挥','api'],['主指挥','key'],['主指挥','desktop'],['副指挥','api'],['副指挥','key'],['执行端','api'],['执行端','key'],['执行端','desktop']]) {
+  for(const [name,method] of [['主指挥','api'],['主指挥','key'],['主指挥','desktop'],['副指挥','api'],['副指挥','key'],['执行端','key'],['执行端','desktop']]) {
     await openConnectionMethod(page,name,method);
     if (method === 'key') await deferModelChoice(page);
     const summary=region(name).locator(':scope > details[open]');

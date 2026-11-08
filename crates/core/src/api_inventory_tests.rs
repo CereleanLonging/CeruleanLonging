@@ -165,6 +165,7 @@ async fn call(
         ApiClient::new(SecretInput::new("sk-isolated-billing-fixture".into()).unwrap()).unwrap();
     let prepared = client
         .prepare(ApiRequest {
+            reasoning_effort: None,
             target: run.worker.target.clone(),
             model: run.worker.model.clone(),
             instructions: "Controlled reply".into(),
@@ -313,6 +314,7 @@ fn scoped_api_prepared(
     let draft = ApiClient::new(SecretInput::new("sk-isolated-original-api-round".into()).unwrap())
         .unwrap()
         .prepare_scoped(ApiRequest {
+            reasoning_effort: None,
             target: run.worker.target.clone(),
             model: run.worker.model.clone(),
             instructions: "Controlled original API round".into(),

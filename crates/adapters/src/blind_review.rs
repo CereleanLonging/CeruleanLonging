@@ -236,6 +236,7 @@ pub fn parse_local(
         audit: ReviewToolAudit {
             status: ReviewToolStatus::Unverifiable,
             source: match &seat.transport {
+                Some(ReviewTransport::OmpDeputy { .. }) => "omp-events",
                 Some(ReviewTransport::Cli { adapter, .. }) if adapter == "omp" => "omp-events",
                 Some(ReviewTransport::Desktop { .. }) => "desktop-history",
                 _ => "codex-history",
@@ -251,7 +252,7 @@ pub fn parse_local(
 fn payload(seat: &ReviewSeat, system: &str, input: &str) -> Result<Value, String> {
     seat.validate_source()?;
     let output_limit = seat.output_limit();
-    let body = match seat.api_target()? {
+    let mut body = match seat.api_target()? {
         ApiTarget::OpenAi {} => {
             json!({"model":seat.model,"instructions":system,"input":input,"tools":[],"tool_choice":"none","parallel_tool_calls":false,"store":false,"stream":false,"max_output_tokens":output_limit})
         }
@@ -264,6 +265,12 @@ fn payload(seat: &ReviewSeat, system: &str, input: &str) -> Result<Value, String
             json!({"model":seat.model,"messages":[{"role":"system","content":system},{"role":"user","content":input}],"max_tokens":output_limit,"stream":false})
         }
     };
+    cerulean_domain::reasoning::apply_api(
+        &mut body,
+        seat.api_target()?,
+        &seat.model,
+        seat.reasoning_effort,
+    )?;
     require(
         serde_json::to_vec(&body).map_err(|e| e.to_string())?.len() <= MAX_WIRE_BYTES,
         "盲评最终请求超过字节预算",
@@ -525,8 +532,18 @@ pub fn analysis_body_with_weights(
     ballots: &[RevealedBallot],
     weights: Option<&cerulean_domain::review_weights::WeightedResult>,
 ) -> Result<Value, String> {
+    let (system, input) = analysis_prompt(seat, request, material, ballots, weights)?;
+    payload(seat, &system, &input)
+}
+pub fn analysis_prompt(
+    seat: &ReviewSeat,
+    request: &str,
+    material: &ReviewMaterial,
+    ballots: &[RevealedBallot],
+    weights: Option<&cerulean_domain::review_weights::WeightedResult>,
+) -> Result<(String, String), String> {
     material.validate()?;
-    seat.api_target()?.url()?;
+    seat.validate_source()?;
     require(
         seat.role == "deputy"
             && (3..=MAX_SEATS).contains(&ballots.len())
@@ -555,7 +572,7 @@ pub fn analysis_body_with_weights(
         &json!({"material":material,"revealedBallots":ballots,"weightedResult":weights}),
     )
     .map_err(|e| e.to_string())?;
-    payload(seat, &system, &input)
+    Ok((system, input))
 }
 fn parse_analysis(
     value: Value,
@@ -563,12 +580,25 @@ fn parse_analysis(
     request: &str,
 ) -> Result<AnalysisObservation, String> {
     let (model, text) = response_text(&value, seat)?;
+    let mut observed = parse_analysis_text(text, seat, request)?;
+    observed.model = model.into();
+    Ok(observed)
+}
+pub fn parse_analysis_text(
+    text: &str,
+    seat: &ReviewSeat,
+    request: &str,
+) -> Result<AnalysisObservation, String> {
+    require(
+        seat.role == "deputy" && text.len() <= 16 * 1024,
+        "副指挥分析角色或回复长度不符",
+    )?;
     let reply: AnalysisReply =
         serde_json::from_str(text).map_err(|_| "副指挥分析JSON无效或含越权字段")?;
     require(reply.request == request, "副指挥分析与原请求不符")?;
     reply.analysis.validate()?;
     Ok(AnalysisObservation {
-        model: model.into(),
+        model: seat.model.clone(),
         analysis: reply.analysis,
     })
 }
@@ -593,6 +623,7 @@ mod tests {
     fn fixture() -> (ReviewSeat, ReviewMaterial) {
         (
             ReviewSeat {
+                reasoning_effort: None,
                 max_output_tokens: None,
                 id: "chief".into(),
                 role: "chief".into(),
@@ -867,6 +898,41 @@ mod tests {
             "a1"
         )
         .is_err());
+        s.id = "deputy".into();
+        s.model = "deepseek-flash".into();
+        s.allowed_models = vec![s.model.clone()];
+        s.reasoning_effort = Some(cerulean_domain::reasoning::ReasoningEffort::Max);
+        s.target = None;
+        s.transport = Some(ReviewTransport::OmpDeputy {
+            worker: cerulean_domain::execution::WorkerSelection {
+                executable: cerulean_domain::execution::ValidationFile {
+                    path: std::env::current_dir()
+                        .unwrap()
+                        .join("synthetic-omp.exe")
+                        .to_string_lossy()
+                        .into(),
+                    sha256: "a".repeat(64),
+                },
+                provider: "deepseek".into(),
+                model: s.model.clone(),
+                reasoning_effort: s.reasoning_effort,
+                omp_runtime_parent: None,
+            },
+        });
+        let (_, input) = analysis_prompt(&s, "a1", &m, &ballots, None).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&input).unwrap()["revealedBallots"]
+                .as_array()
+                .unwrap()
+                .len(),
+            3
+        );
+        assert!(analysis_body(&s, "a1", &m, &ballots).is_err());
+        assert!(parse_analysis_text(good, &s, "a1").is_ok());
+        assert!(parse_analysis_text(good, &s, "wrong").is_err());
+        s.role = "chief".into();
+        assert!(analysis_prompt(&s, "a1", &m, &ballots, None).is_err());
+        assert!(parse_analysis_text(good, &s, "a1").is_err());
     }
     #[tokio::test]
     async fn wire_has_one_request_no_redirect_and_no_tools() {

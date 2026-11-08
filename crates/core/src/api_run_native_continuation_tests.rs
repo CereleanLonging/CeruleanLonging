@@ -177,6 +177,7 @@ fn revised_native_plan_preserves_failure_and_completes_blind_review() {
     assert_eq!(review.submitted_tasks, 1);
     host.retire_submitted_plan("project", &review.evidence_digest, "Synthetic fixture correction: preserve original failure; use native cwd under private ACLs and consume the existing alpha without repeating its write").unwrap();
     host.configure_project(ProjectSetupDraft {
+        worker_reasoning_effort: None,
         chief_directory: old.chief_directory,
         management_sources: old.management_sources,
         currency_budget: None,

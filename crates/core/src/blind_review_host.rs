@@ -42,6 +42,7 @@ pub(super) struct Gathered {
 }
 fn seat(id: &str, role: &str, target: ApiTarget, model: &str) -> ReviewSeat {
     ReviewSeat {
+        reasoning_effort: None,
         max_output_tokens: None,
         id: id.into(),
         role: role.into(),
@@ -191,23 +192,63 @@ impl RuntimeHost {
             None | Some(ChiefSource::OpenAi {}) => seat("chief","chief",ApiTarget::OpenAi {},&setup.chief_model),
             Some(ChiefSource::Provider { endpoint }) => seat("chief","chief",ApiTarget::Provider {endpoint:endpoint.clone()},&setup.chief_model),
             Some(ChiefSource::CodexSession { session_id }) => {
-                self.blind_reviews.latest(project).filter(|r|r.binding.setup == saved.digest).and_then(|r|r.seats.iter().find(|s|matches!(&s.transport,Some(ReviewTransport::CodexSession {session_id:bound,..}) if bound == session_id))).cloned().unwrap_or(ReviewSeat {max_output_tokens: None,id:"chief".into(),role:"chief".into(),target:None,transport:Some(ReviewTransport::CodexSession {session_id:session_id.clone(),provider:"pending".into()}),model:setup.chief_model.clone(),allowed_models:vec![setup.chief_model.clone()]})
+                self.blind_reviews.latest(project).filter(|r|r.binding.setup == saved.digest).and_then(|r|r.seats.iter().find(|s|matches!(&s.transport,Some(ReviewTransport::CodexSession {session_id:bound,..}) if bound == session_id))).cloned().unwrap_or(ReviewSeat {
+                    reasoning_effort: None,max_output_tokens: None,id:"chief".into(),role:"chief".into(),target:None,transport:Some(ReviewTransport::CodexSession {session_id:session_id.clone(),provider:"pending".into()}),model:setup.chief_model.clone(),allowed_models:vec![setup.chief_model.clone()]})
             },
         };
         let deputy = match setup.management_sources.as_ref().map(|s| &s.deputy) {
-            None | Some(DeputySource::OpenAi {}) => ApiTarget::OpenAi {},
-            Some(DeputySource::DeepSeek {}) => ApiTarget::Provider {
-                endpoint: ProviderEndpoint::DeepSeek {},
-            },
-            Some(DeputySource::Provider { endpoint }) => ApiTarget::Provider {
-                endpoint: endpoint.clone(),
+            None | Some(DeputySource::OpenAi {}) => seat(
+                "deputy",
+                "deputy",
+                ApiTarget::OpenAi {},
+                &setup.deputy_model,
+            ),
+            Some(DeputySource::DeepSeek {}) => seat(
+                "deputy",
+                "deputy",
+                ApiTarget::Provider {
+                    endpoint: ProviderEndpoint::DeepSeek {},
+                },
+                &setup.deputy_model,
+            ),
+            Some(DeputySource::Provider { endpoint }) => seat(
+                "deputy",
+                "deputy",
+                ApiTarget::Provider {
+                    endpoint: endpoint.clone(),
+                },
+                &setup.deputy_model,
+            ),
+            Some(DeputySource::Omp { .. }) => ReviewSeat {
+                id: "deputy".into(),
+                role: "deputy".into(),
+                target: None,
+                max_output_tokens: None,
+                reasoning_effort: setup
+                    .management_sources
+                    .as_ref()
+                    .and_then(|s| s.deputy_reasoning_effort),
+                transport: Some(ReviewTransport::OmpDeputy {
+                    worker: setup
+                        .management_sources
+                        .as_ref()
+                        .ok_or("副指挥来源缺失")?
+                        .deputy_omp_worker(&setup.deputy_model)?,
+                }),
+                model: setup.deputy_model.clone(),
+                allowed_models: vec![setup.deputy_model.clone()],
             },
         };
-        let mut seats = vec![chief, seat("deputy", "deputy", deputy, &setup.deputy_model)];
+        let mut seats = vec![chief, deputy];
+        if let Some(sources) = &setup.management_sources {
+            seats[0].reasoning_effort = sources.chief_reasoning_effort;
+            seats[1].reasoning_effort = sources.deputy_reasoning_effort;
+        }
         let mut identities = std::collections::BTreeSet::new();
         for task in &plan.execution {
             let mut reviewer = if let Some(api) = &task.api_worker {
                 let mut reviewer = seat("pending", "worker", api.target.clone(), &api.model);
+                reviewer.reasoning_effort = api.reasoning_effort;
                 // One model gets one seat. Respect every approved task's limit
                 // when the same API identity appears with different budgets.
                 reviewer.max_output_tokens = plan
@@ -220,6 +261,7 @@ impl RuntimeHost {
                 reviewer
             } else if let Some(worker) = &task.worker {
                 ReviewSeat {
+                    reasoning_effort: worker.reasoning_effort,
                     max_output_tokens: None,
                     id: "pending".into(),
                     role: "worker".into(),
@@ -233,6 +275,7 @@ impl RuntimeHost {
                 }
             } else if let Some(desktop) = &task.desktop_worker {
                 ReviewSeat {
+                    reasoning_effort: None,
                     max_output_tokens: None,
                     id: "pending".into(),
                     role: "worker".into(),
@@ -971,8 +1014,40 @@ impl RuntimeHost {
             .blind_reviews
             .reserve_analysis(id, chrono::Utc::now().timestamp())?;
         let weights = self.blind_reviews.rounds[id].weighted_result.clone();
-        let key = crate::credential_vault::load_for(&self.root, seat.api_target()?.provider())
-            .map_err(|_| "副指挥分析凭证不可用；未重试")?;
+        let prepared: Result<_, String> = (|| {
+            if seat.transport.is_some() {
+                Ok((
+                    Some(self.prepare_local_review(&current.project_id, &seat)?),
+                    None,
+                ))
+            } else {
+                Ok((
+                    None,
+                    Some(crate::credential_vault::load_for(
+                        &self.root,
+                        seat.api_target()?.provider(),
+                    )?),
+                ))
+            }
+        })();
+        let (local, key) = match prepared {
+            Ok(route) => route,
+            Err(_) => {
+                self.blind_reviews
+                    .fail_analysis(id, "副指挥分析接入或凭证不可用；未重试")?;
+                return Ok(());
+            }
+        };
+        let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let progress = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let control = super::local_review::Control {
+            cancel: cancel.clone(),
+            deadline: self.blind_reviews.rounds[id]
+                .deadline
+                .ok_or("原轮次期限缺失")?,
+            progress: progress.clone(),
+            audit: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
         let (tx, receiver) = std::sync::mpsc::channel();
         let p = pending.clone();
         #[cfg(test)]
@@ -988,9 +1063,25 @@ impl RuntimeHost {
                 .build()
                 .map_err(|_| "分析运行时不可用".into())
                 .and_then(|rt| {
-                    rt.block_on(cerulean_adapters::blind_review::run_analysis(
-                        key, seat, p.request, material, ballots, weights,
-                    ))
+                    if let Some(local) = local {
+                        rt.block_on(local.analysis(
+                            &seat,
+                            &p.request,
+                            &material,
+                            &ballots,
+                            weights.as_ref(),
+                            &control,
+                        ))
+                    } else {
+                        rt.block_on(cerulean_adapters::blind_review::run_analysis(
+                            key.ok_or("副指挥分析凭证缺失")?,
+                            seat,
+                            p.request,
+                            material,
+                            ballots,
+                            weights,
+                        ))
+                    }
                     .map(ReviewResponse::Analysis)
                 });
             let _ = tx.send(result);
@@ -1000,8 +1091,8 @@ impl RuntimeHost {
             pending,
             analysis: true,
             receiver,
-            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            progress: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            cancel,
+            progress,
         });
         Ok(())
     }

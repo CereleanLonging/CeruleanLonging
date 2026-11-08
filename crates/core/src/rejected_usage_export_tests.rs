@@ -39,6 +39,7 @@ async fn rejected_usage_original_workflow_http_stop_reopen_export_preserves_fail
         ApiClient::new(SecretInput::new("synthetic-http-export-543".into()).unwrap()).unwrap();
     let prepared = client
         .prepare(ApiRequest {
+            reasoning_effort: None,
             target: run.worker.target.clone(),
             model: run.worker.model.clone(),
             instructions: "Controlled rejected content".into(),

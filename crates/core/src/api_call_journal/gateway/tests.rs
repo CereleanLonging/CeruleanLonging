@@ -11,6 +11,7 @@ fn prepared() -> (ApiClient, PreparedRequest, CallIdentity) {
     let client = ApiClient::new(SecretInput::new("synthetic-gateway-324".into()).unwrap()).unwrap();
     let prepared = client
         .prepare(ApiRequest {
+            reasoning_effort: None,
             target: ApiTarget::Provider {
                 endpoint: ProviderEndpoint::A6Api {},
             },

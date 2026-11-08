@@ -94,6 +94,8 @@ impl ReviewPhase {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReviewSeat {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<crate::reasoning::ReasoningEffort>,
     pub id: String,
     pub role: String,
     pub target: Option<ApiTarget>,
@@ -112,6 +114,9 @@ pub struct ReviewSeat {
     deny_unknown_fields
 )]
 pub enum ReviewTransport {
+    OmpDeputy {
+        worker: crate::execution::WorkerSelection,
+    },
     Cli {
         adapter: String,
         task_id: String,
@@ -132,6 +137,7 @@ impl ReviewSeat {
 
     pub fn identity(&self) -> Result<String, String> {
         let channel = match &self.transport {
+            Some(ReviewTransport::OmpDeputy { .. }) => "omp",
             None => "api",
             Some(ReviewTransport::Cli { adapter, .. }) => adapter.as_str(),
             Some(ReviewTransport::Desktop { .. }) => "qoder",
@@ -150,8 +156,20 @@ impl ReviewSeat {
             "评审输出额度只能绑定到有效的 API 席位",
         )?;
         match (&self.target, &self.transport) {
+            (None, Some(ReviewTransport::OmpDeputy { worker })) => {
+                worker.validate()?;
+                require(
+                    self.role == "deputy"
+                        && self.id == "deputy"
+                        && worker.provider == "deepseek"
+                        && worker.model == self.model
+                        && worker.reasoning_effort == self.reasoning_effort,
+                    "OMP 副指挥评审配置不符",
+                )?;
+            }
             (Some(target), None) => {
                 target.url()?;
+                crate::reasoning::validate_api(target, &self.model, self.reasoning_effort)?;
             }
             (None, Some(ReviewTransport::Cli { adapter, task_id })) => {
                 require(

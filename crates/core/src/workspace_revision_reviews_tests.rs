@@ -484,6 +484,7 @@ fn workspace_revision_reviews_nonshared_writer_refuses_instead_of_cached_snapsho
                 attempt_id: key.1.clone(),
                 revision_digest: page.entries[0].revision_digest.clone(),
                 worker: WorkerSelection {
+                    reasoning_effort: None,
                     omp_runtime_parent: None,
                     provider: "fixture".into(),
                     model: "fixture".into(),
@@ -885,6 +886,7 @@ fn workspace_revision_reviews_capability_job_changes_stale_same_unavailable_reas
             attempt_id: key.1.clone(),
             revision_digest: initial.entries[0].revision_digest.clone(),
             worker: WorkerSelection {
+                reasoning_effort: None,
                 omp_runtime_parent: None,
                 provider: "fixture".into(),
                 model: "fixture".into(),

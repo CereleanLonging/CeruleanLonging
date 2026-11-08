@@ -761,6 +761,7 @@ mod tests {
             attempt_id: attempt.into(),
             revision_digest: "a".repeat(64),
             worker: WorkerSelection {
+                reasoning_effort: None,
                 omp_runtime_parent: None,
                 provider: "openai".into(),
                 model: "fixture-model".into(),

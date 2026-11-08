@@ -45,6 +45,7 @@ fn targets() -> Vec<ApiTarget> {
 }
 fn selection(target: ApiTarget) -> ApiWorkerSelection {
     ApiWorkerSelection {
+        reasoning_effort: None,
         write_scope: None,
         target,
         model: "fixture".into(),

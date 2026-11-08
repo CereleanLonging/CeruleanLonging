@@ -5,6 +5,65 @@ pub(super) fn key() -> SecretInput {
 }
 
 #[test]
+fn selected_reasoning_reaches_provider_wire_and_request_identity() {
+    use cerulean_domain::reasoning::ReasoningEffort;
+    let client = ApiClient::new(key()).unwrap();
+    for (target, model, field, expected) in [
+        (
+            ApiTarget::OpenAi {},
+            "gpt-6-astra",
+            "reasoning",
+            json!({"effort":"high"}),
+        ),
+        (
+            ApiTarget::Provider {
+                endpoint: ProviderEndpoint::DeepSeek {},
+            },
+            "deepseek-flash",
+            "reasoning_effort",
+            json!("high"),
+        ),
+        (
+            ApiTarget::Provider {
+                endpoint: ProviderEndpoint::Anthropic {},
+            },
+            "claude-sonnet-4-6",
+            "output_config",
+            json!({"effort":"high"}),
+        ),
+        (
+            ApiTarget::Provider {
+                endpoint: ProviderEndpoint::QwenSingapore {},
+            },
+            "qwen3.8-flash",
+            "reasoning_effort",
+            json!("low"),
+        ),
+    ] {
+        let mut request = request(target);
+        request.model = model.into();
+        let original = client.prepare(request.clone()).unwrap();
+        assert!(original.body.get(field).is_none());
+        request.reasoning_effort = Some(if model == "qwen3.8-flash" {
+            ReasoningEffort::Low
+        } else {
+            ReasoningEffort::High
+        });
+        let selected = client.prepare(request.clone()).unwrap();
+        assert_eq!(selected.body[field], expected);
+        assert_ne!(
+            selected.fingerprint().body_sha256,
+            original.fingerprint().body_sha256
+        );
+        if field == "output_config" {
+            assert_eq!(selected.body["thinking"], json!({"type":"adaptive"}));
+        }
+        request.model = "unreviewed-model".into();
+        assert!(client.prepare(request).is_err());
+    }
+}
+
+#[test]
 fn provider_output_limits_reach_wire_and_fingerprint_without_silent_clamping() {
     let client = ApiClient::new(key()).unwrap();
     for target in targets() {
@@ -140,6 +199,7 @@ pub(super) fn targets() -> Vec<ApiTarget> {
 }
 pub(super) fn request(target: ApiTarget) -> ApiRequest {
     ApiRequest {
+        reasoning_effort: None,
         target,
         model: "fixture-model".into(),
         instructions: "Perform the approved task within its scope.".into(),

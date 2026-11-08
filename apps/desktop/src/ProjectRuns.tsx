@@ -96,6 +96,7 @@ export function ProjectRuns({
     );
   const reviewBlock =
     data && reviewedWorkflow ? cancellationBlock(data, reviewedWorkflow) : null;
+  const reviewedSetup = data?.projectSetups.find(saved => saved.setup.projectId === review?.projectId)?.setup;
   const reviewCurrent =
     !!review &&
     !!reviewedWorkflow?.approval &&
@@ -198,6 +199,8 @@ export function ProjectRuns({
             <p>
               任何未知请求、验收失败或指挥要求补充信息都会停下，不会自动重发。
             </p>
+            {reviewedWorkflow?.revision?.execution.filter(e=>e.adapterId === "omp").map(task => <p key={task.taskId}>本次 OMP 接入 · {task.worker?.provider} / {task.worker?.model} · 思考 {task.worker?.reasoningEffort ?? "关闭（沿用原配置）"}。每次启动核对原批准模型及强度。</p>)}
+            {reviewedSetup?.managementSources?.deputy.kind === "omp" && <p>副指挥 OMP 独立后台 · DeepSeek / {reviewedSetup.deputyModel} · 思考 {reviewedSetup.managementSources.deputyReasoningEffort}。每次启动核对已保存的程序、模型及强度。</p>}
             {reviewedWorkflow?.revision?.execution.some(e=>!!e.desktopWorker)&&<p>桌面任务分配后会等待你审阅并确认发送。上一任务独立验收并收口后，后续任务会重新核对聊天历史，每条都需要你确认发送。</p>}
             {reviewBlock && <p role="alert"><ErrorText error={reviewBlock}/></p>}
             {!reviewCurrent && (

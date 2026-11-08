@@ -35,8 +35,9 @@ export async function openConfiguredConnections(page) {
   if (!await page.locator('.project-connections').count()) return;
   const source = await page.locator('#planning-chief-source').inputValue();
   await openConnectionMethod(page, '主指挥', source === 'codexSession' ? 'desktop' : 'api');
-  await openConnectionMethod(page, '副指挥', 'api');
+  const deputy = await page.locator('#planning-deputy-source').inputValue();
+  await openConnectionMethod(page, '副指挥', deputy === 'omp' ? 'desktop' : 'api');
   const adapter = await page.locator('#planning-adapter').inputValue();
-  const method = adapter === 'omp' ? 'api' : adapter === 'codex' ? 'cli' : ['qoder','workbuddy'].includes(adapter) ? 'desktop' : 'key';
+  const method = adapter === 'omp' ? 'desktop' : adapter === 'codex' ? 'cli' : ['qoder','workbuddy'].includes(adapter) ? 'desktop' : 'key';
   await openConnectionMethod(page, '执行端', method);
 }

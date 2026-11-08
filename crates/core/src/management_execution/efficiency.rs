@@ -70,6 +70,13 @@ impl DecisionJournal {
             let (source, usage_basis, usage, actual_model, product_api_intent) = match journal
                 .stored_decision(id)?
             {
+                StoredDecision::Omp { .. } => (
+                    "omp",
+                    "native-process-usage-unknown",
+                    Value::Null,
+                    None,
+                    false,
+                ),
                 StoredDecision::CodexSession { .. } => (
                     "codex-session",
                     "external-session-usage-unknown",

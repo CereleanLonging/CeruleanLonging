@@ -8,6 +8,8 @@ use cerulean_domain::{
 
 fn sources() -> ManagementSources {
     ManagementSources {
+        chief_reasoning_effort: None,
+        deputy_reasoning_effort: None,
         chief: ChiefSource::CodexSession {
             session_id: "current-session".into(),
         },
@@ -25,6 +27,61 @@ fn configured(root: &Path) -> RuntimeHost {
     super::project_planning::tests::isolate_draft(root, &mut draft);
     host.configure_project(draft).unwrap();
     host
+}
+#[test]
+fn omp_deputy_configuration_reopens_with_independent_role_and_effort() {
+    let root = tempfile::tempdir().unwrap();
+    let (host, mut draft) = super::project_planning::tests::fixture(root.path());
+    drop(host);
+    let data = root.path().join("data");
+    crate::management_source_guard::tests::promote_fixture(&data);
+    let mut host = RuntimeHost::open(&data).unwrap();
+    let mut selection = sources();
+    selection.deputy = DeputySource::Omp {
+        executable: draft.codex_executable.clone(),
+        executable_sha256: None,
+        runtime_parent: None,
+    };
+    selection.deputy_reasoning_effort = Some(cerulean_domain::reasoning::ReasoningEffort::Max);
+    draft.management_sources = Some(selection);
+    draft.chief_model = "external-codex-session".into();
+    draft.deputy_model = "deepseek-flash".into();
+    super::project_planning::tests::isolate_draft(root.path(), &mut draft);
+    host.configure_project(draft.clone()).unwrap();
+    let original = host.project_setups["project"].clone();
+    assert!(host.omp_deputy_selected("project", Purpose::Assign));
+    assert!(host.omp_deputy_selected("project", Purpose::Advise));
+    assert!(!host.omp_deputy_selected("project", Purpose::Plan));
+    assert!(host.external_chief_selected("project", Purpose::Plan));
+    assert_eq!(
+        host.selected_management_provider("project", Purpose::Assign),
+        Some(cerulean_domain::credentials::CredentialProvider::DeepSeek)
+    );
+    assert!(host.management_active.is_empty());
+    draft
+        .management_sources
+        .as_mut()
+        .unwrap()
+        .deputy_reasoning_effort = Some(cerulean_domain::reasoning::ReasoningEffort::Low);
+    host.configure_project(draft).unwrap();
+    let updated = host.project_setups["project"].clone();
+    assert_ne!(original.digest, updated.digest);
+    assert_eq!(original.setup.worker, updated.setup.worker);
+    assert_eq!(original.setup.chief_model, updated.setup.chief_model);
+    drop(host);
+    let host = RuntimeHost::open(&data).unwrap();
+    assert_eq!(host.project_setups["project"].digest, updated.digest);
+    let saved = host.project_setups["project"]
+        .setup
+        .management_sources
+        .as_ref()
+        .unwrap();
+    let worker = saved.deputy_omp_worker("deepseek-flash").unwrap();
+    assert_eq!(
+        worker.reasoning_effort,
+        Some(cerulean_domain::reasoning::ReasoningEffort::Low)
+    );
+    assert!(host.management_decisions().is_empty());
 }
 #[test]
 fn management_configuration_plan_wait_reopen_and_approval_binding() {

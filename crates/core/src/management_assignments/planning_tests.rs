@@ -126,6 +126,8 @@ fn planning_bindings_are_only_added_to_new_provider_plan_contexts() {
         .unwrap()
         .setup
         .management_sources = Some(project_setup::ManagementSources {
+        chief_reasoning_effort: None,
+        deputy_reasoning_effort: None,
         chief: project_setup::ChiefSource::Provider {
             endpoint: cerulean_domain::credentials::ProviderEndpoint::DeepSeek {},
         },

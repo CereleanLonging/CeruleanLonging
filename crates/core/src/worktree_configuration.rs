@@ -195,6 +195,7 @@ mod tests {
             if adapter.is_api() {
                 setup.codex_executable = String::new();
                 setup.api_worker = Some(cerulean_domain::api_worker::ApiWorkerSelection {
+                    reasoning_effort: None,
                     write_scope: None,
                     file_tools: vec![ToolPermission::ReadFiles, ToolPermission::WriteFiles],
                     max_rounds: 3,

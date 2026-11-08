@@ -284,6 +284,8 @@ fn gateway_324_management_fixture(root: &Path) -> serde_json::Value {
     draft.chief_model = "gpt-6.1-sol".into();
     draft.deputy_model = "gpt-6.1-sol".into();
     draft.management_sources = Some(ManagementSources {
+        chief_reasoning_effort: None,
+        deputy_reasoning_effort: None,
         chief: ChiefSource::Provider {
             endpoint: endpoint.clone(),
         },

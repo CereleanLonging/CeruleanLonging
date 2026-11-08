@@ -284,7 +284,7 @@ impl WorkerProcess {
             "--no-pty",
             "--no-prewalk",
             "--thinking",
-            "off",
+            worker.reasoning_effort.map_or("off", |effort| effort.omp()),
             "--model",
         ]
         .map(String::from)
@@ -356,6 +356,10 @@ impl WorkerProcess {
         require(
             v["model"]["provider"] == self.expected.provider
                 && v["model"]["id"] == self.expected.model
+                && self
+                    .expected
+                    .reasoning_effort
+                    .is_none_or(|effort| v["thinkingLevel"] == effort.omp())
                 && v["isStreaming"] == false
                 && v["isCompacting"] == false
                 && v["hasPendingAsyncWork"] == false

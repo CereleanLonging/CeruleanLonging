@@ -1,4 +1,4 @@
-import type { ApiTarget, ChiefSource, DeputySource } from "./contracts";
+import type { ApiTarget, ChiefSource, DeputySource, ReasoningEffort } from "./contracts";
 import { managementEndpoints } from "./ManagementProviders";
 import { preferenceKey, readPreference } from "./accessPreferences";
 
@@ -7,7 +7,8 @@ export type ApiModelAssignment = {
   label: string;
   target: ApiTarget;
   model: string;
-  onSelect: (model: string, target: ApiTarget) => void;
+  reasoningEffort?: ReasoningEffort | null;
+  onSelect: (model: string, target: ApiTarget, reasoningEffort?: ReasoningEffort) => void;
 };
 
 export function apiTargetKey(target: ApiTarget): string {
@@ -17,7 +18,7 @@ export function apiTargetKey(target: ApiTarget): string {
 }
 
 export function managementApiTarget(source: ChiefSource | DeputySource | undefined): ApiTarget | undefined {
-  if (source?.kind === "codexSession") return undefined;
+  if (source?.kind === "codexSession" || source?.kind === "omp") return undefined;
   if (source?.kind === "deepSeek") return { kind: "provider", endpoint: { kind: "deepSeek" } };
   return source ?? { kind: "openAi" };
 }
@@ -53,19 +54,21 @@ export function matchesApiModel(model: string, query: string): boolean {
   }));
 }
 
-export function parseApiModelDefault(value: string | undefined): { target: ApiTarget; model: string } | undefined {
+export function parseApiModelDefault(value: string | undefined): { target: ApiTarget; model: string; reasoningEffort?: ReasoningEffort } | undefined {
   if (!value) return;
   try {
     const item = JSON.parse(value);
     if (!item || typeof item.model !== "string" || !item.model.trim() || item.model.length > 512) return;
-    if (item.target?.kind === "openAi") return { target: { kind: "openAi" }, model: item.model };
+    const reasoningEffort = item.reasoningEffort;
+    if (reasoningEffort != null && !["none","minimal","low","medium","high","xhigh","max","ultra"].includes(reasoningEffort)) return;
+    if (item.target?.kind === "openAi") return { target: { kind: "openAi" }, model: item.model, reasoningEffort };
     const endpoint = item.target?.endpoint;
     if (item.target?.kind !== "provider" || !managementEndpoints.some(entry => entry.kind === endpoint?.kind)) return;
     if (endpoint.kind === "qwenBeijing") {
       if (typeof endpoint.workspaceId !== "string" || !/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/.test(endpoint.workspaceId)) return;
-      return { target: { kind: "provider", endpoint: { kind: "qwenBeijing", workspaceId: endpoint.workspaceId } }, model: item.model };
+      return { target: { kind: "provider", endpoint: { kind: "qwenBeijing", workspaceId: endpoint.workspaceId } }, model: item.model, reasoningEffort };
     }
-    return { target: { kind: "provider", endpoint: { kind: endpoint.kind } }, model: item.model };
+    return { target: { kind: "provider", endpoint: { kind: endpoint.kind } }, model: item.model, reasoningEffort };
   } catch { return; }
 }
 

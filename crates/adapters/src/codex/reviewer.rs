@@ -288,7 +288,14 @@ impl CodexClient {
         self.review_audit = None;
         let denied_before = self.rpc.denied_requests;
         self.active = Some((binding.thread_id.clone(), "unknown".into()));
-        let response = self.rpc.request("turn/start",json!({"threadId":binding.thread_id,"clientUserMessageId":request,"cwd":binding.workspace,"model":binding.model,"approvalPolicy":"never","sandboxPolicy":{"type":"readOnly","networkAccess":false},"input":[{"type":"text","text":prompt,"text_elements":[]}]}),Duration::from_secs(30)).await?;
+        let mut params = json!({"threadId":binding.thread_id,"clientUserMessageId":request,"cwd":binding.workspace,"model":binding.model,"approvalPolicy":"never","sandboxPolicy":{"type":"readOnly","networkAccess":false},"input":[{"type":"text","text":prompt,"text_elements":[]}]});
+        if let Some(effort) = self.reasoning_effort {
+            params["effort"] = json!(effort);
+        }
+        let response = self
+            .rpc
+            .request("turn/start", params, Duration::from_secs(30))
+            .await?;
         let turn = field(&response["turn"], "id")?;
         self.active = Some((binding.thread_id.clone(), turn.clone()));
         let terminal = self.wait_turn(&binding.thread_id, &turn, duration).await?;

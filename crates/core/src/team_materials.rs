@@ -46,6 +46,7 @@ impl TeamBlueprint {
     pub fn configuration_draft(&self) -> ProjectSetupDraft {
         let s = &self.setup.setup;
         ProjectSetupDraft {
+            worker_reasoning_effort: s.worker.as_ref().and_then(|w| w.reasoning_effort),
             chief_directory: s.chief_directory.clone(),
             management_sources: s.management_sources.clone(),
             currency_budget: None,
@@ -150,7 +151,12 @@ fn management_sources(
         },
         _ => return Err("unsupported deputy source".into()),
     };
-    Ok(ManagementSources { chief, deputy })
+    Ok(ManagementSources {
+        chief_reasoning_effort: None,
+        deputy_reasoning_effort: None,
+        chief,
+        deputy,
+    })
 }
 
 /// The fixed decomposition is an experimental protocol, not a model-generated
@@ -423,6 +429,8 @@ mod source_tests_289 {
         assert_eq!(
             sources,
             ManagementSources {
+                chief_reasoning_effort: None,
+                deputy_reasoning_effort: None,
                 chief: ChiefSource::Provider {
                     endpoint: ProviderEndpoint::A6Api {},
                 },

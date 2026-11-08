@@ -31,11 +31,11 @@ try{
   const next=page.getByRole('button',{name:'下一步：设置需求与计划',exact:true});
   await page.locator('#planning-adapter').waitFor({state:'attached'});
   assert.equal(await page.locator('#planning-adapter').inputValue(),'deepseek');
-  assert.equal(await worker.locator('details[data-method="cli"]').count(),0);
+  assert.equal(await worker.locator('details[data-method="cli"]').count(),1);
   assert.equal(await worker.locator('option[value="codex"]:not(:disabled)').count(),0);
   assert.equal(await worker.getByRole('button',{name:'扫描本地 Codex',exact:true}).count(),0);
   assert.equal(await worker.getByLabel('Codex 程序完整路径',{exact:true}).count(),0);
-  cases.push('Fresh projects have no Codex executor, CLI group, scan or executable requirement');
+  cases.push('Fresh projects use API by default and expose optional CLI without requiring its path');
 
   await openConnectionMethod(page,'主指挥','desktop');await page.locator('#planning-chief-session').fill('chief-session');
   await openConnectionMethod(page,'副指挥','api');await page.locator('#planning-deputy').fill('deputy');
@@ -65,8 +65,9 @@ try{
   cases.push('Migration honors an existing explicit API worker preference and its exact relay endpoint');
 
   await page.evaluate(draft=>window.reset({...draft,workerModel:'historical-codex'}),legacy);
-  await worker.getByRole('status').filter({hasText:'历史 Codex 执行配置已停用'}).waitFor();
-  assert(await next.isDisabled());assert.equal(await worker.getByLabel('Codex 程序完整路径',{exact:true}).count(),0);
+  await openConnectionMethod(page,'执行端','cli');
+  assert.equal(await page.locator('#planning-executable').inputValue(),'D:/fixture/chief-codex.exe');
+  assert(await next.isEnabled());assert.equal(await worker.getByLabel('Codex 程序完整路径',{exact:true}).count(),0);
   assert.equal((await page.evaluate(()=>window.stored())).selection.workerModel,'historical-codex');
   await openConnectionMethod(page,'执行端','key');await worker.getByRole('button',{name:'将Key 管理设为默认执行端',exact:true}).click();
   await page.locator('#planning-worker').fill('replacement-api');await next.click();await confirmConnectionContinue(page);await page.locator('#planning-requirement').waitFor();
@@ -74,9 +75,9 @@ try{
   cases.push('Configured legacy default remains unchanged until explicit replacement; chief session is retained');
 
   await page.evaluate(draft=>window.reset({...draft,workerAdapter:'deepseek',codexExecutable:'',workerModel:'worker-api',apiWorker:{...window.api('deepseek'),model:'worker-api'},profiles:[{id:'old-extra',description:'Retain this task',workerAdapter:'codex',codexExecutable:'D:/fixture/old-extra.exe',workerModel:'old-extra-model',artifactPaths:['extra.txt'],acceptance:{schemaVersion:1,stages:[{id:'check',name:'Check',validatorId:'checks',args:[],timeoutSeconds:30}]}}]}),legacy);
-  const old=page.getByRole('region',{name:'待替换的历史执行配置',exact:true});await old.waitFor();
-  assert(await next.isDisabled());assert.equal(await page.locator('#profile-0-exe').count(),0);
-  assert.equal(await worker.getByRole('button',{name:'添加CLI 接入执行配置',exact:true}).count(),0);
+  await openConnectionMethod(page,'执行端','cli');
+  assert(await next.isEnabled());assert.equal(await page.locator('#profile-0-exe').inputValue(),'D:/fixture/old-extra.exe');
+  assert.equal(await worker.getByRole('button',{name:'添加CLI 接入执行配置',exact:true}).count(),1);
   await page.locator('#profile-0-adapter').selectOption('deepseek');await openConnectionMethod(page,'执行端','key');
   await page.locator('#profile-0-model').fill('extra-api');await page.locator('#profile-0-id').click();
   await next.click();await confirmConnectionContinue(page);await page.locator('#planning-requirement').waitFor();
@@ -86,15 +87,15 @@ try{
 
   await page.evaluate(()=>{window.generation++;window.mode='connections';window.render();});await openConnectionMethod(page,'执行端','key');
   assert.equal(await page.locator('#planning-adapter').inputValue(),'deepseek');assert.equal(await page.locator('#profile-0-adapter').inputValue(),'deepseek');
-  assert.equal(await worker.locator('details[data-method="cli"]').count(),0);
+  assert.equal(await worker.locator('details[data-method="cli"]').count(),1);
   await page.screenshot({path:join(run,'worker-without-codex-cli.png'),fullPage:true});
-  cases.push('Remount restores the replacement API workers without bringing the removed CLI configuration back');
+  cases.push('Remount restores selected API workers and keeps CLI available as an explicit choice');
 
-  await page.evaluate(()=>window.hub());assert.equal(await worker.locator('summary').filter({hasText:/^CLI 接入$/}).count(),0);
+  await page.evaluate(()=>window.hub());assert.equal(await worker.locator('summary').filter({hasText:/^CLI 接入$/}).count(),1);
   await openConnectionMethod(page,'主指挥','desktop');assert(await page.locator('#integration-chief-test-session').isVisible());
   assert((await page.evaluate(()=>window.native)).every(call=>call.name==='objective_checker_status'));assert.deepEqual(await page.evaluate(()=>window.calls),[]);
   assert.equal(externalRequests,0);assert.deepEqual(errors,[]);
-  cases.push('Unbound access hub also removes executor CLI and preserves chief session binding without implicit calls');
+  cases.push('Unbound access hub exposes optional CLI and preserves chief session binding without implicit calls');
   await writeFile(join(run,'result.json'),JSON.stringify({passed:true,cases,errors,externalRequests},null,2));console.log(JSON.stringify({passed:true,cases:cases.length,run}));
 }catch(error){await page.screenshot({path:join(run,'failure.png'),fullPage:true}).catch(()=>{});await writeFile(join(run,'failure.json'),JSON.stringify({error:String(error),cases,errors},null,2));throw error;}
 finally{await browser.close();}

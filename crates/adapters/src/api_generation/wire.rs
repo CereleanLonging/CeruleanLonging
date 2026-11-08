@@ -41,11 +41,9 @@ pub(super) fn body(r: &ApiRequest) -> Result<Value, String> {
             }
         }
     }
-    if openai {
+    let mut body: Value = if openai {
         let tools:Vec<_> = r.tools.iter().map(|t| json!({"type":"function","name":t.name,"description":t.description,"parameters":t.parameters,"strict":false})).collect();
-        Ok(
-            json!({"model":r.model,"instructions":r.instructions,"input":messages,"tools":tools,"tool_choice":if tools.is_empty(){"none"}else{"auto"},"parallel_tool_calls":false,"max_output_tokens":r.max_output_tokens,"stream":false,"store":false,"include":["reasoning.encrypted_content"]}),
-        )
+        json!({"model":r.model,"instructions":r.instructions,"input":messages,"tools":tools,"tool_choice":if tools.is_empty(){"none"}else{"auto"},"parallel_tool_calls":false,"max_output_tokens":r.max_output_tokens,"stream":false,"store":false,"include":["reasoning.encrypted_content"]})
     } else if anthropic(r) {
         // All results for a tool turn must be adjacent in one user message.
         let mut merged: Vec<Value> = Vec::new();
@@ -73,7 +71,7 @@ pub(super) fn body(r: &ApiRequest) -> Result<Value, String> {
             value["tools"]=json!(r.tools.iter().map(|t|json!({"name":t.name,"description":t.description,"input_schema":t.parameters})).collect::<Vec<_>>());
             value["tool_choice"] = json!({"type":"auto","disable_parallel_tool_use":true});
         }
-        Ok(value)
+        value
     } else {
         messages.insert(0, json!({"role":"system","content":r.instructions}));
         let mut value = json!({"model":r.model,"messages":messages,"max_tokens":r.max_output_tokens,"stream":false});
@@ -81,9 +79,10 @@ pub(super) fn body(r: &ApiRequest) -> Result<Value, String> {
             value["tools"]=json!(r.tools.iter().map(|t| json!({"type":"function","function":{"name":t.name,"description":t.description,"parameters":t.parameters}})).collect::<Vec<_>>());
             value["tool_choice"] = json!("auto");
         }
-        // Do not force a thinking mode or unsupported parallelism parameter.
-        Ok(value)
-    }
+        value
+    };
+    cerulean_domain::reasoning::apply_api(&mut body, &r.target, &r.model, r.reasoning_effort)?;
+    Ok(body)
 }
 fn string(v: &Value) -> Result<&str, String> {
     v.as_str()

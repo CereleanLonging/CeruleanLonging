@@ -1,35 +1,37 @@
 import { useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { DesktopObservation } from "./contracts";
+import type { DesktopObservation, ReasoningEffort } from "./contracts";
 import { ErrorText } from "./ErrorText";
 
 type Request =
   | { kind: "codexSession"; sessionId: string; executable?: string | null }
-  | { kind: "omp"; executable: string; model: string; runtimeParent?: string | null }
+  | { kind: "omp"; executable: string; model: string; runtimeParent?: string | null; reasoningEffort?: ReasoningEffort | null }
   | { kind: "qoder"; observation: DesktopObservation };
 type Result = { message: string; checkedAt: string };
-type Props = { request: Request | null; busy: boolean; scope: string; hint?: string; beforeTest?: () => boolean };
+type Props = { request: Request | null; busy: boolean; scope: string; hint?: string; beforeTest?: () => boolean | Promise<boolean>; onError?: (error: string) => void };
 
 export function LocalConnectionTest(props: Props) {
   // A result belongs to exactly one configuration, including its workbench.
   return <ConnectionTest key={JSON.stringify([props.scope, props.request])} {...props}/>;
 }
 
-function ConnectionTest({ request, busy, hint, beforeTest }: Props) {
+function ConnectionTest({ request, busy, hint, beforeTest, onError }: Props) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const lock = useRef(false);
   async function test() {
-    if (busy || lock.current || !request || beforeTest?.() === false) return;
+    if (busy || lock.current || !request) return;
     lock.current = true;
     setTesting(true);
     setResult(null);
     setError("");
     try {
+      if (beforeTest && !await beforeTest()) return;
       setResult(await invoke<Result>("test_local_connection", { request }));
     } catch (error) {
       setError(String(error));
+      onError?.(String(error));
     } finally {
       lock.current = false;
       setTesting(false);

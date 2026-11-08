@@ -649,7 +649,8 @@ pub(crate) async fn dispatch_protocol<S: WorkflowAccess>(
             check_cancel(cancel)?;require(tokio::time::Instant::now()<deadline,"API attempt time exhausted")?;
             let remaining=identity.worker.max_total_tokens.checked_sub(tokens).ok_or("API observed token limit exceeded")?;
             require(remaining>0,"API observed token limit exhausted")?;
-            let request=ApiRequest{target:identity.worker.target.clone(),model:identity.worker.model.clone(),instructions:"You are an implementation worker. Work only on the approved task using host-granted tools; never claim independent verification has passed.".into(),messages:messages.clone(),tools:files.definitions(),max_output_tokens:identity.worker.max_output_tokens.min(remaining.min(u32::MAX.into()) as u32),timeout_seconds:identity.worker.request_timeout_seconds};
+            let request=ApiRequest{
+                reasoning_effort: identity.worker.reasoning_effort,target:identity.worker.target.clone(),model:identity.worker.model.clone(),instructions:"You are an implementation worker. Work only on the approved task using host-granted tools; never claim independent verification has passed.".into(),messages:messages.clone(),tools:files.definitions(),max_output_tokens:identity.worker.max_output_tokens.min(remaining.min(u32::MAX.into()) as u32),timeout_seconds:identity.worker.request_timeout_seconds};
             let (call,response,head)=tokio::time::timeout_at(deadline,driver.round(&identity,round,request,advice.as_ref(),&root,cancel)).await.map_err(|_|"API attempt timed out; outcome unknown")??;
             let observation=response.observation().clone();
             tokens=tokens.checked_add(observation.usage.total_tokens(identity.worker.target.provider())?).ok_or("API usage overflow")?;

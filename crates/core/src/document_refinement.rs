@@ -46,9 +46,16 @@ impl RuntimeHost {
             "文档分段无效；长文档须完整分段，不会截断",
         )?;
         require(!matches!(saved.setup.management_sources.as_ref().map(|s| &s.chief), Some(project_setup::ChiefSource::CodexSession { .. })), "当前主指挥绑定外部 Codex 聊天，无法后台自动提炼；请在项目配置中选择 API 主指挥后导入，不会改用其他模型")?;
-        Ok(
-            serde_json::json!({"requirement":serde_json::to_string(&input).map_err(|e|e.to_string())?,"document":input,"chiefModel":saved.setup.chief_model,"chiefSource":saved.setup.management_sources.as_ref().map(|s| &s.chief)}),
-        )
+        let mut context = serde_json::json!({"requirement":serde_json::to_string(&input).map_err(|e|e.to_string())?,"document":input,"chiefModel":saved.setup.chief_model,"chiefSource":saved.setup.management_sources.as_ref().map(|s| &s.chief)});
+        if let Some(effort) = saved
+            .setup
+            .management_sources
+            .as_ref()
+            .and_then(|sources| sources.chief_reasoning_effort)
+        {
+            context["chiefReasoningEffort"] = serde_json::json!(effort);
+        }
+        Ok(context)
     }
     pub(super) fn rebuild_refinement_context(
         &self,

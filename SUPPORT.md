@@ -24,9 +24,9 @@ New check material enables reader24. Rounds with configured API worker review ou
 
 <a id="zh-support"></a>
 
-接入界面按主指挥、副指挥、执行端分区，不改变能力范围：主指挥支持 API 或绑定当前 Codex 聊天，副指挥支持 API，CLI/OMP 与 Qoder 桌面用于执行端。API 检查和 Key 管理分开；供应商 Key 在同一工作台内共享。模型变更仍须保存项目配置并审阅新方案。仅 Codex CLI 提供本机目录扫描。
+接入界面按主指挥、副指挥、执行端分区。主指挥支持 API 或绑定 Codex 会话。副指挥支持 API 和桌面端栏目内的 OMP 独立后台。执行端提供 Key 直连、Codex CLI，以及桌面端栏目内的 Qoder 和 OMP。副指挥与执行端的 OMP 程序、模型和思考配置分别保存，当前 OMP 凭证映射支持 DeepSeek 官方服务。供应商 Key 在同一工作台内共享。模型与思考档位变更须保存项目配置并审阅新方案。仅 Codex 提供本机目录扫描。
 
-The integration UI separates chief, deputy, and worker settings without extending capabilities: chiefs use API or a bound Codex chat, deputies use API, and CLI/OMP or Qoder desktop are worker routes. API checks and Key management are separate; provider credentials remain shared within a workbench. Model changes still require saved project settings and review of a new plan. Local program discovery is available for Codex CLI only.
+The integration UI separates chief, coordinator and worker settings. Chiefs use API or a bound Codex session. Coordinators use API or an OMP standalone backend under Desktop access. Workers use direct Key access, Codex CLI, or Qoder and OMP under Desktop access. Coordinator and worker OMP settings are saved separately. OMP currently maps credentials to the official DeepSeek service. Provider credentials are shared within a workbench. Model and reasoning changes require saved settings and a reviewed plan. Local executable discovery is available for Codex.
 
 ## 简体中文
 
@@ -47,6 +47,10 @@ CeruleanLonging 面向 Windows x64，桌面界面需要可用的 Microsoft Edge 
 | WorkBuddy 桌面 | 已移除新接入与执行支持；旧记录只读保留，历史测试不代表当前支持。 |
 | 统一工作台 CLI | 与桌面共用本地核心，提供项目配置、计划批准、执行、检查、恢复与维护入口。各供应商的实际能力以对应路线为准。 |
 | 其他厂商原生 CLI | 除已列出的 Codex、OMP 外，本轮未新增其他原生 CLI 接入承诺。 |
+
+API、Key 和 CLI 选模后可确认受支持的思考强度。API 能力按已核对的供应商与型号显示，未知型号及中转使用默认参数。Codex CLI 读取实际模型目录中的档位。新 OMP 选择默认最高档，历史缺省配置在重新选择前沿用原值。客户端会话使用原会话配置。所需模型不可用时，可明确选择对应服务并补录 Key 后切换直连。
+
+API, Key and CLI selections expose confirmed reasoning options. API capabilities are matched to reviewed provider/model combinations, while unknown models and relay routes use default parameters. Codex CLI reads effort levels from its actual model catalog. New OMP selections default to the highest supported level. Historical omitted settings retain their prior behavior until explicitly changed. Client-bound sessions use their existing settings. An unavailable model can be replaced through an explicit provider and Key selection.
 
 ### 新增隔离与盲评的适用范围
 

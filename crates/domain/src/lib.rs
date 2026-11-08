@@ -27,6 +27,7 @@ pub mod management;
 pub mod management_ingress;
 pub mod project_delivery;
 pub mod project_setup;
+pub mod reasoning;
 pub mod secret;
 pub mod supervision;
 pub mod verification_detail;

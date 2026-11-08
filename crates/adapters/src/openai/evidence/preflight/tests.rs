@@ -73,6 +73,38 @@ fn preflight_preserves_all_input_fields_for_every_management_role() {
 }
 
 #[test]
+fn reasoning_is_preserved_in_count_and_invalid_options_are_rejected() {
+    for purpose in [
+        Purpose::Plan,
+        Purpose::Assign,
+        Purpose::Accept,
+        Purpose::Advise,
+        Purpose::Refine,
+    ] {
+        let context = json!({"chiefReasoningEffort":"high","executionSetup":{"setup":{"managementSources":{"chiefReasoningEffort":"high","deputyReasoningEffort":"high"}}}});
+        let prepared =
+            PreparedDecision::new(purpose, "gpt-6-astra", &digest(&context).unwrap(), &context)
+                .unwrap();
+        let count = prepared.count_body().unwrap();
+        assert_eq!(count["reasoning"], json!({"effort":"high"}));
+        assert_eq!(count["reasoning"], prepared.body["reasoning"]);
+        for invalid in [
+            json!(null),
+            json!({}),
+            json!({"effort":"ultra"}),
+            json!({"effort":"high","summary":"auto"}),
+        ] {
+            let mut changed =
+                PreparedDecision::new(purpose, "gpt-6-astra", &digest(&context).unwrap(), &context)
+                    .unwrap();
+            changed.body["reasoning"] = invalid;
+            changed.fingerprint.body_sha256 = digest(&changed.body).unwrap();
+            assert!(changed.count_body().is_err());
+        }
+    }
+}
+
+#[test]
 fn preflight_rejects_invalid_counts_and_never_substitutes_character_estimates() {
     let invalid = [
         json!(null),

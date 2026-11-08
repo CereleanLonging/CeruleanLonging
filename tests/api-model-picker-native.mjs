@@ -77,7 +77,8 @@ async function choose(model,query) {
   if(await read.isVisible()) await read.click();
   await modal().getByRole("searchbox").fill(query);
   await modal().getByRole("radio",{name:model,exact:true}).check();
-  await modal().getByRole("button",{name:"确认使用此模型",exact:true}).click();
+  await modal().getByRole("button",{name:"下一步 · 思考强度",exact:true}).click();
+  await modal().getByRole("button",{name:"确认模型与思考强度",exact:true}).click();
   await modal().waitFor({state:"hidden"});
 }
 async function close() {
@@ -96,7 +97,7 @@ try {
   await role("主指挥").getByLabel("凭证供应商",{exact:true}).selectOption("a6api");
   await role("主指挥").getByLabel("A6API API Key",{exact:true}).fill(marker);
   await role("主指挥").getByRole("button",{name:"加密保存 A6API Key",exact:true}).click();await modal().waitFor();
-  assert(await modal().getByRole("button",{name:"确认使用此模型",exact:true}).isDisabled());
+  assert(await modal().getByRole("button",{name:"下一步 · 思考强度",exact:true}).isDisabled());
   assert.deepEqual(await page.evaluate(()=>window.catalogChecks),[]);
   const envelope=await readFile(join(data,"credentials/a6api.dpapi"));assert(!envelope.includes(Buffer.from(marker)));
   cases.push("Real native credential receipt opens the modal without a provider request; DPAPI envelope contains no synthetic plaintext key");
@@ -152,7 +153,7 @@ try {
   assert.equal(await page.locator("#planning-chief").inputValue(),"DeepSeek-R1");assert.equal(await page.locator("#planning-deputy").inputValue(),"claude-sonnet-4-5");assert.equal(await page.locator("#planning-worker").inputValue(),"qwen3-32b");
   await openConnectionMethod(page,"副指挥","key");
   await role("副指挥").getByRole("button",{name:"选择或修改模型",exact:true}).click();
-  assert.equal(await modal().getByRole("radio").count(),0);assert(await modal().getByRole("button",{name:"确认使用此模型",exact:true}).isDisabled());
+  assert.equal(await modal().getByRole("radio").count(),0);assert(await modal().getByRole("button",{name:"下一步 · 思考强度",exact:true}).isDisabled());
   await choose("DeepSeek-R1","dsr1");
   assert.equal(await page.locator("#planning-deputy").inputValue(),"DeepSeek-R1");assert.equal(await page.locator("#planning-worker").inputValue(),"qwen3-32b");
   await role("副指挥").getByRole("button",{name:"选择或修改模型",exact:true}).click();await modal().getByRole("searchbox").fill("ds");

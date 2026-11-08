@@ -74,6 +74,8 @@ impl ProjectWorkerAdapter {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectSetupDraft {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_reasoning_effort: Option<crate::reasoning::ReasoningEffort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chief_directory: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub management_sources: Option<ManagementSources>,
@@ -508,6 +510,24 @@ impl ProjectSetupDraft {
         }
         if let Some(sources) = &self.management_sources {
             sources.validate(&self.chief_model, self.currency_budget.is_some())?;
+            sources.validate_reasoning(&self.chief_model, &self.deputy_model)?;
+        }
+        require(
+            self.worker_reasoning_effort.is_none()
+                || matches!(
+                    self.worker_adapter,
+                    ProjectWorkerAdapter::Codex | ProjectWorkerAdapter::Omp
+                ),
+            "本地程序思考配置必须绑定 CLI 或 OMP 执行端",
+        )?;
+        if self.worker_adapter == ProjectWorkerAdapter::Omp {
+            crate::reasoning::validate_api(
+                &crate::api_worker::ApiTarget::Provider {
+                    endpoint: crate::credentials::ProviderEndpoint::DeepSeek {},
+                },
+                &self.worker_model,
+                self.worker_reasoning_effort,
+            )?;
         }
         if let Some(budget) = &self.currency_budget {
             budget.validate()?;

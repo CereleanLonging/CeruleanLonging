@@ -69,16 +69,16 @@ try {
   assert.equal(await page.evaluate(()=>window.commands.length),1);
   cases.push("Role controls have unique IDs; model configuration navigation never saves or dispatches a task");
 
-  assert.equal(await worker.locator("summary").filter({hasText:/^CLI 接入$/}).count(),0);
+  assert.equal(await worker.locator("summary").filter({hasText:/^CLI 接入$/}).count(),1);
   assert.equal(await worker.getByLabel("Codex 程序完整路径").count(),0);
   assert.equal(await worker.getByRole("button",{name:"扫描本地 Codex",exact:true}).count(),0);
-  await openConnectionMethod(page,"执行端","api");
+  await openConnectionMethod(page,"执行端","desktop");
   assert.equal(await worker.locator(':scope > details').filter({has:page.locator('summary').filter({hasText:/^API 连接$/})}).getByRole("button",{name:"扫描本地 Codex",exact:true}).count(),0);
   await page.screenshot({path:join(dir,"worker-access-layout.png"),fullPage:true});
   await page.setViewportSize({width:390,height:844});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:join(dir,"narrow-layout.png"),fullPage:true});
-  cases.push("Worker Codex CLI and scanning are removed; OMP remains independent and narrow view fits");
+  cases.push("Worker CLI is optional, OMP is grouped under desktop, and narrow view fits");
 
   await page.evaluate(()=>window.showManagement({chiefModel:"chief-original",deputyModel:"deputy-original",managementSources:{chief:{kind:"openAi"},deputy:{kind:"openAi"}}}));
   await page.getByLabel("主指挥接入",{exact:true}).selectOption("codexSession");

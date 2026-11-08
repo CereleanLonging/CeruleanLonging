@@ -198,6 +198,7 @@ async fn production_entry_records_pre_dispatch_cancellation_without_http() {
         ApiClient::new(SecretInput::new("sk-synthetic-journal-test".into()).unwrap()).unwrap();
     let request = client
         .prepare(ApiRequest {
+            reasoning_effort: None,
             target: ApiTarget::OpenAi {},
             model: "fixture".into(),
             instructions: "approved scope".into(),

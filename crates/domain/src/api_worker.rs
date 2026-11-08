@@ -71,6 +71,8 @@ pub enum ApiWriteScope {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ApiWorkerSelection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<crate::reasoning::ReasoningEffort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub write_scope: Option<ApiWriteScope>,
     pub target: ApiTarget,
     pub model: String,
@@ -87,6 +89,7 @@ pub struct ApiWorkerSelection {
 impl ApiWorkerSelection {
     pub fn validate(&self) -> Result<(), String> {
         self.target.url()?;
+        crate::reasoning::validate_api(&self.target, &self.model, self.reasoning_effort)?;
         require(
             self.write_scope.is_none()
                 || self

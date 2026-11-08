@@ -188,6 +188,7 @@ mod tests {
             adapter_id: "deepseek".into(),
             worker: None,
             api_worker: Some(cerulean_domain::api_worker::ApiWorkerSelection {
+                reasoning_effort: None,
                 target: cerulean_domain::api_worker::ApiTarget::Provider {
                     endpoint: cerulean_domain::credentials::ProviderEndpoint::DeepSeek {},
                 },

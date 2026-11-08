@@ -441,6 +441,7 @@ mod tests {
         ["chief", "deputy", "worker"]
             .into_iter()
             .map(|r| ReviewSeat {
+                reasoning_effort: None,
                 max_output_tokens: None,
                 id: r.into(),
                 role: r.into(),

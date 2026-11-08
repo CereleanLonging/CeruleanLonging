@@ -8,6 +8,7 @@ use project_planning::tests::{complete, complete_at, fixture, proposal};
 
 fn profile(d: &ProjectSetupDraft) -> WorkerProfileDraft {
     WorkerProfileDraft {
+        worker_reasoning_effort: None,
         supervision_override: None,
         resource_keys: vec!["shared-db".into(), "gpu-0".into()],
         id: "special".into(),

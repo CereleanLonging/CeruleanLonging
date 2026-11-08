@@ -111,6 +111,10 @@ fn request(handoff: &ManagementHandoff) -> Result<ApiRequest, String> {
             instructions
         };
     Ok(ApiRequest {
+        reasoning_effort: cerulean_domain::reasoning::management_effort(
+            &handoff.context,
+            handoff.purpose,
+        )?,
         target: ApiTarget::Provider { endpoint },
         model: model.into(),
         instructions,

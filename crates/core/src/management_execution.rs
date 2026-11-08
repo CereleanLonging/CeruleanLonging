@@ -33,6 +33,7 @@ mod diagnostics;
 #[cfg(windows)]
 mod efficiency;
 mod gateway;
+pub(crate) mod omp;
 pub(crate) use decision_source::StoredDecision;
 mod external;
 #[path = "management_historical_source.rs"]
@@ -102,6 +103,13 @@ impl DecisionIntent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 enum Evidence {
+    OmpIntent {
+        intent: DecisionIntent,
+        request: omp::OmpRequest,
+    },
+    OmpResponse {
+        response: omp::OmpResponse,
+    },
     DeputyIntent {
         intent: DecisionIntent,
         request: cerulean_adapters::deputy_management::DeputyRequest,
@@ -460,6 +468,8 @@ pub struct DecisionStatus {
     pub state_digest: String,
 }
 struct Operation {
+    omp_request: Option<omp::OmpRequest>,
+    omp_response: Option<omp::OmpResponse>,
     deputy_request: Option<cerulean_adapters::deputy_management::DeputyRequest>,
     deputy_response: Option<cerulean_adapters::deputy_management::DeputyResult>,
     external_request: Option<ManagementHandoff>,
@@ -485,6 +495,7 @@ impl Operation {
         self.external_response
             .as_ref()
             .map(|r| &r.envelope)
+            .or_else(|| self.omp_response.as_ref().and_then(|r| r.envelope.as_ref()))
             .or_else(|| self.deputy_response.as_ref().and_then(|r| r.envelope()))
             .or_else(|| self.observation.as_ref().map(|o| &o.envelope))
     }
@@ -764,16 +775,26 @@ impl DecisionJournal {
         let id = &record.body.operation_id;
         let external = matches!(
             &record.body.evidence,
-            Evidence::ExternalIntent { .. } | Evidence::DeputyIntent { .. }
-        ) || self
-            .operations
-            .get(id)
-            .is_some_and(|op| op.external_request.is_some() || op.deputy_request.is_some());
+            Evidence::ExternalIntent { .. }
+                | Evidence::DeputyIntent { .. }
+                | Evidence::OmpIntent { .. }
+        ) || self.operations.get(id).is_some_and(|op| {
+            op.external_request.is_some() || op.deputy_request.is_some() || op.omp_request.is_some()
+        });
         require(
             record.body.version == if external { 2 } else { 1 },
             "management evidence source/version mismatch",
         )?;
         match record.body.evidence {
+            Evidence::OmpIntent { intent, request } => self.accept_omp_intent(
+                (name, id, &record.body.previous),
+                record.hash,
+                intent,
+                request,
+            )?,
+            Evidence::OmpResponse { response } => {
+                self.accept_omp_response(name, id, &record.body.previous, record.hash, response)?
+            }
             Evidence::DeputyIntent { intent, request } => self.accept_deputy_intent(
                 (name, id, &record.body.previous),
                 record.hash,
@@ -821,6 +842,8 @@ impl DecisionJournal {
                 self.operations.insert(
                     id.clone(),
                     Operation {
+                        omp_request: None,
+                        omp_response: None,
                         deputy_request: None,
                         deputy_response: None,
                         external_request: None,
@@ -908,6 +931,7 @@ impl DecisionJournal {
                         && !op.finished
                         && op.external_request.is_none()
                         && op.deputy_request.is_none()
+                        && op.omp_request.is_none()
                         && record.body.previous == op.chain_hash,
                     "invalid management outcome link",
                 )?;
@@ -1078,11 +1102,12 @@ impl DecisionJournal {
         }
         let external = matches!(
             &evidence,
-            Evidence::ExternalIntent { .. } | Evidence::DeputyIntent { .. }
-        ) || self
-            .operations
-            .get(id)
-            .is_some_and(|op| op.external_request.is_some() || op.deputy_request.is_some());
+            Evidence::ExternalIntent { .. }
+                | Evidence::DeputyIntent { .. }
+                | Evidence::OmpIntent { .. }
+        ) || self.operations.get(id).is_some_and(|op| {
+            op.external_request.is_some() || op.deputy_request.is_some() || op.omp_request.is_some()
+        });
         if external {
             crate::management_source_guard::require_protected(
                 self.root.parent().ok_or("management root missing")?,
@@ -1232,6 +1257,8 @@ impl DecisionJournal {
         self.operations.insert(
             id,
             Operation {
+                omp_request: None,
+                omp_response: None,
                 deputy_request: None,
                 deputy_response: None,
                 external_request: None,
@@ -1338,7 +1365,8 @@ impl DecisionJournal {
             !op.finished
                 && op.resolution.is_none()
                 && op.external_request.is_none()
-                && op.deputy_request.is_none(),
+                && op.deputy_request.is_none()
+                && op.omp_request.is_none(),
             "management outcome already recorded, discarded, or belongs to external chief",
         )?;
         require(
@@ -1431,7 +1459,9 @@ impl DecisionJournal {
             .get(id)
             .ok_or("original management intent missing; do not infer not-sent")?;
         require(
-            op.external_request.is_none() && op.deputy_request.is_none(),
+            op.external_request.is_none()
+                && op.deputy_request.is_none()
+                && op.omp_request.is_none(),
             "non-OpenAI management cannot use OpenAI billing evidence",
         )?;
         if op.scoped_request.is_some() {
@@ -1516,7 +1546,7 @@ impl DecisionJournal {
             if gaps.iter().any(|g| &g.source_id == id) {
                 continue;
             }
-            let reason = if op.deputy_request.is_some() {
+            let reason = if op.deputy_request.is_some() || op.omp_request.is_some() {
                 Some(CurrencyHistoryReason::ManagementWithoutBudget)
             } else if op.request.is_none() && op.scoped_request.is_none() {
                 Some(CurrencyHistoryReason::LegacyManagementRequest)

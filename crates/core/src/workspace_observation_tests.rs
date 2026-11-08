@@ -181,6 +181,7 @@ fn workspace_observation_original_shared_owner_transfer_and_same_sequence_revisi
         attempt_id: "controlled-observation".into(),
         revision_digest,
         worker: WorkerSelection {
+            reasoning_effort: None,
             omp_runtime_parent: None,
             provider: "fixture".into(),
             model: "fixture".into(),

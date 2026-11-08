@@ -71,6 +71,7 @@ fn host(root: &Path, mode: &str) -> RuntimeHost {
                 ProjectWorkerAdapter::Deepseek
             };
             draft.profiles.push(WorkerProfileDraft {
+                worker_reasoning_effort: None,
                 supervision_override: None,
                 resource_keys: vec![],
                 id: format!("profile-{id}"),

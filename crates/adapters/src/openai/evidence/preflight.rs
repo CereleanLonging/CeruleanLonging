@@ -109,10 +109,11 @@ impl PreparedDecision {
             .as_object()
             .ok_or("invalid management body")?
             .clone();
+        crate::openai::validate_reasoning_input(&self.body)?;
         // Remove only the three generation-only fields not accepted by count.
         // Reject newly added fields until their token semantics are reviewed.
         require(
-            body.len() == 10
+            body.len() == 10 + usize::from(body.contains_key("reasoning"))
                 && body.get("store") == Some(&json!(false))
                 && body.get("stream") == Some(&json!(false))
                 && body.get("max_output_tokens") == Some(&json!(4096))
@@ -135,7 +136,8 @@ impl PreparedDecision {
             "parallel_tool_calls",
         ];
         require(
-            body.len() == allowed.len() && allowed.iter().all(|key| body.contains_key(*key)),
+            body.len() == allowed.len() + usize::from(body.contains_key("reasoning"))
+                && allowed.iter().all(|key| body.contains_key(*key)),
             "unreviewed management token-count fields",
         )?;
         Ok(Value::Object(body))

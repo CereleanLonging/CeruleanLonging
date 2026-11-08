@@ -113,6 +113,7 @@ mod tests {
             adapter_id: "codex".into(),
             profile_id: None,
             worker: Some(WorkerSelection {
+                reasoning_effort: None,
                 provider: "openai".into(),
                 model: model.into(),
                 executable: ValidationFile {

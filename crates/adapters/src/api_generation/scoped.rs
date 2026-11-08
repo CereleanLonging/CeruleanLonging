@@ -89,7 +89,8 @@ impl ApiClient {
         let mut prepared = self.prepare(request)?;
         let object = prepared.body.as_object_mut().ok_or("invalid API body")?;
         require(
-            object.len() == 10 && !object.contains_key("service_tier"),
+            object.len() == 10 + usize::from(object.contains_key("reasoning"))
+                && !object.contains_key("service_tier"),
             "API template changed; review count projection",
         )?;
         object.insert("service_tier".into(), json!("default"));
@@ -218,9 +219,10 @@ impl ScopedApiDraft {
     }
 }
 fn count_projection(body: &Value) -> Result<Value, String> {
+    crate::openai::validate_reasoning_input(body)?;
     let mut object = body.as_object().ok_or("invalid scoped API body")?.clone();
     require(
-        object.len() == 11
+        object.len() == 11 + usize::from(object.contains_key("reasoning"))
             && object.get("service_tier") == Some(&json!("default"))
             && object.get("stream") == Some(&json!(false))
             && object.get("store") == Some(&json!(false))
@@ -248,7 +250,8 @@ fn count_projection(body: &Value) -> Result<Value, String> {
         "parallel_tool_calls",
     ];
     require(
-        object.len() == fields.len() && fields.iter().all(|f| object.contains_key(*f)),
+        object.len() == fields.len() + usize::from(object.contains_key("reasoning"))
+            && fields.iter().all(|f| object.contains_key(*f)),
         "unknown API count fields",
     )?;
     Ok(Value::Object(object))

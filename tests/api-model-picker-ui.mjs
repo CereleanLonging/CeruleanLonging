@@ -33,7 +33,7 @@ if(command.type==='checkProviderModels'){status.target=command.target;status.sta
 if(command.type==='setOpenAiKey'){data.openaiConnection={state:'unchecked',keyConfigured:true,models:[]};}
 if(command.type==='checkOpenAi'){data.openaiConnection={state:'available',keyConfigured:true,models:['gpt-4.1','gpt-4.1-mini']};}
 window.snapshot=data;window.render();return true;}
-window.render();`);
+window.__TAURI_INTERNALS__={invoke:async(name)=>{if(name==="model_reasoning_options")return [];throw Error(name);}};window.render();`);
 await build({configFile:false,logLevel:"error",define:{"process.env.NODE_ENV":JSON.stringify("production")},oxc:{jsx:{runtime:"automatic"}},
   build:{outDir:bundle,emptyOutDir:false,lib:{entry,name:"ModelPicker",formats:["iife"],fileName:()=>"ui.js"}}});
 const browser = await chromium.launch({executablePath:"C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",headless:true});
@@ -46,9 +46,9 @@ try {
   await page.route("**/*",route=>route.request().url()==="https://cerulean.test/"?route.fulfill({contentType:"text/html",body:`<html lang="zh-CN"><meta charset="utf-8"><style>${css}body{padding:24px}</style><div id="root"></div></html>`}):route.abort());
   await page.goto("https://cerulean.test/");await page.addScriptTag({path:join(bundle,"ui.js")});
   const modal=()=>page.getByRole("dialog",{name:"选择具体模型",exact:true});
-  const confirm=()=>modal().getByRole("button",{name:"确认使用此模型",exact:true});
+  const confirm=()=>modal().getByRole("button",{name:"下一步 · 思考强度",exact:true});
   const close=()=>modal().getByRole("button",{name:"稍后选择",exact:true}).click();
-  const select=async(model,query)=>{await modal().getByRole("searchbox").fill(query);await modal().getByRole("radio",{name:model,exact:true}).check();await confirm().click();await modal().waitFor({state:"hidden"});};
+  const select=async(model,query)=>{await modal().getByRole("searchbox").fill(query);await modal().getByRole("radio",{name:model,exact:true}).check();await confirm().click();await modal().getByRole("button",{name:"确认模型与思考强度",exact:true}).click();await modal().waitFor({state:"hidden"});};
   const region=name=>page.getByRole("region",{name,exact:true});
   const chief=region("主指挥"), deputy=region("副指挥"), worker=region("执行端");
   await openConnectionMethod(page,"主指挥","api");await page.locator("#planning-chief-source").selectOption("provider:a6ApiVip");
@@ -94,7 +94,7 @@ try {
   await modal().waitFor();await modal().getByLabel("应用到",{exact:true}).selectOption("profile:0");await select("DeepSeek-R1","dsr1");
   assert.equal(await worker.getByLabel("A6API API Key",{exact:true}).count(),1);
   assert.equal(await profile.locator('input[type="password"]').count(),0);
-  assert.equal(await worker.locator('summary').filter({hasText:/^API 连接$/}).count(),1);
+  assert.equal(await worker.locator('summary').filter({hasText:/^API 连接$/}).count(),0);
   assert.equal(await worker.locator('summary').filter({hasText:/^Key 管理$/}).count(),1);
   assert.equal(await page.locator("#profile-0-model").inputValue(),"DeepSeek-R1");
   const draftKey=JSON.stringify(["cerulean-access-draft",1,snapshot.dataDirectory,"project"]);

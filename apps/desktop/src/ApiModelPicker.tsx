@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { ApiTarget } from "./contracts";
+import type { ApiTarget, ReasoningEffort } from "./contracts";
+import { ReasoningOptions, reasoningLabel } from "./ReasoningOptions";
 import { apiTargetKey, matchesApiModel, type ApiModelAssignment } from "./apiModels";
 import { HelpHeading } from "./HelpHeading";
 
@@ -37,6 +38,9 @@ function ModelPicker({ target, assignments, models, keyConfigured, ready, checki
   const [assignmentId, setAssignmentId] = useState(assignments[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
+  const [optionsStep, setOptionsStep] = useState(false);
+  const [effort, setEffort] = useState<ReasoningEffort | undefined>();
+  const [optionsReady, setOptionsReady] = useState(false);
   const id = useId();
   const targetKey = apiTargetKey(target);
   const currentModel = (assignment: ApiModelAssignment) => apiTargetKey(assignment.target) === targetKey ? assignment.model : "";
@@ -52,6 +56,7 @@ function ModelPicker({ target, assignments, models, keyConfigured, ready, checki
     activePicker = id;
     setAssignmentId(next.id);
     setSelected(currentModel(next));
+    setOptionsStep(false); setOptionsReady(false); setEffort(next.reasoningEffort ?? undefined);
     setQuery("");
     prompted.current = true;
     setOpen(true);
@@ -90,18 +95,29 @@ function ModelPicker({ target, assignments, models, keyConfigured, ready, checki
   const canConfirm = !disabled && keyConfigured && ready && valid && !!assignment && catalog.includes(selected);
   return <div className="api-model-selection" ref={root}>
     <div className="api-model-current">{assignments.map(item => <p key={item.id}>
-      <strong>{item.label}</strong><span>{currentModel(item) || "待选择具体模型"}</span>
+      <strong>{item.label}</strong><span>{currentModel(item) ? `${currentModel(item)} · 思考 ${reasoningLabel(item.reasoningEffort)}` : "待选择具体模型"}</span>
     </p>)}</div>
     <button type="button" className="secondary-button" disabled={disabled || !keyConfigured} onClick={show}>选择或修改模型</button>
     {open && createPortal(<dialog ref={dialog} className="panel api-model-picker" aria-modal="true" aria-labelledby={`${id}-title`}
       onCancel={event => { event.preventDefault(); setOpen(false); }}>
       <HelpHeading as="h2" help="搜索供应商返回的模型目录，确认后将完整模型 ID 写入所选角色。各角色和执行配置分别保存自己的模型。" id={`${id}-title`}>选择具体模型</HelpHeading>
       <p className="secondary">选择 {assignment?.label ?? "角色"} 使用的完整模型名称。</p>
+      {optionsStep ? <>
+        <p>模型 <strong>{selected}</strong></p>
+        <ReasoningOptions target={target} model={selected} value={effort} disabled={disabled} onChange={setEffort} onReady={setOptionsReady}/>
+        <div className="api-model-actions">
+          <button type="button" className="secondary-button" onClick={() => setOptionsStep(false)}>返回选模</button>
+          <button type="button" className="primary" disabled={!canConfirm || !optionsReady} onClick={() => {
+            if (!canConfirm || !assignment || !optionsReady) return;
+            assignment.onSelect(selected, target, effort); setOpen(false);
+          }}>确认模型与思考强度</button>
+        </div>
+      </> : <>
       {assignments.length > 1 && <>
         <label htmlFor={`${id}-assignment`}>应用到</label>
         <select id={`${id}-assignment`} value={assignmentId} disabled={disabled} onChange={event => {
           const next = assignments.find(item => item.id === event.target.value);
-          setAssignmentId(event.target.value); setSelected(next ? currentModel(next) : "");
+          setAssignmentId(event.target.value); setSelected(next ? currentModel(next) : ""); setEffort(next?.reasoningEffort ?? undefined);
         }}>{assignments.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
       </>}
       <label htmlFor={`${id}-search`}>搜索模型名称</label>
@@ -120,7 +136,7 @@ function ModelPicker({ target, assignments, models, keyConfigured, ready, checki
       {ready && <fieldset className="api-model-results" disabled={disabled}>
         <legend>候选模型</legend>
         {results.map(model => <label className="api-model-option" key={model}>
-          <input type="radio" name={`${id}-model`} value={model} checked={selected === model} onChange={() => setSelected(model)}/>
+          <input type="radio" name={`${id}-model`} value={model} checked={selected === model} onChange={() => { setSelected(model); setEffort(undefined); }}/>
           <span>{model}</span>
         </label>)}
         {!!catalog.length && !results.length && <p>没有匹配的模型，请调整搜索词。</p>}
@@ -130,9 +146,10 @@ function ModelPicker({ target, assignments, models, keyConfigured, ready, checki
         <button type="button" className="secondary-button" onClick={() => setOpen(false)}>稍后选择</button>
         <button type="button" className="primary" disabled={!canConfirm} onClick={() => {
           if (!canConfirm || !assignment) return;
-          assignment.onSelect(selected, target); setOpen(false);
-        }}>确认使用此模型</button>
+          setOptionsReady(false); setOptionsStep(true);
+        }}>下一步 · 思考强度</button>
       </div>
+      </>}
     </dialog>, document.body)}
   </div>;
 }

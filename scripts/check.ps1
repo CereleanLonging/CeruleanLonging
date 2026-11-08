@@ -75,6 +75,10 @@ node tests/workflow-map-ui.mjs
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 node tests/workbench-theme-ui.mjs
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+foreach ($accessTest in @('background-access-ui','api-model-picker-ui','worker-key-routing-ui','codex-chief-only-ui','connection-tests-ui','access-persistence-ui','integration-hub-ui')) {
+    node (Join-Path $ceruleanRoot ('tests/'+$accessTest+'.mjs'))
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+}
 npm.cmd run test:ipc
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run test:service

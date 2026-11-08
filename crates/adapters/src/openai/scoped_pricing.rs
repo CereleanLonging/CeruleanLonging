@@ -84,7 +84,8 @@ impl ScopedDecisionDraft {
             .as_object_mut()
             .ok_or("invalid scoped management body")?;
         require(
-            object.len() == 10 && !object.contains_key("service_tier"),
+            object.len() == 10 + usize::from(object.contains_key("reasoning"))
+                && !object.contains_key("service_tier"),
             "management template changed; scoped projection requires review",
         )?;
         object.insert("service_tier".into(), json!("default"));
@@ -163,12 +164,13 @@ impl ScopedDecisionDraft {
 }
 
 fn count_projection(body: &Value) -> Result<Value, String> {
+    crate::openai::validate_reasoning_input(body)?;
     let mut object = body
         .as_object()
         .ok_or("invalid scoped management body")?
         .clone();
     require(
-        object.len() == 11
+        object.len() == 11 + usize::from(object.contains_key("reasoning"))
             && object.get("service_tier") == Some(&json!("default"))
             && object.get("store") == Some(&json!(false))
             && object.get("stream") == Some(&json!(false))
@@ -193,7 +195,8 @@ fn count_projection(body: &Value) -> Result<Value, String> {
         "parallel_tool_calls",
     ];
     require(
-        object.len() == fields.len() && fields.iter().all(|field| object.contains_key(*field)),
+        object.len() == fields.len() + usize::from(object.contains_key("reasoning"))
+            && fields.iter().all(|field| object.contains_key(*field)),
         "unreviewed scoped count fields",
     )?;
     Ok(Value::Object(object))

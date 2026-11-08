@@ -39,6 +39,8 @@ pub(super) fn configured_source(
     let mut host = RuntimeHost::open(&root.join("data")).unwrap();
     let mut draft = selected.unwrap();
     draft.management_sources = Some(ManagementSources {
+        chief_reasoning_effort: None,
+        deputy_reasoning_effort: None,
         chief: ChiefSource::CodexSession {
             session_id: "current-session".into(),
         },

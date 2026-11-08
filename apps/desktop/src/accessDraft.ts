@@ -3,9 +3,9 @@ import { setAccessItem } from "./accessStorage";
 
 export function accessSelection(draft: ProjectSetupDraft) {
   const { chiefDirectory, managementSources, chiefModel, deputyModel, workerAdapter, workerModel,
-    codexExecutable, apiWorker, desktopWorker, ompRuntimeParent, profiles, worktree, resourceKeys, artifactPaths, supervision } = draft;
+    workerReasoningEffort, codexExecutable, apiWorker, desktopWorker, ompRuntimeParent, profiles, worktree, resourceKeys, artifactPaths, supervision } = draft;
   return {chiefDirectory,managementSources,chiefModel,deputyModel,workerAdapter,workerModel,
-    codexExecutable,apiWorker,desktopWorker,ompRuntimeParent,profiles,worktree,resourceKeys,artifactPaths,supervision};
+    workerReasoningEffort,codexExecutable,apiWorker,desktopWorker,ompRuntimeParent,profiles,worktree,resourceKeys,artifactPaths,supervision};
 }
 function stable(value: unknown): string {
   return JSON.stringify(value, (_key, item) => item && typeof item === "object" && !Array.isArray(item)
@@ -18,7 +18,7 @@ export const accessKey = (draft: ProjectSetupDraft) => {
   // checked model connection or send the user back to connection setup.
   return stable({...selection, profiles:profiles?.map(profile => ({
     id:profile.id, workerAdapter:profile.workerAdapter, workerModel:profile.workerModel,
-    codexExecutable:profile.codexExecutable, apiWorker:profile.apiWorker,
+    workerReasoningEffort:profile.workerReasoningEffort,codexExecutable:profile.codexExecutable, apiWorker:profile.apiWorker,
     desktopWorker:profile.desktopWorker, ompRuntimeParent:profile.ompRuntimeParent,
   }))});
 };
@@ -44,15 +44,16 @@ const shape=(fields:Record<string,Check>):Check=>v=>!!v&&typeof v==="object"&&!A
   &&Object.keys(v).every(key=>Object.hasOwn(fields,key))&&Object.entries(fields).every(([key,check])=>check((v as Record<string,unknown>)[key]));
 const endpoint=union(shape({kind:oneOf("deepSeek","anthropic","kimiChina","grok","a6Api","a6ApiVip","qwenSingapore","qwenHongKong")}),shape({kind:oneOf("qwenBeijing"),workspaceId:str}));
 const apiTarget=union(shape({kind:oneOf("openAi")}),shape({kind:oneOf("provider"),endpoint}));
-const sources=shape({chief:union(apiTarget,shape({kind:oneOf("codexSession"),sessionId:str})),deputy:union(apiTarget,shape({kind:oneOf("deepSeek")}))});
-const apiWorker=shape({target:apiTarget,model:str,fileTools:list(oneOf("read-files","write-files","run-commands","network","desktop-send")),maxRounds:num,maxToolCalls:num,maxOutputTokens:num,maxTotalTokens:num,requestTimeoutSeconds:num,writeScope:optional(oneOf("declared-artifacts"))});
+const effort=optional(oneOf("none","minimal","low","medium","high","xhigh","max","ultra"));
+const sources=shape({chiefReasoningEffort:effort,deputyReasoningEffort:effort,chief:union(apiTarget,shape({kind:oneOf("codexSession"),sessionId:str})),deputy:union(apiTarget,shape({kind:oneOf("deepSeek")}),shape({kind:oneOf("omp"),executable:str,executableSha256:optional(str),runtimeParent:optional(str)}))});
+const apiWorker=shape({reasoningEffort:effort,target:apiTarget,model:str,fileTools:list(oneOf("read-files","write-files","run-commands","network","desktop-send")),maxRounds:num,maxToolCalls:num,maxOutputTokens:num,maxTotalTokens:num,requestTimeoutSeconds:num,writeScope:optional(oneOf("declared-artifacts"))});
 const desktop=shape({bindingId:str,projectRoot:str,modelLabel:str});
 const stage=shape({id:str,name:str,validatorId:str,args:list(str),timeoutSeconds:num,expectedAssertions:optional(list(str))});
 const acceptance=shape({schemaVersion:oneOf(1),stages:list(stage)});
 const supervisionPolicy=shape({schemaVersion:oneOf(1),repeatedFailureThreshold:num,maxAdvicePerAttempt:num,deliveryEnabled:optional(bool)});
 const supervision=union(shape({mode:oneOf("disabled")}),shape({mode:oneOf("enabled"),policy:supervisionPolicy}));
 const adapter=oneOf("codex","omp","qoder","workbuddy","openai","anthropic","deepseek","qwen","kimi","grok","a6api");
-const workerFields={workerAdapter:optional(adapter),workerModel:str,codexExecutable:str,apiWorker:optional(apiWorker),desktopWorker:optional(desktop),ompRuntimeParent:optional(str),resourceKeys:optional(list(str))};
+const workerFields={workerReasoningEffort:effort,workerAdapter:optional(adapter),workerModel:str,codexExecutable:str,apiWorker:optional(apiWorker),desktopWorker:optional(desktop),ompRuntimeParent:optional(str),resourceKeys:optional(list(str))};
 const profile=shape({...workerFields,id:str,description:str,workerAdapter:adapter,artifactPaths:list(str),acceptance,supervisionOverride:optional(supervision)});
 const worktree=shape({baseCommit:str,poolRoot:str,gitExecutable:str,inheritDependencies:optional(bool),integration:optional(shape({taskId:str,artifactPaths:list(str),validatorId:str,args:list(str),timeoutSeconds:num}))});
 const selection=shape({...workerFields,chiefDirectory:optional(str),managementSources:optional(sources),chiefModel:str,deputyModel:str,profiles:optional(list(profile)),worktree:optional(worktree),artifactPaths:optional(list(str)),supervision:optional(supervisionPolicy)});

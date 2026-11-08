@@ -27,6 +27,7 @@ pub(super) fn routes() -> Vec<(ProjectWorkerAdapter, ApiTarget)> {
 }
 fn selection(target: ApiTarget) -> ApiWorkerSelection {
     ApiWorkerSelection {
+        reasoning_effort: None,
         write_scope: None,
         target,
         model: "vendor/fixture-model".into(),

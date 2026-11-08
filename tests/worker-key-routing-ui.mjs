@@ -17,7 +17,7 @@ import{ProjectPlanning}from'../../apps/desktop/src/ProjectPlanning';import{saveA
 const root=createRoot(document.getElementById('root'));window.data=${JSON.stringify(data)};window.calls=[];window.mode='connections';window.generation=0;
 window.seed=draft=>saveAccessDraft(window.data.dataDirectory,'D:/fixture/'+draft.projectId,null,draft,false);
 window.render=()=>flushSync(()=>root.render(<ProjectPlanning key={window.generation} data={window.data} mode={window.mode} busy={false} send={async command=>{window.calls.push(command);if(command.type==='setProviderKey'){window.data={...window.data,providerConnections:[{...window.data.providerConnections[0],state:'unchecked',keyConfigured:true,models:[]}]};window.render();}if(command.type==='checkProviderModels'){window.data={...window.data,providerConnections:[{...window.data.providerConnections[0],state:'listed',models:['deepseek-flash','fixture-alternative']}]};window.render();}return true;}} onContinue={()=>{window.mode='planning';window.render();}} onConnections={()=>{window.mode='connections';window.render();}}/>));
-window.seed(${JSON.stringify(draft)});window.render();`);
+window.__TAURI_INTERNALS__={invoke:async(name)=>{if(name==='model_reasoning_options')return [];throw Error(name);}};window.seed(${JSON.stringify(draft)});window.render();`);
 await build({configFile:false,logLevel:'error',define:{'process.env.NODE_ENV':JSON.stringify('production')},oxc:{jsx:{runtime:'automatic'}},build:{outDir:bundle,emptyOutDir:false,lib:{entry,name:'WorkerKeyRouting',formats:['iife'],fileName:()=> 'ui.js'}}});
 const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
 const page=await browser.newPage({viewport:{width:1280,height:1000}});
@@ -30,20 +30,20 @@ try{
   const key=worker.locator(':scope > details[data-method="key"]');
   const modal=page.getByRole('dialog',{name:'选择具体模型',exact:true});
   const next=()=>page.getByRole('button',{name:'下一步：设置需求与计划',exact:true}).click();
-  const choose=async model=>{await modal.waitFor();await modal.getByRole('radio',{name:model,exact:true}).check();await modal.getByRole('button',{name:'确认使用此模型',exact:true}).click();await modal.waitFor({state:'hidden'});};
+  const choose=async model=>{await modal.waitFor();await modal.getByRole('radio',{name:model,exact:true}).check();await modal.getByRole('button',{name:'下一步 · 思考强度',exact:true}).click();await modal.getByRole('button',{name:'确认模型与思考强度',exact:true}).click();await modal.waitFor({state:'hidden'});};
   const stored=async(id='one')=>page.evaluate(id=>JSON.parse(localStorage.getItem(JSON.stringify(['cerulean-access-draft',1,window.data.dataDirectory,id]))).selection,id);
   const back=async()=>{await page.getByRole('button',{name:'修改接入配置',exact:true}).click();await openConnectionMethod(page,'执行端','key');};
 
-  await openConnectionMethod(page,'执行端','api');
+  await openConnectionMethod(page,'执行端','desktop');
   assert.equal(await page.locator('#planning-adapter').inputValue(),'omp');
-  assert.equal(await worker.locator('[data-method="api"] #planning-adapter').count(),1);
+  assert.equal(await worker.locator('[data-method="desktop"] #planning-adapter').count(),1);
   await page.locator('#planning-worker').fill('deepseek-flash');
   await next();assert.equal(await page.evaluate(()=>document.activeElement.id),'planning-executable');
   assert.equal(await page.locator('#planning-executable').inputValue(),'');
   await openConnectionMethod(page,'执行端','key');
   assert.equal(await key.locator('input[type="password"]').count(),0);
   assert.equal(await modal.count(),0);
-  cases.push('OMP lives only in API configuration; opening Key management neither assigns its model nor changes its adapter');
+  cases.push('OMP lives only in desktop configuration; opening Key management neither assigns its model nor changes its adapter');
 
   await key.getByRole('button',{name:'将Key 管理设为默认执行端',exact:true}).click();
   await choose('deepseek-flash');
@@ -79,12 +79,13 @@ try{
   await openConnectionMethod(page,'执行端','key');
   await key.locator('summary').filter({hasText:/^执行权限与用量上限$/}).click();
   await page.locator('#planning-api-maxRounds').fill('7');
-  await openConnectionMethod(page,'执行端','api');
+  await openConnectionMethod(page,'执行端','desktop');
   await openConnectionMethod(page,'执行端','key');
   assert.equal(await page.locator('#planning-api-maxRounds').inputValue(),'7');
   assert.equal(await page.locator('#planning-worker').inputValue(),'deepseek-flash');
-  await openConnectionMethod(page,'执行端','api');
-  await worker.getByRole('button',{name:'将API 连接设为默认执行端',exact:true}).click();
+  await openConnectionMethod(page,'执行端','desktop');
+  await worker.getByRole('button',{name:'将桌面端接入设为默认执行端',exact:true}).click();
+  await page.locator('#planning-adapter').selectOption('omp');
   await page.locator('#planning-executable').fill('D:/fixture/omp.exe');
   await page.locator('#planning-worker').fill('deepseek-flash');
   await next();await confirmConnectionContinue(page);await back();assert.equal(await page.locator('#planning-adapter').inputValue(),'omp');

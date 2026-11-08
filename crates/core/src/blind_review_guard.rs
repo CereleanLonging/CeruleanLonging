@@ -114,6 +114,8 @@ mod tests {
         let before = fs::read_dir(root.join("events")).unwrap().count();
         use cerulean_domain::project_setup::{ChiefSource, DeputySource, ManagementSources};
         let external = ManagementSources {
+            chief_reasoning_effort: None,
+            deputy_reasoning_effort: None,
             chief: ChiefSource::CodexSession {
                 session_id: "session-fixture".into(),
             },

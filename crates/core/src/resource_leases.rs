@@ -515,6 +515,7 @@ mod tests {
         plan.execution[0].adapter_id = "deepseek".into();
         plan.execution[0].worker = None;
         plan.execution[0].api_worker = Some(ApiWorkerSelection {
+            reasoning_effort: None,
             write_scope: None,
             target: ApiTarget::Provider {
                 endpoint: ProviderEndpoint::DeepSeek {},

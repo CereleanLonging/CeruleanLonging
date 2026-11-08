@@ -321,6 +321,7 @@ impl Round {
                 .seats
                 .iter()
                 .map(|s| match &s.transport {
+                    Some(ReviewTransport::OmpDeputy { .. }) => 1,
                     Some(ReviewTransport::Cli { adapter, .. }) if adapter == "omp" => 1,
                     Some(transport) => serde_json::to_vec(&self.material).map_or(0, |b| {
                         let bytes =

@@ -6,6 +6,8 @@ use super::*;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WorkerProfileDraft {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_reasoning_effort: Option<crate::reasoning::ReasoningEffort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub supervision_override: Option<crate::supervision::SupervisionOverride>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resource_keys: Vec<String>,
@@ -60,6 +62,7 @@ impl WorkerProfileDraft {
         };
         result.codex_executable = self.codex_executable.clone();
         result.worker_model = self.worker_model.clone();
+        result.worker_reasoning_effort = self.worker_reasoning_effort;
         result.omp_runtime_parent = self.omp_runtime_parent.clone();
         result.api_worker = self.api_worker.clone();
         result.desktop_worker = self.desktop_worker.clone();
@@ -100,6 +103,7 @@ impl WorkerProfile {
     }
     pub fn draft(&self) -> WorkerProfileDraft {
         WorkerProfileDraft {
+            worker_reasoning_effort: self.worker.as_ref().and_then(|w| w.reasoning_effort),
             supervision_override: self.supervision_override.clone(),
             resource_keys: self.resource_keys.clone(),
             id: self.id.clone(),

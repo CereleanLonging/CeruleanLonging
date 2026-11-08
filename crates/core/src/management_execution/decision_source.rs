@@ -9,6 +9,10 @@ use cerulean_adapters::deputy_management::{DeputyRequest, DeputyResult};
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum StoredDecision {
+    Omp {
+        request: Box<super::omp::OmpRequest>,
+        response: Option<Box<super::omp::OmpResponse>>,
+    },
     OpenAi {
         observation: Option<Box<DecisionObservation>>,
     },
@@ -28,6 +32,7 @@ pub(crate) enum StoredDecision {
 impl StoredDecision {
     pub(crate) fn envelope(&self) -> Option<&DecisionEnvelope> {
         match self {
+            Self::Omp { response, .. } => response.as_ref().and_then(|r| r.envelope.as_ref()),
             Self::OpenAi { observation } => observation.as_ref().map(|o| &o.envelope),
             Self::CodexSession { response, .. } => response.as_ref().map(|r| &r.envelope),
             Self::DeepSeek { response, .. } | Self::Provider { response, .. } => {
@@ -46,7 +51,12 @@ impl DecisionJournal {
         if op.envelope().is_some() {
             self.original_envelope(id)?;
         }
-        Ok(if let Some(request) = &op.external_request {
+        Ok(if let Some(request) = &op.omp_request {
+            StoredDecision::Omp {
+                request: Box::new(request.clone()),
+                response: op.omp_response.clone().map(Box::new),
+            }
+        } else if let Some(request) = &op.external_request {
             StoredDecision::CodexSession {
                 request: Box::new(request.clone()),
                 response: op.external_response.clone().map(Box::new),
@@ -78,7 +88,9 @@ impl DecisionJournal {
     pub(crate) fn original_response_digest(&self, id: &str) -> Result<String, String> {
         self.original_envelope(id)?;
         let op = &self.operations[id];
-        if let Some(r) = &op.external_response {
+        if let Some(r) = &op.omp_response {
+            digest(r)
+        } else if let Some(r) = &op.external_response {
             digest(r)
         } else if let Some(r) = &op.deputy_response {
             digest(r)

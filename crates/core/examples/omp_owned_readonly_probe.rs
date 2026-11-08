@@ -23,6 +23,7 @@ async fn main() -> Result<(), String> {
         .open(&args[3])
         .map_err(|_| "report must be new")?;
     let worker = WorkerSelection {
+        reasoning_effort: None,
         omp_runtime_parent: None,
         provider: "deepseek".into(),
         model: "deepseek-flash".into(),

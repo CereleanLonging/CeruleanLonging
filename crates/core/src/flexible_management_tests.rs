@@ -72,6 +72,8 @@ fn configured(temp: &Path, chief: E, deputy: E) -> RuntimeHost {
     .into_iter()
     .collect();
     draft.management_sources = Some(ManagementSources {
+        chief_reasoning_effort: None,
+        deputy_reasoning_effort: None,
         chief: ChiefSource::Provider { endpoint: chief },
         deputy: DeputySource::Provider { endpoint: deputy },
     });

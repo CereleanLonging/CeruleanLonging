@@ -1,3 +1,5 @@
+import { ModelOptionsButton } from "./ModelOptionsButton";
+import { managementApiTarget } from "./apiModels";
 import { HelpHeading } from "./HelpHeading";
 import type { ProjectSetupDraft, ProviderEndpoint } from "./contracts";
 import { managementEndpoints } from "./ManagementProviders";
@@ -29,7 +31,7 @@ export function ManagementSourceFields({ draft, onChange, role, embedded=false, 
     <select id="planning-chief-source" hidden={method==="desktop"} disabled={method==="desktop"} value={sources.chief.kind === "provider" ? `provider:${sources.chief.endpoint.kind}` : sources.chief.kind} onChange={e => {
       const isSession = e.target.value === "codexSession";
       onChange({ ...draft, chiefModel: isSession ? "external-codex-session" : "",
-        managementSources: { ...sources, chief: isSession ? { kind: "codexSession", sessionId: "" } : e.target.value === "openAi" ? { kind: "openAi" } : selected(e.target.value) } });
+        managementSources: { ...sources, chiefReasoningEffort:undefined, chief: isSession ? { kind: "codexSession", sessionId: "" } : e.target.value === "openAi" ? { kind: "openAi" } : selected(e.target.value) } });
     }}>
       <option value="openAi">OpenAI API</option>
       {method!=="api"&&<option value="codexSession">当前 Codex 聊天</option>}
@@ -41,20 +43,32 @@ export function ManagementSourceFields({ draft, onChange, role, embedded=false, 
         onChange={e => onChange({ ...draft, managementSources: { ...sources, chief: { kind: "codexSession", sessionId: e.target.value } } })} />
       <p className="secondary">由准备接入的 Codex 聊天提供标识。该聊天领取并回填方案；保存配置不会新建聊天或批准任务。</p>
     </>}
-    <label htmlFor="planning-chief">主指挥模型 ID</label><input id="planning-chief" required readOnly={external} list="planning-chief-models" placeholder="填写模型名称，Key 请在 Key 管理中录入" value={draft.chiefModel} onChange={e=>onChange({...draft,chiefModel:e.target.value})}/>
+    <label htmlFor="planning-chief">主指挥模型 ID</label><input id="planning-chief" required readOnly={external} list="planning-chief-models" placeholder="填写模型名称，Key 请在 Key 管理中录入" value={draft.chiefModel} onChange={e=>onChange({...draft,chiefModel:e.target.value,managementSources:{...sources,chiefReasoningEffort:undefined}})}/>
+    {!external&&<ModelOptionsButton model={draft.chiefModel} target={managementApiTarget(sources.chief)!} effort={sources.chiefReasoningEffort} onChange={chiefReasoningEffort=>onChange({...draft,managementSources:{...sources,chiefReasoningEffort}})}/>}
     {workspace("chief")}
     </section>}
     {role!=="chief"&&<section className={embedded?"role-configuration-fields":"role-model-fields"} aria-label="副指挥模型配置">{!embedded&&<HelpHeading as="h3" topic="ManagementSourceFields">副指挥</HelpHeading>}
+    {sources.deputy.kind === "omp" ? <>
+      <label htmlFor="planning-deputy-source">桌面端后台接入</label>
+      <select id="planning-deputy-source" value="omp" disabled><option value="omp">OMP · 独立后台</option></select>
+      <p className="secondary">工作台启动独立 OMP 后台进程。默认使用该模型受支持的最高思考档位，可按任务修改。</p>
+      <label htmlFor="planning-deputy-executable">OMP 程序完整路径</label>
+      <input id="planning-deputy-executable" required value={sources.deputy.executable} onChange={event=>onChange({...draft,managementSources:{...sources,deputy:{...sources.deputy as Extract<typeof sources.deputy,{kind:"omp"}>,executable:event.target.value,executableSha256:undefined}}})}/>
+      <label htmlFor="planning-deputy-runtime">独立运行目录（可选）</label>
+      <input id="planning-deputy-runtime" value={sources.deputy.runtimeParent??""} onChange={event=>onChange({...draft,managementSources:{...sources,deputy:{...sources.deputy as Extract<typeof sources.deputy,{kind:"omp"}>,runtimeParent:event.target.value||undefined}}})}/>
+    </> : <>
     <label htmlFor="planning-deputy-source">{method?"副指挥 API 服务":"副指挥接入"}</label>
     <select id="planning-deputy-source" value={sources.deputy.kind === "provider" ? `provider:${sources.deputy.endpoint.kind}` : sources.deputy.kind} onChange={e => onChange({ ...draft,
       deputyModel: e.target.value === "deepSeek" ? "deepseek-flash" : "",
-      managementSources: { ...sources, deputy: e.target.value === "deepSeek" ? { kind: "deepSeek" } : e.target.value === "openAi" ? { kind: "openAi" } : selected(e.target.value) },
+      managementSources: { ...sources, deputyReasoningEffort:undefined, deputy: e.target.value === "deepSeek" ? { kind: "deepSeek" } : e.target.value === "openAi" ? { kind: "openAi" } : selected(e.target.value) },
     })}>
       <option value="openAi">OpenAI API</option>
       <option value="deepSeek">DeepSeek API</option>
       {managementEndpoints.filter(e=>e.kind!=="deepSeek").map(e=><option key={e.kind} value={`provider:${e.kind}`}>{e.label}</option>)}
     </select>
-    <label htmlFor="planning-deputy">副指挥模型 ID</label><input id="planning-deputy" required list="planning-deputy-models" placeholder="填写模型名称，Key 请在 Key 管理中录入" value={draft.deputyModel} onChange={e=>onChange({...draft,deputyModel:e.target.value})}/>
+    </>}
+    <label htmlFor="planning-deputy">副指挥模型 ID</label><input id="planning-deputy" required list="planning-deputy-models" placeholder="填写模型名称，Key 请在 Key 管理中录入" value={draft.deputyModel} onChange={e=>onChange({...draft,deputyModel:e.target.value,managementSources:{...sources,deputyReasoningEffort:sources.deputy.kind==="omp"?"max":undefined}})}/>
+    <ModelOptionsButton allowDefault={sources.deputy.kind!=="omp"} model={draft.deputyModel} target={managementApiTarget(sources.deputy)??{kind:"provider",endpoint:{kind:"deepSeek"}}} effort={sources.deputyReasoningEffort} onChange={deputyReasoningEffort=>onChange({...draft,managementSources:{...sources,deputyReasoningEffort}})}/>
     {workspace("deputy")}
     </section>}
     {!embedded&&<p className="secondary">主指挥负责规划与收口，副指挥负责分配与监督，编程模型另行选择。方案仍需用户批准；各 API 来源使用对应供应商的本机凭证。Qwen API 地域选项对应普通 API，Token Plan 沿用已配置的 Qoder 路线。</p>}

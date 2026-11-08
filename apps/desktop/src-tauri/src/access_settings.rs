@@ -56,7 +56,12 @@ fn validate(directory: &Path, key: &str, value: &str) -> Result<(), String> {
                     | "codex-executable"
                     | "omp-test-executable"
                     | "omp-test-model"
+                    | "omp-test-effort"
                     | "omp-test-runtime"
+                    | "deputy-omp-test-executable"
+                    | "deputy-omp-test-model"
+                    | "deputy-omp-test-effort"
+                    | "deputy-omp-test-runtime"
             ) || ["chief", "deputy", "worker"].iter().any(|role| {
                 name == format!("model-default:{role}")
                     || ["api", "key"]

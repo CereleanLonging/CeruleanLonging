@@ -671,6 +671,7 @@ fn resource_named_host(
     let resource_keys = names.iter().map(|name| (*name).into()).collect();
     configured_with(root, requirement, |setup| {
         setup.profiles.push(WorkerProfileDraft {
+            worker_reasoning_effort: None,
             supervision_override: None,
             resource_keys,
             id: "shared-resource".into(),

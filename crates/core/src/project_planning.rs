@@ -179,7 +179,23 @@ impl RuntimeHost {
         }
         Ok(())
     }
-    pub(super) fn configure_project(&mut self, draft: ProjectSetupDraft) -> Result<(), String> {
+    pub(super) fn configure_project(&mut self, mut draft: ProjectSetupDraft) -> Result<(), String> {
+        if let Some(sources) = &mut draft.management_sources {
+            if let project_setup::DeputySource::Omp {
+                executable,
+                executable_sha256,
+                ..
+            } = &mut sources.deputy
+            {
+                let described = crate::verifier::PinnedCheck::describe(
+                    Path::new(executable),
+                    &[],
+                    Default::default(),
+                )?
+                .executable;
+                *executable_sha256 = Some(described.sha256);
+            }
+        }
         crate::blind_review_guard::require_management_source(
             &self.root,
             draft.management_sources.as_ref(),
@@ -335,14 +351,19 @@ impl RuntimeHost {
                 self.validate_desktop_selection(&draft.project_id, desktop)?;
             }
             let worker = match draft.worker_adapter {
-                ProjectWorkerAdapter::Codex => Some(Self::describe_codex_worker(
-                    Path::new(&draft.codex_executable),
-                    &draft.worker_model,
-                )?),
+                ProjectWorkerAdapter::Codex => {
+                    let mut worker = Self::describe_codex_worker(
+                        Path::new(&draft.codex_executable),
+                        &draft.worker_model,
+                    )?;
+                    worker.reasoning_effort = draft.worker_reasoning_effort;
+                    Some(worker)
+                }
                 ProjectWorkerAdapter::Omp => {
                     let executable = Path::new(&draft.codex_executable);
                     require(executable.is_absolute(), "OMP程序必须使用绝对路径")?;
                     let worker = WorkerSelection {
+                        reasoning_effort: draft.worker_reasoning_effort,
                         omp_runtime_parent: draft
                             .omp_runtime_parent
                             .as_deref()
@@ -993,6 +1014,7 @@ pub(super) mod tests {
         )
         .unwrap();
         let draft = ProjectSetupDraft {
+            worker_reasoning_effort: None,
             chief_directory: None,
             management_sources: None,
             resource_keys: vec![],

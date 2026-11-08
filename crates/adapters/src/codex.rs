@@ -20,6 +20,8 @@ pub struct Model {
     pub id: String,
     pub model: String,
     pub is_default: bool,
+    #[serde(default)]
+    pub supported_reasoning_efforts: Vec<cerulean_domain::reasoning::ReasoningEffort>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -632,6 +634,7 @@ impl ClientProcess {
 type ClientRead = Box<dyn AsyncRead + Unpin + Send>;
 type ClientWrite = Box<dyn AsyncWrite + Unpin + Send>;
 pub struct CodexClient {
+    reasoning_effort: Option<cerulean_domain::reasoning::ReasoningEffort>,
     child: ClientProcess,
     rpc: Transport<BufReader<ClientRead>, ClientWrite>,
     workspace: String,
@@ -653,6 +656,7 @@ impl CodexClient {
         rpc.read_only = readonly;
         Ok(Self {
             child: ClientProcess::Isolated(owner),
+            reasoning_effort: None,
             rpc,
             workspace: workspace.to_str().ok_or("non-Unicode workspace")?.into(),
             active: None,
@@ -722,6 +726,7 @@ impl CodexClient {
         let stdin = child.stdin.take().ok_or("Codex stdin missing")?;
         Ok(Self {
             child: ClientProcess::Native(Box::new(child)),
+            reasoning_effort: None,
             rpc: Transport::new(
                 BufReader::new(Box::new(stdout) as ClientRead),
                 Box::new(stdin),
@@ -780,6 +785,14 @@ impl CodexClient {
                     id: field(model, "id")?,
                     model: field(model, "model")?,
                     is_default: model["isDefault"].as_bool().unwrap_or(false),
+                    supported_reasoning_efforts: model["supportedReasoningEfforts"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|entry| {
+                            serde_json::from_value(entry["reasoningEffort"].clone()).ok()
+                        })
+                        .collect(),
                 });
             }
             if models.len() > 500 {
@@ -817,6 +830,28 @@ impl CodexClient {
         Ok(())
     }
     /// Trusted controller must persist a session binding before turn dispatch.
+    pub fn configure_worker_effort(
+        &mut self,
+        connection: &Connection,
+        model: &str,
+        effort: Option<cerulean_domain::reasoning::ReasoningEffort>,
+    ) -> Result<(), String> {
+        if self.active.is_some() || self.binding.is_some() {
+            return Err("Codex 思考配置必须在创建执行会话前确认".into());
+        }
+        if effort.is_some_and(|value| {
+            !connection.models.iter().any(|item| {
+                item.model == model && item.supported_reasoning_efforts.contains(&value)
+            })
+        }) {
+            return Err(
+                "当前 Codex 登录返回的模型不支持所选思考强度，请重新选择或配置相应 API Key".into(),
+            );
+        }
+        self.reasoning_effort = effort;
+        Ok(())
+    }
+
     pub async fn create_worker(&mut self, model: &str) -> Result<WorkerBinding, String> {
         if self.active.is_some() || self.binding.is_some() {
             return Err("Codex turn already active".into());
@@ -896,9 +931,16 @@ impl CodexClient {
         }
         // Missing ACK/turn identity cannot permit another dispatch on this client.
         self.active = Some((binding.thread_id.clone(), "unknown".into()));
-        let result=self.rpc.request("turn/start",json!({"threadId":binding.thread_id,"clientUserMessageId":attempt,"cwd":self.workspace,"approvalPolicy":"never",
+        let mut params = json!({"threadId":binding.thread_id,"clientUserMessageId":attempt,"cwd":self.workspace,"approvalPolicy":"never",
             "sandboxPolicy":{"type":"workspaceWrite","writableRoots":[self.workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true},
-            "input":[{"type":"text","text":prompt,"text_elements":[]}]}),Duration::from_secs(30)).await?;
+            "input":[{"type":"text","text":prompt,"text_elements":[]}]});
+        if let Some(effort) = self.reasoning_effort {
+            params["effort"] = json!(effort);
+        }
+        let result = self
+            .rpc
+            .request("turn/start", params, Duration::from_secs(30))
+            .await?;
         let turn = match field(&result["turn"], "id") {
             Ok(turn) => turn,
             Err(error) => {
@@ -1069,6 +1111,7 @@ mod tests {
         .unwrap();
         assert_eq!(ready.trim(), "READY");
         CodexClient {
+            reasoning_effort: None,
             child: ClientProcess::Native(Box::new(child)),
             rpc: Transport::new(
                 BufReader::new(Box::new(reader.into_inner()) as ClientRead),
@@ -1080,6 +1123,82 @@ mod tests {
             review_restore: None,
             review_audit: None,
             review_process: false,
+        }
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn worker_effort_is_catalog_bound_and_reaches_turn_start() {
+        use cerulean_domain::reasoning::ReasoningEffort;
+        let connection = Connection {
+            server_version: "offline-fixture".into(),
+            account_type: Some("fixture".into()),
+            models: vec![Model {
+                id: "model".into(),
+                model: "model".into(),
+                is_default: true,
+                supported_reasoning_efforts: vec![ReasoningEffort::High],
+            }],
+            model_calls: 0,
+        };
+        for effort in [None, Some(ReasoningEffort::High)] {
+            let mut client = eof_client(0).await;
+            assert!(client
+                .configure_worker_effort(&connection, "model", Some(ReasoningEffort::Low))
+                .is_err());
+            assert!(client
+                .configure_worker_effort(&connection, "unknown", Some(ReasoningEffort::High))
+                .is_err());
+            client
+                .configure_worker_effort(&connection, "model", effort)
+                .unwrap();
+            let (stream, peer) = duplex(8192);
+            let (read, write) = split(stream);
+            client.rpc = Transport::new(
+                BufReader::new(Box::new(read) as ClientRead),
+                Box::new(write),
+            );
+            let binding = WorkerBinding {
+                thread_id: "thread".into(),
+                model: "model".into(),
+                provider: "openai".into(),
+                workspace: client.workspace.clone(),
+            };
+            client.binding = Some(binding.clone());
+            assert!(client
+                .configure_worker_effort(&connection, "model", effort)
+                .is_err());
+            let server = tokio::spawn(async move {
+                let (read, mut write) = split(peer);
+                let mut line = String::new();
+                BufReader::new(read).read_line(&mut line).await.unwrap();
+                let sent: Value = serde_json::from_str(&line).unwrap();
+                assert_eq!(sent["method"], "turn/start");
+                assert_eq!(
+                    sent["params"].get("effort"),
+                    effort.map(|value| json!(value)).as_ref()
+                );
+                assert_eq!(sent["params"]["sandboxPolicy"]["networkAccess"], false);
+                write
+                    .write_all(
+                        format!(
+                            "{}\n",
+                            json!({"id":sent["id"],"result":{"turn":{"id":"turn"}}})
+                        )
+                        .as_bytes(),
+                    )
+                    .await
+                    .unwrap();
+            });
+            assert_eq!(
+                client
+                    .start_turn(&binding, "attempt", "synthetic input")
+                    .await
+                    .unwrap(),
+                "turn"
+            );
+            server.await.unwrap();
+            client.close().await.unwrap();
         }
     }
 

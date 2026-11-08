@@ -194,6 +194,7 @@ mod tests {
         let seats: Vec<_> = ["chief", "deputy", "worker"]
             .iter()
             .map(|role| ReviewSeat {
+                reasoning_effort: None,
                 max_output_tokens: None,
                 id: (*role).into(),
                 role: (*role).into(),

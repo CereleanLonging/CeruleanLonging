@@ -159,6 +159,8 @@ mod omp_host;
 #[cfg(windows)]
 #[path = "omp_management_bridge.rs"]
 mod omp_management_bridge;
+#[path = "omp_management_host.rs"]
+mod omp_management_host;
 #[cfg(all(test, windows))]
 #[path = "omp_project_tests.rs"]
 mod omp_project_tests;
