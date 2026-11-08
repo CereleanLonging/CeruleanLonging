@@ -90,11 +90,13 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 ### 当前阶段
 
-**0.1.44 为公开预览版**，增加工作台源码缓存的临时目录、任务结束清理和维护页累计监控，并完善接入配置持久化与折叠布局。详见 [支持范围](SUPPORT.md)、[缓存管理](docs/BUILD-CACHE-MANAGEMENT.md) 和 [版本说明](docs/releases/0.1.44.md)。
+**当前版本为 0.1.48 公开预览候选**，补齐逐执行端独立检查、只读交付汇总、整体盲评及主指挥功能测试的衔接，完善桌面升级适配、需求导入和接入配置。详见支持范围和版本说明。[支持范围](SUPPORT.md) · [版本说明](docs/releases/0.1.48.md)
 
-建议先在独立实验工作台启用盲评，并在方案批准前配置检查账户。启用后数据要求 reader19，旧核心不能读取；升级前请备份，不要用旧安装包直接打开新格式数据。完整限制见支持说明，旧版本附件与验收记录保留。
+可在独立实验工作台试用完整流程，并在方案批准前配置检查账户。升级前请通过维护页备份。新检查材料需要 reader24，绑定 API 执行端评审输出额度的轮次需要 reader25。本版支持这些数据代际。
 
-安装包与源码包见 [0.1.44 发布页](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.44)。自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
+0.1.48 安装包正在进行最终云端检查，发布后将在这里提供下载入口。历史安装包与源码包可在已发布版本中下载。[已发布版本](https://github.com/CereleanLonging/CeruleanLonging/releases)
+
+自有代码采用 [MIT 许可证](LICENSE)，第三方组件保留各自许可证。
 
 <a id="changelog-zh"></a>
 
@@ -295,11 +297,13 @@ The desktop interface uses Tauri and React / TypeScript. An independent Rust cor
 
 ### Current stage
 
-**0.1.44 is a public preview** adding source-build temporary directories, end-of-task cache cleanup and cumulative maintenance monitoring, alongside persistent and collapsible connection configuration. See [Support scope](SUPPORT.md), [Cache management](docs/BUILD-CACHE-MANAGEMENT.md) and [Release notes](docs/releases/0.1.44.md).
+**The current version is the 0.1.48 public preview candidate** connecting per-executor checks, read-only delivery assembly, whole-project blind review and chief functional testing. It also improves desktop upgrade handling, requirement imports and connection configuration. [Support scope](SUPPORT.md) · [Release notes](docs/releases/0.1.48.md)
 
-Try blind review in a separate experiment workbench and prepare checking accounts before execution, either manually or through the optional authorization in plan review. Enabling it requires reader19 data support; older cores cannot read this format. Back up before upgrading and do not open new-format data with an older installer. See the support notes for limits; earlier assets and acceptance records remain available.
+Use a separate experiment workbench to try the workflow and prepare checking accounts before approving the plan. Back up through Maintenance before upgrading. New check material requires reader24, and rounds with configured API executor review limits require reader25. This release supports both generations.
 
-Download the installer and source package from the [0.1.44 release](https://github.com/CereleanLonging/CeruleanLonging/releases/tag/v0.1.44). Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
+The 0.1.48 installer is undergoing final cloud checks. Its download link will be added here after publication. Earlier installers and source packages are available from published releases. [Published releases](https://github.com/CereleanLonging/CeruleanLonging/releases)
+
+Original project code is licensed under [MIT](LICENSE); third-party components retain their own licenses.
 
 <a id="changelog-en"></a>
 
