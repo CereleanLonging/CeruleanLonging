@@ -46,7 +46,9 @@ public static class CeruleanStandardTestProcess {
             StringBuilder command=new StringBuilder("\""+program+"\" "+arguments);
             Check(CreateProcessWithLogonW(user,".",password,1,program,command,0x08000404,
                 IntPtr.Zero,directory,ref startup,out process),"Create suspended ordinary-account tests");
-            Check(OpenProcessToken(process.Process,8,out token),"Read native test token");
+            // WindowsPrincipal duplicates a primary token when checking group membership.
+            // TOKEN_QUERY alone lets us read elevation but makes IsInRole fail with access denied.
+            Check(OpenProcessToken(process.Process,0x0008 | 0x0002,out token),"Read native test token");
             int elevated, uiAccess, returned;
             Check(GetTokenInformation(token,20,out elevated,4,out returned),"Read test elevation");
             Check(GetTokenInformation(token,26,out uiAccess,4,out returned),"Read test UI access");
