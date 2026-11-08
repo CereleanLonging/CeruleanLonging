@@ -1,100 +1,81 @@
-param([switch]$ProbeOnly)
+param([switch]$ProbeOnly,[string]$TestExecutable)
 $ErrorActionPreference='Stop'
-if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
-    throw 'This test-token helper is limited to disposable GitHub-hosted runners'
+foreach($module in @('Microsoft.PowerShell.Management','Microsoft.PowerShell.Utility','Microsoft.PowerShell.Security','Microsoft.PowerShell.LocalAccounts','CimCmdlets')) {
+    Import-Module (Join-Path $PSHOME ('Modules/'+$module+'/'+$module+'.psd1')) -ErrorAction Stop
 }
-if(-not $ProbeOnly -and (-not $env:CERULEAN_CACHE_SESSION -or $env:CERULEAN_BUILD_SCHEDULE_ACTIVE -ne '1')) {
-    throw 'Desktop tests must remain inside the managed build job'
+if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:CERULEAN_BUILD_SCHEDULE_ACTIVE -ne '1') {
+    throw 'This native fixture requires a managed GitHub-hosted build job'
 }
-Add-Type -TypeDefinition @'
-using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using System.Security.Principal;
-using System.Text;
-
-public static class StandardDesktopTests {
-    [StructLayout(LayoutKind.Sequential)] struct SidAttributes { public IntPtr Sid; public uint Attributes; }
-    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct StartupInfo {
-        public uint Size;
-        public string Reserved, Desktop, Title;
-        public uint X, Y, Width, Height, XChars, YChars, Fill, Flags;
-        public ushort Show, ReservedSize;
-        public IntPtr ReservedBytes, Input, Output, Error;
-    }
-    [StructLayout(LayoutKind.Sequential)] struct ProcessInfo { public IntPtr Process, Thread; public uint Pid, Tid; }
-    [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
-    [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int kind);
-    [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
-    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
-    [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr address);
-    [DllImport("kernel32.dll", SetLastError=true)] static extern uint WaitForSingleObject(IntPtr handle, uint timeout);
-    [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr handle, out uint code);
-    [DllImport("advapi32.dll", SetLastError=true)] static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
-    [DllImport("advapi32.dll", SetLastError=true)] static extern bool CreateRestrictedToken(IntPtr original, uint flags,
-        uint disabledCount, ref SidAttributes disabled, uint privilegeCount, IntPtr privileges,
-        uint restrictedCount, IntPtr restricted, out IntPtr token);
-    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertStringSidToSid(string text, out IntPtr sid);
-    [DllImport("advapi32.dll")] static extern uint GetLengthSid(IntPtr sid);
-    [DllImport("advapi32.dll", SetLastError=true)] static extern bool SetTokenInformation(IntPtr token, int kind, ref SidAttributes value, uint length);
-    [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetTokenInformation(IntPtr token, int kind, out int value, int size, out int returned);
-    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool CreateProcessAsUser(
-        IntPtr token, string program, StringBuilder arguments, IntPtr processAttributes, IntPtr threadAttributes,
-        bool inherit, uint flags, IntPtr environment, string directory, ref StartupInfo startup, out ProcessInfo process);
-
-    static void Check(bool condition, string operation) {
-        if(!condition) throw new Win32Exception(Marshal.GetLastWin32Error(), operation);
-    }
-    public static int Run(string cargo, string directory, bool probeOnly) {
-        IntPtr original=IntPtr.Zero, token=IntPtr.Zero, admin=IntPtr.Zero, medium=IntPtr.Zero;
-        ProcessInfo process=new ProcessInfo();
-        try {
-            Check(OpenProcessToken(GetCurrentProcess(),0x8B,out original),"Read current test token");
-            Check(ConvertStringSidToSid("S-1-5-32-544",out admin),"Create administrator SID");
-            SidAttributes disabled=new SidAttributes { Sid=admin };
-            Check(CreateRestrictedToken(original,1,1,ref disabled,0,IntPtr.Zero,0,IntPtr.Zero,out token),"Restrict test token");
-            Check(ConvertStringSidToSid("S-1-16-8192",out medium),"Create medium integrity label");
-            SidAttributes label=new SidAttributes { Sid=medium, Attributes=0x20 };
-            Check(SetTokenInformation(token,25,ref label,(uint)Marshal.SizeOf(typeof(SidAttributes))+GetLengthSid(medium)),"Set test integrity");
-            int elevated, uiAccess, returned;
-            Check(GetTokenInformation(token,20,out elevated,4,out returned),"Read test elevation");
-            Check(GetTokenInformation(token,26,out uiAccess,4,out returned),"Read test UI access");
-            using(WindowsIdentity identity=new WindowsIdentity(token)) {
-                if(elevated!=0 || uiAccess!=0 || identity.User!=WindowsIdentity.GetCurrent().User
-                    || new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
-                    throw new InvalidOperationException("Test token must preserve the user with ordinary privileges");
-            }
-            Console.WriteLine("Standard desktop test token verified with medium integrity, no elevation and no UI access.");
-            StartupInfo startup=new StartupInfo { Size=(uint)Marshal.SizeOf(typeof(StartupInfo)), Flags=0x100,
-                Input=GetStdHandle(-10), Output=GetStdHandle(-11), Error=GetStdHandle(-12) };
-            foreach(IntPtr handle in new[]{startup.Input,startup.Output,startup.Error}) {
-                if(handle!=IntPtr.Zero && handle!=new IntPtr(-1))
-                    Check(SetHandleInformation(handle,1,1),"Inherit owned test output");
-            }
-            string program=cargo;
-            string arguments="test -p cerulean-desktop --features custom-protocol --locked";
-            if(probeOnly) {
-                program=Environment.GetFolderPath(Environment.SpecialFolder.System)+"\\WindowsPowerShell\\v1.0\\powershell.exe";
-                arguments="-NoProfile -NonInteractive -Command \"$p=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()); if($p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){exit 1}; 'Ordinary test child confirmed'\"";
-            }
-            StringBuilder command=new StringBuilder("\""+program+"\" "+arguments);
-            Check(CreateProcessAsUser(token,program,command,IntPtr.Zero,IntPtr.Zero,true,0x08000000,
-                IntPtr.Zero,directory,ref startup,out process),"Launch standard desktop tests");
-            if(WaitForSingleObject(process.Process,0xFFFFFFFF)!=0) throw new Win32Exception("Wait for desktop tests");
-            uint code;
-            Check(GetExitCodeProcess(process.Process,out code),"Read desktop test exit");
-            return unchecked((int)code);
-        } finally {
-            if(process.Thread!=IntPtr.Zero) CloseHandle(process.Thread);
-            if(process.Process!=IntPtr.Zero) CloseHandle(process.Process);
-            if(token!=IntPtr.Zero) CloseHandle(token);
-            if(original!=IntPtr.Zero) CloseHandle(original);
-            if(admin!=IntPtr.Zero) LocalFree(admin);
-            if(medium!=IntPtr.Zero) LocalFree(medium);
-        }
-    }
+if(-not $ProbeOnly -and (-not $env:CERULEAN_CACHE_SESSION -or -not $TestExecutable)) {
+    throw 'Managed desktop test artifact required'
 }
-'@
 $root=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$cargo=(Get-Command cargo.exe -CommandType Application).Source
-exit [StandardDesktopTests]::Run($cargo,$root,[bool]$ProbeOnly)
+Add-Type -Path @((Join-Path $PSScriptRoot 'core-test-job.cs'),(Join-Path $PSScriptRoot 'standard-test-process.cs'))
+$cursor=Get-CimInstance Win32_Process -Filter ('ProcessId='+$PID)
+$guard=$null
+for($index=0;$index -lt 12 -and $cursor.ParentProcessId;$index++){
+    $cursor=Get-CimInstance Win32_Process -Filter ('ProcessId='+$cursor.ParentProcessId)
+    if($cursor.Name -ieq 'powershell.exe' -and $cursor.CommandLine -match 'build-resource-guard\.ps1'){$guard=$cursor;break}
+}
+if(-not $guard){throw 'Owned scheduler ancestor unavailable'}
+[CeruleanCiCoreJob]::AttachOwnedGuard([uint32]$guard.ProcessId)
+$identifier=[Guid]::NewGuid().ToString('N')
+$username='CLImport'+$identifier.Substring(0,12)
+$fixture=Join-Path $root ('reports/standard-import-ci-'+$identifier)
+$password=[Guid]::NewGuid().ToString('N')+'aA!7'
+$secure=ConvertTo-SecureString $password -AsPlainText -Force
+$account=$null
+$code=1
+$cleaned=$false
+try {
+    $null=[IO.Directory]::CreateDirectory($fixture)
+    $account=New-LocalUser -Name $username -Password $secure -Description ('CeruleanLonging CI '+$identifier)
+    Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $account.SID
+    $acl=Get-Acl -LiteralPath $fixture
+    $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($account.SID,'Modify','ContainerInherit,ObjectInherit','None','Allow'))
+    Set-Acl -LiteralPath $fixture -AclObject $acl
+    if($ProbeOnly){
+        $program=Join-Path $PSHOME 'powershell.exe'
+    } else {
+        $source=[IO.Path]::GetFullPath($TestExecutable)
+        $targetRoot=$env:CARGO_TARGET_DIR
+        if($targetRoot.StartsWith('\\?\')){$targetRoot=$targetRoot.Substring(4)}
+        if(-not $source.StartsWith([IO.Path]::GetFullPath($targetRoot)+'\',[StringComparison]::OrdinalIgnoreCase) -or (Split-Path -Leaf $source) -notmatch '^file_import-[a-f0-9]+\.exe$') {throw 'Unexpected file-import test binary'}
+        $program=Join-Path $fixture 'file-import-tests.exe'
+        Copy-Item -LiteralPath $source -Destination $program
+        if((Get-FileHash -LiteralPath $program).Hash -cne (Get-FileHash -LiteralPath $source).Hash){throw 'Test copy differs from compiled artifact'}
+    }
+    $code=[CeruleanStandardTestProcess]::Run($username,$password,$account.SID.Value,$program,$fixture,[bool]$ProbeOnly)
+    if($code -ne 0){throw ('Ordinary-account desktop test failed with exit '+$code)}
+} finally {
+    $password=$null
+    $secure.Dispose()
+    [CeruleanCiCoreJob]::Close()
+    if($account){
+        $current=Get-LocalUser -SID $account.SID
+        if($current.Name -cne $username -or $current.Description -cne ('CeruleanLonging CI '+$identifier)){throw 'Native fixture account identity changed'}
+        $profile=Get-CimInstance Win32_UserProfile -Filter ("SID='"+$account.SID.Value+"'")
+        $deadline=[DateTime]::UtcNow.AddSeconds(10)
+        while($profile -and $profile.Loaded -and [DateTime]::UtcNow -lt $deadline){
+            Start-Sleep -Milliseconds 200
+            $profile=Get-CimInstance Win32_UserProfile -Filter ("SID='"+$account.SID.Value+"'")
+        }
+        if($profile){
+            if($profile.Loaded){throw ('Native test profile remains loaded for '+$username)}
+            $profiles=[Environment]::ExpandEnvironmentVariables((Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList').ProfilesDirectory)
+            if([IO.Path]::GetFullPath($profile.LocalPath) -ine [IO.Path]::GetFullPath((Join-Path $profiles $username))){throw 'Native profile path changed'}
+            Remove-CimInstance -InputObject $profile
+        }
+        Remove-LocalUser -SID $account.SID
+        if(Get-LocalUser -Name $username -ErrorAction SilentlyContinue){throw 'Native test account cleanup unresolved'}
+        $cleaned=$true
+    }
+    $record=@{passed=($code -eq 0);accountRemoved=$cleaned;ordinaryAccount=$true;probeOnly=[bool]$ProbeOnly;testExit=$code}
+    $record|ConvertTo-Json -Compress|Write-Host
+    if($cleaned){
+        $resolved=[IO.Path]::GetFullPath($fixture)
+        if(-not $resolved.StartsWith([IO.Path]::GetFullPath((Join-Path $root 'reports'))+'\',[StringComparison]::OrdinalIgnoreCase) -or (Split-Path -Leaf $resolved) -cne ('standard-import-ci-'+$identifier)){throw 'Fixture cleanup escaped its owned directory'}
+        Remove-Item -LiteralPath $resolved -Recurse -Force
+    }
+}
+exit $code

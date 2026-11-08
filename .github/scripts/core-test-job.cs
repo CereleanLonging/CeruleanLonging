@@ -34,6 +34,7 @@ public static class CeruleanCiCoreJob {
     [DllImport("kernel32.dll", SetLastError=true)] static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll", SetLastError=true)] static extern bool DuplicateHandle(IntPtr source, IntPtr handle, IntPtr target, out IntPtr copy, uint access, bool inherit, uint options);
     [DllImport("kernel32.dll", SetLastError=true)] static extern bool IsProcessInJob(IntPtr process, IntPtr candidate, out bool assigned);
+    [DllImport("kernel32.dll", SetLastError=true)] static extern bool AssignProcessToJobObject(IntPtr handle, IntPtr process);
     [DllImport("kernel32.dll", SetLastError=true)] static extern bool QueryInformationJobObject(IntPtr handle, int kind, IntPtr value, uint size, IntPtr returned);
     [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetInformationJobObject(IntPtr handle, int kind, IntPtr value, uint size);
     [DllImport("ntdll.dll")] static extern int NtQueryInformationProcess(IntPtr process, int kind, IntPtr info, uint size, out uint returned);
@@ -99,5 +100,12 @@ public static class CeruleanCiCoreJob {
             throw new InvalidOperationException("Temporary policy readback mismatch");
     }
     public static ulong PeakMemoryBytes() { return Read<Limits>(job,9).PeakJobMemory.ToUInt64(); }
+    public static void AssignSuspendedChild(IntPtr process) {
+        if(job==IntPtr.Zero) throw new InvalidOperationException("Owned scheduler Job required");
+        Check(AssignProcessToJobObject(job,process));
+        bool assigned;
+        Check(IsProcessInJob(process,job,out assigned));
+        if(!assigned) throw new InvalidOperationException("Child did not join the owned build Job");
+    }
     public static void Close() { if(job!=IntPtr.Zero) { CloseHandle(job); job=IntPtr.Zero; } }
 }
