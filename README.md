@@ -102,6 +102,24 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
 
+#### 0.1.48 · 2026-11-08 · 公开预览候选
+
+安装包正在进行最终云端检查。以下更新说明包含本次已确认的界面改动，发布后补充下载入口。
+
+更新柔蓝主题与品牌标识，日常工作台和独立实验台采用浅深两套配色。表单、按钮与退出弹窗统一样式，支持键盘焦点和减少动画，切换页面后自动回到顶部。
+
+主页新增可滚动、放大的完整流程图，README 提供中英文版本，包含逐任务检查、整体盲评、主指挥功能测试与返工修订回路。
+
+独立检查逐一核验各执行端交付，失败结果返回副指挥安排返工。全部合格并接受后，核心汇总只读交付与报告，再进入独立盲评和主指挥整体功能测试。盲评材料附带独立验收进程生成的匿名检查事实，新材料启用 reader24。API 执行端评审沿用已批准的输出额度，逐席展示并绑定本轮批准摘要，相应轮次启用 reader25。
+
+桌面升级后会重新核验程序与会话身份。Codex 原路径消失时扫描可用程序，候选歧义需要明确选择；Qoder 同协议候选版本先完成固定消息验证，再重新绑定。日常工作台和独立实验台分别采用浅色、深色侧栏。接入页的“下一步”统一执行检查、保存与弹窗确认。
+
+Markdown 导入绑定工作台内置的本地提炼工具，无需主指挥配置或 Key；按文档结构整理内容，保留原文与行号，审阅确认后才读入草稿。项目需求、工作流和 Markdown 导入合为一个输入框，左下角“＋”导入工作流 JSON，回形针导入 `.md`，预览与确认按需弹出。
+
+需求框支持拖入单个 `.md` 或工作流 `.json` 文件，预览确认后读入草稿。请求主指挥按钮会说明配置待保存、凭证缺失等具体原因。主窗口保持管理员权限；“打开拖拽导入窗口”启动当前账户的普通权限文件窗口，校验文件后返回主窗口预览确认。
+
+项目盲评按已保存目录自动生成默认脱敏规则，支持自定义精确替换；规则按项目在本次应用会话中保留，修改后需重新准备并审阅材料。移除需求与计划页重复的监督、检查与验收绑定卡片，工具入口统一保留在项目设置；后台监督及检查权限保持，检查时限并入执行限制。项目执行方案、历史费用和费用核对归入默认折叠的“项目数据与费用统计”，位于盲评与请求记录之间。本轮真实服务合成项目实验已完成独立检查、四席盲评、主指挥功能测试及测试交付确认。回归结果与实际覆盖范围见本版说明。[版本说明](docs/releases/0.1.48.md)
+
 #### 0.1.44 · 2026-11-04 · 公开预览
 
 源码缓存进入临时目录，受管构建与测试结束后自动清理并保留空目录。维护页增加缓存扫描、累计监控与清理入口，提炼日志保存到独立文档目录。同步改善接入持久化、折叠选择和维护布局。
@@ -288,6 +306,26 @@ Download the installer and source package from the [0.1.44 release](https://gith
 ### Changelog
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
+
+#### 0.1.48 · 2026-11-08 · Public preview candidate
+
+The installer is undergoing final cloud checks. These notes include the approved UI changes. Download links will be added when the release is published.
+
+The refreshed blue theme and brand mark use light and dark palettes for daily and experiment workbenches. Forms, buttons and exit dialogs share consistent styling, with keyboard focus, reduced-motion support and scroll reset when changing pages.
+
+The home page gains a scrollable, enlarged workflow view, with matching Chinese and English README diagrams covering per-task checks, blind review, chief functional testing, rework and revisions.
+
+The independent checker validates each executor’s complete delivery and approved tests. Failures return to deputy-directed correction. After every result passes and is accepted, the core assembles a read-only delivery and reports for blind review, followed by the chief’s whole-project functional test. Review material includes anonymous facts produced by the independent verifier and enables reader24. API executor reviews use the approved output allowance, displayed per seat and bound to the round approval digest. These rounds enable reader25.
+
+A live-service experiment using a synthetic project completed independent checks, four-seat blind review, chief functional testing and test delivery confirmation. Validation scope and earlier attempts are documented in the release notes. [Release notes](docs/releases/0.1.48.md)
+
+Desktop upgrades trigger executable and session identity checks. Codex can rediscover a missing executable, with explicit selection for ambiguous candidates. Qoder candidates in the supported protocol family require a fixed-message check and a fresh binding. Daily and experiment workbenches use light and dark sidebars. Next on the connection page now checks, saves and requests confirmation in one flow.
+
+Markdown import uses a built-in offline extraction tool with no chief configuration or API key required. It organizes document structure, retains source text and line references, and applies drafts only after review. Requirements and both import controls share one composer: the lower-left plus imports workflow JSON and the paperclip imports `.md`, with previews shown on demand.
+
+Drop one `.md` or workflow `.json` file into the requirements field to review and import it. The plan request button explains pending configuration saves and missing credentials. The main window keeps administrator privileges. “Open drag-and-drop import window” launches a separate standard-privilege picker under the current account, verifies the file, and returns it to the main window for review and confirmation.
+
+Blind review generates directory redactions from saved project settings and accepts custom exact replacements. Drafts remain project-scoped for the current app session; changes require preparing and reviewing material again. Duplicate supervision, checker and verifier binding cards are removed from planning. Project settings retain the tool entry points; supervision and verification permissions remain, with check timeouts alongside execution limits. Execution plans and fee records now share a default-collapsed statistics group between blind review and management request history. See this version’s notes for local validation and publication status.
 
 #### 0.1.44 · 2026-11-04 · Public Preview
 
