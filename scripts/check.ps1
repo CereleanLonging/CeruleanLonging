@@ -26,6 +26,8 @@ node tests/desktop-send-routing.mjs
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 node tests/update-reader-policy.mjs
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+node --test tests/cargo-core-artifact.test.mjs
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo build -p cerulean-domain --bin cerulean-verifier --locked
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 cargo build -p cerulean-checker --locked
@@ -44,9 +46,10 @@ cargo test --workspace --exclude cerulean-desktop --locked -- --test-threads=1
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 node tests/independent-checks-native.mjs (Join-Path $env:CARGO_TARGET_DIR 'debug/cerulean-verifier.exe')
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
-cargo build -p cerulean-core --locked
+$ceruleanCoreArtifacts=Join-Path $env:CERULEAN_CACHE_SESSION 'production-core-artifacts.jsonl'
+cargo build -p cerulean-core --locked --message-format=json-render-diagnostics | Set-Content -LiteralPath $ceruleanCoreArtifacts -Encoding utf8
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
-node tests/codex-review-executable.mjs
+node tests/codex-review-executable.mjs (Join-Path $env:CARGO_TARGET_DIR 'debug/deps') $ceruleanCoreArtifacts
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 node tests/qoder-upgrade-policy.mjs
 if ($LASTEXITCODE) { exit $LASTEXITCODE }

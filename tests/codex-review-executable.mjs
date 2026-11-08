@@ -3,13 +3,18 @@ import { createHash } from 'node:crypto';
 import { createReadStream, mkdtempSync, readFileSync, readdirSync, statSync, truncateSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { coreLibraryFromMessages } from './cargo-core-artifact.mjs';
 
 assert.equal(process.platform, 'win32');
 assert(process.env.CERULEAN_CACHE_SESSION);
 assert.equal(process.env.CERULEAN_BUILD_SCHEDULE_ACTIVE, '1');
 const deps = resolve(process.argv[2] || join(process.env.CARGO_TARGET_DIR, 'debug/deps'));
 const profile = dirname(deps);
-const cores = readdirSync(deps).filter(file => file.startsWith('libcerulean_core-') && file.endsWith('.rlib'));
+// The full suite can leave both test-feature and production libraries here.
+// Bind to the exact successful build stream when the caller supplies one.
+const cores = process.argv[3]
+  ? [coreLibraryFromMessages(readFileSync(process.argv[3], 'utf8'), deps)]
+  : readdirSync(deps).filter(file => file.startsWith('libcerulean_core-') && file.endsWith('.rlib'));
 assert.equal(cores.length, 1, 'Unambiguous core build required');
 const coreIdentity = cores[0].split('-').at(-1).replace('.rlib', '');
 const coreFingerprint = readFileSync(join(profile, '.fingerprint', `cerulean-core-${coreIdentity}`, 'lib-cerulean_core.json'), 'utf8');
