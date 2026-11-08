@@ -1,8 +1,9 @@
 param([switch]$ProbeOnly,[string]$TestExecutable)
 $ErrorActionPreference='Stop'
-foreach($module in @('Microsoft.PowerShell.Management','Microsoft.PowerShell.Utility','Microsoft.PowerShell.Security','Microsoft.PowerShell.LocalAccounts','CimCmdlets')) {
+foreach($module in @('Microsoft.PowerShell.Management','Microsoft.PowerShell.Utility','Microsoft.PowerShell.Security','CimCmdlets')) {
     Import-Module (Join-Path $PSHOME ('Modules/'+$module+'/'+$module+'.psd1')) -ErrorAction Stop
 }
+Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.LocalAccounts/1.0.0.0/Microsoft.PowerShell.LocalAccounts.psd1') -ErrorAction Stop
 if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:CERULEAN_BUILD_SCHEDULE_ACTIVE -ne '1') {
     throw 'This native fixture requires a managed GitHub-hosted build job'
 }
@@ -30,7 +31,7 @@ $cleaned=$false
 try {
     $null=[IO.Directory]::CreateDirectory($fixture)
     $account=New-LocalUser -Name $username -Password $secure -Description ('CeruleanLonging CI '+$identifier)
-    Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $account.SID
+    Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $account
     $acl=Get-Acl -LiteralPath $fixture
     $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($account.SID,'Modify','ContainerInherit,ObjectInherit','None','Allow'))
     Set-Acl -LiteralPath $fixture -AclObject $acl
