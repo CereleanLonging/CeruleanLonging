@@ -73,6 +73,8 @@ npm.cmd run build
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 node tests/workflow-map-ui.mjs
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
+node tests/workbench-theme-ui.mjs
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run test:ipc
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 npm.cmd run test:service

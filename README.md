@@ -104,7 +104,9 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 
 按新到旧排列，日期采用北京时间（UTC+8）。完整说明与下载附件以各版本发布页为准。
 
-#### 0.1.48 · 2026-11-07 · 公开预览
+#### 0.1.48 · 2026-11-08 · 公开预览
+
+更新柔蓝主题与品牌标识，日常工作台和独立实验台采用浅深两套配色。表单、按钮与退出弹窗统一样式，支持键盘焦点和减少动画，切换页面后自动回到顶部。
 
 主页新增可滚动、放大的完整流程图，README 提供中英文版本，包含逐任务检查、整体盲评、主指挥功能测试与返工修订回路。
 
@@ -323,7 +325,9 @@ Download the installer and source package from the [0.1.48 release](https://gith
 
 Newest first. Dates use Beijing time (UTC+8). See each release page for full notes and downloads.
 
-#### 0.1.48 · 2026-11-07 · Public Preview
+#### 0.1.48 · 2026-11-08 · Public Preview
+
+The refreshed blue theme and brand mark use light and dark palettes for daily and experiment workbenches. Forms, buttons and exit dialogs share consistent styling, with keyboard focus, reduced-motion support and scroll reset when changing pages.
 
 The home page gains a scrollable, enlarged workflow view, with matching Chinese and English README diagrams covering per-task checks, blind review, chief functional testing, rework and revisions.
 

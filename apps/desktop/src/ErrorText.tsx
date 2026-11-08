@@ -43,7 +43,7 @@ export function ErrorText({ error }: { error: unknown }) {
   const { message, detail } = describeError(error);
   return <span className="error-message">
     <span>{message}</span>
-    {detail && <> <button type="button" className="error-detail-toggle" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "收起技术详情" : "技术详情"}</button>
+    {detail && <> <button type="button" className="secondary-button error-detail-toggle" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "收起技术详情" : "技术详情"}</button>
       {expanded && <code className="error-detail">{detail}</code>}
     </>}
   </span>;

@@ -1,3 +1,4 @@
+import "./workbench-theme.css";
 import { HelpHeading } from "./HelpHeading";
 import { AccessStorageStatus } from "./accessStorage";
 import { ErrorText } from "./ErrorText";
@@ -52,6 +53,7 @@ export function App() {
   const windowLabel = desktop ? getCurrentWindow().label : "main";
   const experiment = windowLabel.startsWith("experiment-");
   const [page, setPage] = useState<Page>("工作总览");
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [page]);
   const [experimentsEnabled,setExperimentsEnabled]=useState(false);
   const [configuration,setConfiguration]=useState<ConfigurationRequest|null>(null);
   const configurationSequence=useRef(0);
@@ -173,19 +175,18 @@ export function App() {
       <aside className="sidebar">
         <a
           className="brand"
+          aria-label="CeruleanLonging 工作总览"
           href="#"
           onClick={(e) => {
             e.preventDefault();
             navigate("工作总览");
           }}
         >
-          <span className="brand-symbol">
-            C<span>／</span>
-          </span>
-          <span>
-            Cerulean
-            <br />
-            <b>Longing</b>
+          <span className="brand-monogram" aria-hidden="true">C</span>
+          <span className="brand-slash" aria-hidden="true" />
+          <span className="brand-name" aria-hidden="true">
+            <span>Cerulean</span>
+            <span>Longing</span>
           </span>
         </a>
         <div className="workspace">
@@ -238,7 +239,6 @@ export function App() {
           <OmpStopDiagnostics data={data} send={send} busy={busy} restart={restartReviewedStops}/>
           <div className="page-heading">
             <div>
-              <div className="eyebrow">YOUR LOCAL AI WORKSPACE</div>
               <HelpHeading as="h1" topic="App">{page === "工作总览" ? "让每一步协作，有迹可循。" : page}</HelpHeading>
               <p>
                 {page === "工作总览"

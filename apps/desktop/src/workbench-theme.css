@@ -1,0 +1,436 @@
+/* Hallmark · v2.0.0 · shape: app screen · scope: app · genre: modern-minimal · theme: approved clear blue and white · modes: light+dark · surface: absolute · posture: Committed · signature: beveled monogram and quiet 150ms press feedback */
+/* Critique · The approved preview supplies the palette, typography and relief. Existing application routes and page layouts supply the content. */
+/* Hallmark · waive 25 · Established dense desktop forms · Existing desktop forms use compact 12–14px labels to retain information density. */
+/* Hallmark · waive 47c · User-approved soft relief · CeruleanLonging primary and secondary buttons use the approved directional box-shadow and inset press states. */
+/* Hallmark · waive 24b · Approved optical spacing · The approved monogram has optical fractional offsets and 5px directional shadows. */
+/* Hallmark · waive 2b · Approved beveled brand mark · The user approved a multicolored beveled C and diagonal stroke. */
+/* Hallmark · answered F7 · The repeated selectors describe the same primary and secondary button states across existing application components. */
+html:root {
+  --cl-font: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --cl-mark-font: "Segoe UI", sans-serif;
+  --cl-signature-font: "Explora", "Segoe Script", cursive;
+  --cl-clear: transparent;
+  --cl-white: #ffffff;
+  --cl-soft-blue: #c8e0f4;
+  --cl-soft-grey: #e8e8e8;
+  --cl-ground: #eef3f7;
+  --cl-paper: #eef3f7;
+  --cl-rail: color-mix(in srgb, var(--cl-soft-blue) 30%, var(--cl-soft-grey));
+  --cl-surface-join: #e2edf6;
+  --cl-header-end: #f8fbfd;
+  --cl-ink: #20344d;
+  --cl-muted: #53667e;
+  --cl-field: #71869f;
+  --cl-selected: var(--cl-soft-blue);
+  --cl-focus: #245fcb;
+  --cl-brand-ink: #688477;
+  --cl-brand-shadow: rgb(37 68 85 / 32%);
+  --cl-shadow-light: rgb(255 255 255 / 95%);
+  --cl-shadow-dark: rgb(148 171 193 / 38%);
+  --cl-button-shadow-light: rgb(255 255 255 / 65%);
+  --cl-button-shadow-dark: rgb(63 90 117 / 24%);
+  --cl-primary-start: color-mix(in srgb, var(--cl-ground) 98%, var(--cl-white));
+  --cl-primary-end: color-mix(in srgb, var(--cl-ground) 98%, var(--border));
+  --cl-primary-ink: #325b80;
+  --cl-secondary-start: var(--cl-paper);
+  --cl-secondary-end: color-mix(in srgb, var(--cl-paper) 97%, var(--border));
+  --cl-success: #376c55;
+  --cl-success-surface: #e4eee9;
+  --cl-warning: #805e26;
+  --cl-warning-surface: #f1eadc;
+  --cl-danger: #a33b2b;
+  --cl-danger-surface: #f5e7e3;
+  --cl-backdrop: rgb(15 29 46 / 48%);
+  --cl-logo-teal-light: #b7f1e2;
+  --cl-logo-teal: #36a9aa;
+  --cl-logo-teal-dark: #166c7b;
+  --cl-logo-teal-depth: #124657;
+  --cl-logo-gold-light: #fff0be;
+  --cl-logo-gold: #e7b064;
+  --cl-logo-gold-dark: #ac7034;
+  --cl-logo-gold-depth: #75502e;
+  --cl-logo-edge-light: #ebfff6;
+  --cl-night-ground: #152238;
+  --cl-night-paper: #1b2b42;
+  --cl-night-rail: #122035;
+  --cl-night-surface-join: #1b3049;
+  --cl-night-header-end: #17283f;
+  --cl-night-ink: #bdc8d2;
+  --cl-night-field: #7895bb;
+  --cl-night-selected: #223954;
+  --cl-night-focus: #b6d5ff;
+  --cl-night-brand-ink: #d2e3d8;
+  --cl-night-brand-shadow: rgb(3 11 22 / 70%);
+  --cl-night-shadow-light: rgb(52 76 108 / 48%);
+  --cl-night-shadow-dark: rgb(4 12 25 / 62%);
+  --cl-night-button-shadow-light: rgb(103 138 181 / 18%);
+  --cl-night-button-shadow-dark: rgb(4 12 25 / 50%);
+  --cl-night-success: #a4ccb7;
+  --cl-night-success-surface: #203b39;
+  --cl-night-warning: #dfc397;
+  --cl-night-warning-surface: #3a352d;
+  --cl-night-danger: #efb4a5;
+  --cl-night-danger-surface: #402e35;
+  --cl-night-blue: #9ec6ff;
+  --cl-night-border: #354c6c;
+  --cl-press-duration: 150ms;
+  --cl-press-ease: cubic-bezier(0.2, 0.7, 0.25, 1);
+  --cl-raised-shadow: -5px -5px 15px var(--cl-shadow-light), 5px 5px 15px var(--cl-shadow-dark);
+  --cl-inset-shadow: inset 2px 2px 5px var(--cl-shadow-dark), inset -2px -2px 5px var(--cl-shadow-light);
+  --blue: #245fcb;
+  --border: #d1ddeb;
+  --muted: var(--cl-muted);
+  --text: var(--cl-ink);
+  color: var(--cl-ink);
+  background: var(--cl-ground);
+  font-family: var(--cl-font);
+  color-scheme: light;
+  scroll-padding-top: 84px;
+  scrollbar-color: var(--cl-field) var(--cl-ground);
+}
+
+html:root:has(.shell[data-workbench="experiment"]) {
+  --cl-ground: var(--cl-night-ground);
+  --cl-paper: var(--cl-night-paper);
+  --cl-rail: var(--cl-night-rail);
+  --cl-surface-join: var(--cl-night-surface-join);
+  --cl-header-end: var(--cl-night-header-end);
+  --cl-ink: var(--cl-night-ink);
+  --cl-muted: var(--cl-ink);
+  --cl-field: var(--cl-night-field);
+  --cl-selected: var(--cl-night-selected);
+  --cl-focus: var(--cl-night-focus);
+  --cl-brand-ink: var(--cl-night-brand-ink);
+  --cl-brand-shadow: var(--cl-night-brand-shadow);
+  --cl-shadow-light: var(--cl-night-shadow-light);
+  --cl-shadow-dark: var(--cl-night-shadow-dark);
+  --cl-button-shadow-light: var(--cl-night-button-shadow-light);
+  --cl-button-shadow-dark: var(--cl-night-button-shadow-dark);
+  --cl-primary-start: color-mix(in srgb, var(--cl-paper) 96%, var(--cl-ink));
+  --cl-primary-end: var(--cl-paper);
+  --cl-primary-ink: var(--cl-ink);
+  --cl-secondary-end: color-mix(in srgb, var(--cl-paper) 97%, var(--cl-ground));
+  --cl-success: var(--cl-night-success);
+  --cl-success-surface: var(--cl-night-success-surface);
+  --cl-warning: var(--cl-night-warning);
+  --cl-warning-surface: var(--cl-night-warning-surface);
+  --cl-danger: var(--cl-night-danger);
+  --cl-danger-surface: var(--cl-night-danger-surface);
+  --blue: var(--cl-night-blue);
+  --border: var(--cl-night-border);
+  color-scheme: dark;
+}
+
+
+@font-face {
+  font-family: "Explora";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/Explora-Regular.ttf") format("truetype");
+}
+
+html, body { overflow-x: clip; }
+
+:root .shell {
+  color: var(--cl-ink);
+  background: var(--cl-ground);
+}
+
+html:root .shell .sidebar {
+  --sidebar-text: var(--cl-ink);
+  --sidebar-muted: var(--cl-muted);
+  --sidebar-border: var(--border);
+  --sidebar-brand: var(--cl-brand-ink);
+  --sidebar-card: var(--cl-paper);
+  --sidebar-icon-bg: var(--cl-selected);
+  --sidebar-icon-text: var(--cl-ink);
+  --sidebar-hover: var(--cl-selected);
+  --sidebar-selected: var(--cl-selected);
+  --sidebar-selected-text: var(--cl-ink);
+  --sidebar-badge: var(--cl-paper);
+  --sidebar-exit-border: var(--border);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cl-rail) 55%, var(--cl-selected)), var(--cl-surface-join));
+  z-index: 6;
+}
+
+:root .shell > main {
+  background: linear-gradient(135deg, var(--cl-surface-join), var(--cl-ground) 70%);
+  background-attachment: fixed;
+}
+
+:root .shell > main > header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-bottom: 0;
+  gap: 16px;
+  background: linear-gradient(110deg, var(--cl-surface-join), var(--cl-header-end));
+}
+
+:root :is(.shell, .exit-workbench) :is(.breadcrumb, .breadcrumb span, .pill) { color: var(--cl-muted); }
+:root .shell .pill { background: var(--cl-clear); border-color: var(--cl-clear); }
+:root .shell .workflow-map-viewport { background: var(--cl-ground); border-color: var(--border); }
+:root .shell .nav-label { letter-spacing: 0; font-size: 11px; }
+:root .shell .sidebar > nav button.selected { box-shadow: var(--cl-inset-shadow); }
+:root .shell .workspace { border-color: var(--cl-clear); }
+
+:root .shell .brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 58px;
+  padding: 0 2px;
+  letter-spacing: 0;
+  font-kerning: normal;
+  user-select: none;
+}
+
+:root .shell .brand-monogram {
+  position: relative;
+  width: 30px;
+  flex-shrink: 0;
+  font-family: var(--cl-mark-font);
+  font-size: 42px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--cl-logo-teal-depth);
+  transform: skewX(-8deg);
+  text-shadow: 0.5px 0.5px 0 var(--cl-logo-teal-depth),
+    1px 1px 0 var(--cl-logo-teal-depth), 2px 3px 2px var(--cl-brand-shadow);
+}
+
+:root .shell .brand-monogram::before {
+  content: "C";
+  position: absolute;
+  inset: 0;
+  color: var(--cl-logo-teal);
+  transform: translate(-1px, -1.5px);
+  text-shadow: none;
+  -webkit-text-stroke: 0.3px var(--cl-logo-edge-light);
+}
+
+:root .shell .brand-name {
+  display: grid;
+  row-gap: 12px;
+  color: var(--cl-brand-ink);
+  font-family: var(--cl-signature-font);
+  font-size: 20px;
+  font-weight: 700;
+  font-synthesis: weight;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:root .shell .brand-name span:last-child { padding-left: 2px; }
+
+:root .shell .brand-slash {
+  position: absolute;
+  left: 31px;
+  top: 25px;
+  width: 4px;
+  height: 29px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--cl-logo-gold-light), var(--cl-logo-gold) 44%, var(--cl-logo-gold-dark) 48%, var(--cl-logo-gold) 100%);
+  transform: rotate(25deg);
+  box-shadow: inset 0.5px 0.5px 0 var(--cl-logo-gold-light),
+    inset -0.5px -0.5px 0 var(--cl-logo-gold-dark),
+    1px 1px 0 var(--cl-logo-gold-depth), 1.5px 1.5px 0 var(--cl-logo-gold-depth),
+    2px 3px 2px var(--cl-brand-shadow);
+}
+
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  :root .shell .brand-monogram::before {
+    background-image: linear-gradient(135deg, var(--cl-logo-teal-light) 8%, var(--cl-logo-teal) 38%, var(--cl-logo-teal-dark) 49%, var(--cl-logo-teal-light) 51%, var(--cl-logo-teal) 70%, var(--cl-logo-teal-dark) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: var(--cl-clear);
+  }
+}
+
+/* Text and form surfaces share the same palette throughout each workbench. */
+:root :is(.shell, .exit-workbench) :is(h1, h2, h3, h4, label, summary, .api-model-option span) {
+  color: var(--cl-ink);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+:root :is(.shell, .exit-workbench) :is(p, small, dt, label span, .secondary, .section-tag, .transport,
+  .stats span, .empty, .empty > span, .empty h3, .event small, .event-seq,
+  footer, .connection-default-label, .planning-progress-stages,
+  .requirement-import-hint, .activity-entry time, .activity-sequence, .activity-empty,
+  .codex-record-identity, .plan-card ol, .modal ol) { color: var(--cl-muted); }
+
+:root :is(.shell, .exit-workbench) :is(.panel, .stats > div) {
+  background: var(--cl-paper);
+  border-color: var(--cl-clear);
+  border-radius: 18px;
+  box-shadow: var(--cl-raised-shadow);
+}
+
+:root .shell .panel .panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:root :is(.shell, .exit-workbench) :is(.connection-test, .desktop-inline-connection, .access-continue-models,
+  .planning-request-actions, .requirement-composer, .activity-stream,
+  .blind-review-panel pre, .codex-cancellation-status, .codex-request-notice, .compact) {
+  background: var(--cl-ground);
+  border-color: var(--border);
+  color: var(--cl-ink);
+}
+
+:root :is(.shell, .exit-workbench) :is(.event, .card-footer, .management-saved-text, .startup-reason,
+  .unsent-assignment-action, .codex-cancellation-action, .file-preview,
+  .omp-file-restore li, .requirement-composer, .build-cache-table-wrap th,
+  .build-cache-table-wrap td) { border-color: var(--border); }
+
+:root :is(.shell, .exit-workbench) :is(input, textarea, select) {
+  color: var(--cl-ink);
+  background: var(--cl-paper);
+  border-color: var(--cl-field);
+  caret-color: var(--blue);
+  accent-color: var(--blue);
+}
+
+:root :is(.shell, .exit-workbench) :is(input, textarea)::placeholder { color: var(--cl-muted); opacity: 1; }
+:root :is(.shell, .exit-workbench) :is(input, textarea):not([type="checkbox"]):not([type="radio"]) { box-shadow: var(--cl-inset-shadow); }
+:root .shell .requirement-composer > textarea { box-shadow: none; background: var(--cl-clear); }
+
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button) {
+  position: relative;
+  isolation: isolate;
+  color: var(--cl-muted);
+  background: linear-gradient(135deg, var(--cl-secondary-start), var(--cl-secondary-end));
+  border: 1px solid var(--cl-clear);
+  border-radius: 12px;
+  box-shadow: none;
+  transition: transform var(--cl-press-duration) var(--cl-press-ease);
+}
+
+:root :is(.shell, .exit-workbench) :is(button.primary, button.history-confirm) {
+  color: var(--cl-primary-ink);
+  background: linear-gradient(135deg, var(--cl-primary-start), var(--cl-primary-end));
+  font-weight: 600;
+}
+
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button)::before,
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  transition: opacity var(--cl-press-duration) var(--cl-press-ease);
+}
+
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button)::before {
+  z-index: -1;
+  box-shadow: var(--cl-raised-shadow);
+  opacity: 1;
+}
+
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button)::after {
+  box-shadow: inset 2px 2px 5px var(--cl-button-shadow-dark), inset -2px -2px 5px var(--cl-button-shadow-light);
+  opacity: 0;
+}
+
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button):enabled:hover::before { opacity: 0.65; }
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button):enabled:active { transform: translateY(1px) scale(0.985); }
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button):enabled:active::before { opacity: 0; }
+:root :is(.shell, .exit-workbench) :is(button.primary, button.secondary-button, .currency-history button,
+  .blind-review-panel button, .file-import-window > button):enabled:active::after { opacity: 1; }
+:root .shell button:disabled::before, :root .shell button:disabled::after { content: none; }
+
+:root .shell .text-button { color: var(--cl-primary-ink); }
+:root .shell .heading-help { color: var(--cl-muted); border-color: var(--cl-field); background: var(--cl-clear); }
+:root .shell .heading-help:is(:hover, [aria-expanded="true"]) { background: var(--cl-selected); }
+:root .shell .requirement-import-button { color: var(--cl-muted); background: var(--cl-clear); }
+:root .shell .requirement-import-button:hover { background: var(--cl-selected); border-color: var(--border); }
+:root .shell .import-review-dialog .import-close { color: var(--cl-ink); background: var(--cl-selected); }
+:root .shell .api-model-option:is(:hover, :has(input:checked)) { background: var(--cl-selected); }
+
+:root .shell .banner { background: var(--cl-surface-join); color: var(--cl-ink); border-color: var(--border); }
+:root :is(.shell, .exit-workbench) :is(.badge, .stats i, .management-stale, .startup-stale) { background: var(--cl-warning-surface); color: var(--cl-warning); }
+:root .shell .badge.approved { background: var(--cl-success-surface); color: var(--cl-success); }
+:root :is(.shell, .exit-workbench) :is(.local-dot, .event-dot) { background: var(--cl-success); }
+:root .shell .muted-dot { background: var(--cl-muted); }
+:root :is(.shell, .exit-workbench) :is(.planning-progress-stages .completed, .planning-progress-stages [aria-current]) { color: var(--cl-ink); }
+:root :is(.shell, .exit-workbench) :is(.planning-request-progress, .markdown-import-progress) progress { accent-color: var(--blue); }
+:root .shell progress::-webkit-progress-bar { background: var(--cl-selected); }
+:root .shell progress::-webkit-progress-value { background: var(--blue); }
+:root .shell .requirement-drop-hint { background: var(--cl-surface-join); color: var(--cl-ink); }
+:root :is(.shell, .exit-workbench) :is(.banner.error, .planning-request-error) { background: var(--cl-danger-surface); border-color: var(--cl-danger); color: var(--cl-danger); }
+:root :is(.shell, .exit-workbench) :is([role="alert"], .requirement-import-error) { color: var(--cl-danger); }
+
+:root :is(.shell dialog, dialog.exit-workbench) {
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+  border-color: var(--border);
+}
+
+:root :is(.shell dialog, dialog.exit-workbench)::backdrop, :root .shell .modal-backdrop { background: var(--cl-backdrop); }
+:root .shell .modal { box-shadow: 0 20px 80px var(--cl-shadow-dark); }
+:root .heading-help-tip {
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+  border-color: var(--border);
+  box-shadow: var(--cl-raised-shadow);
+  font-family: var(--cl-font);
+}
+:root .heading-help-tip strong { color: var(--cl-ink); }
+
+:root :is(.shell, .exit-workbench) :is(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--cl-focus);
+  outline-offset: 3px;
+}
+
+:root .shell .requirement-composer:focus-within { border-color: var(--cl-focus); box-shadow: none; }
+:root .shell .requirement-composer.is-dragging { border-color: var(--cl-focus); box-shadow: var(--cl-inset-shadow); }
+:root .shell .requirement-composer > textarea:focus-visible { outline-offset: -4px; }
+:root :is(.shell, .exit-workbench) :is(.page-heading, .section-heading, .modal-actions) { flex-wrap: wrap; }
+:root .shell .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+:root .shell .stats > div { min-width: 0; }
+:root .shell footer { gap: 12px; flex-wrap: wrap; }
+
+@media (max-width: 700px) {
+  :root .shell { display: block; }
+  html:root .shell .sidebar { position: relative; width: 100%; padding: 20px; gap: 16px; }
+  :root .shell .workspace { position: absolute; top: 12px; right: 20px; margin: 0; max-width: 50%; }
+  :root .shell .nav-label { display: none; }
+  :root .shell .sidebar > nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; overflow: visible; }
+  :root .shell .sidebar > nav button { padding: 10px; gap: 8px; }
+  :root .shell .sidebar-footer { padding: 12px 0 0; }
+  :root .shell > main { margin-left: 0; }
+  :root .shell > main > header { padding: 0 20px; }
+  :root .shell .content { padding: 24px 20px; }
+  :root .shell .stats { grid-template-columns: minmax(0, 1fr); }
+  :root .shell .panel { padding: 20px; }
+  :root .shell .adapter-grid { grid-template-columns: minmax(0, 1fr); }
+  :root .shell .settings dl { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root :is(.shell, .exit-workbench) *,
+  :root :is(.shell, .exit-workbench) *::before,
+  :root :is(.shell, .exit-workbench) *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  :root :is(.shell, .exit-workbench) button:enabled:active { transform: none !important; }
+}
+
+:root .shell :is(h1, h2) { text-wrap: balance; }
