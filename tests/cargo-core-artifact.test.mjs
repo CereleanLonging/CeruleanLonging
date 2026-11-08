@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { coreLibraryFromMessages } from './cargo-core-artifact.mjs';
 
@@ -7,6 +7,8 @@ const deps = resolve('synthetic-cargo/debug/deps');
 const library = name => ({ reason: 'compiler-artifact', target: { name: 'cerulean_core', kind: ['lib'] },
   profile: { test: false }, filenames: [join(deps, name)], fresh: true });
 const current = library('libcerulean_core-current.rlib');
+const primary = { ...current, filenames: [join(dirname(deps), 'libcerulean_core.rlib'),
+  join(deps, 'libcerulean_core-current.rmeta')] };
 const finish = { reason: 'build-finished', success: true };
 const stream = records => records.map(record => JSON.stringify(record)).join('\r\n') + '\r\n';
 
@@ -21,6 +23,18 @@ test('Cargo output selects the current production library while other variants c
 
 test('Repeated reports of the same exact library remain unambiguous', () => {
   assert.equal(coreLibraryFromMessages(stream([current, current, finish]), deps), 'libcerulean_core-current.rlib');
+});
+
+test('Primary-package Cargo output uses its paired metadata identity', () => {
+  assert.equal(coreLibraryFromMessages(stream([primary, primary, finish]), deps), 'libcerulean_core-current.rlib');
+});
+
+test('Primary artifacts require one matching metadata identity in the requested dependency directory', () => {
+  assert.throws(() => coreLibraryFromMessages(stream([{ ...primary, filenames: [primary.filenames[0]] }, finish]), deps), /paired core metadata/);
+  assert.throws(() => coreLibraryFromMessages(stream([{ ...primary,
+    filenames: [...primary.filenames, join(deps, 'libcerulean_core-other.rmeta')] }, finish]), deps), /paired core metadata/);
+  assert.throws(() => coreLibraryFromMessages(stream([{ ...primary,
+    filenames: [primary.filenames[0], resolve('other/deps/libcerulean_core-current.rmeta')] }, finish]), deps), /requested dependency directory/);
 });
 
 test('Different production libraries require an explicit build identity', () => {

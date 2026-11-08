@@ -16,6 +16,7 @@ const cores = process.argv[3]
   ? [coreLibraryFromMessages(readFileSync(process.argv[3], 'utf8'), deps)]
   : readdirSync(deps).filter(file => file.startsWith('libcerulean_core-') && file.endsWith('.rlib'));
 assert.equal(cores.length, 1, 'Unambiguous core build required');
+assert(statSync(join(deps, cores[0])).isFile(), 'Reported core dependency library must exist');
 const coreIdentity = cores[0].split('-').at(-1).replace('.rlib', '');
 const coreFingerprint = readFileSync(join(profile, '.fingerprint', `cerulean-core-${coreIdentity}`, 'lib-cerulean_core.json'), 'utf8');
 function library(name) {
