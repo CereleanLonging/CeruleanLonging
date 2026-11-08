@@ -17,7 +17,7 @@ DOWNLOADS = {
         'https://api.github.com/repos/tauri-apps/binary-releases/releases/assets/317051073',
         'c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1'),
     'nsis_tauri_utils.dll': (
-        'https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll',
+        'https://api.github.com/repos/tauri-apps/nsis-tauri-utils/releases/assets/345882097',
         '5ba143b5db4a87d32d6e7802e033330aae56cbceabe0d1e3ba41948385ad4709'),
 }
 
