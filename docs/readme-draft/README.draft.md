@@ -239,9 +239,7 @@ Development-stage native maintenance window showing backup verification and revi
 
 ## 项目反馈 / Feedback
 
-**项目反馈 QQ 群号：137562063**  
-
-**Project feedback QQ group: 137562063**
+[提交 Issue / Report an issue](https://github.com/CereleanLonging/CeruleanLonging/issues)
 
 欢迎反馈使用体验、功能建议和问题。描述问题时，请附上产品版本、复现步骤，以及去除敏感信息后的截图或错误信息；请勿提交 API 密钥、登录凭证或私人项目内容。
 

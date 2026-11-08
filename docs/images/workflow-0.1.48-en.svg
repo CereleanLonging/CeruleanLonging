@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="1756" viewBox="0 0 1180 1756" role="img" aria-labelledby="title description" lang="en">
+<title id="title">CeruleanLonging · Complete workbench flow</title>
+<desc id="description">0.1.48 · Planning, execution, objective checks, blind review and delivery</desc>
+<defs><marker id="forward" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 1 L7 4.5 L0 8" fill="none" stroke="#28778a" stroke-width="1.5"/></marker><marker id="return" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 1 L7 4.5 L0 8" fill="none" stroke="#a76536" stroke-width="1.5"/></marker></defs>
+<style>text {font-family:Inter,'Segoe UI','Microsoft YaHei',sans-serif;fill:#263c4b} .heading {font-size:19px;font-weight:600} .body {font-size:16px} .note-title {font-size:15px;font-weight:600} .note-body {font-size:14px} .edge-label {font-size:13px;fill:#965b30}</style>
+<rect width="1180" height="1756" rx="16" fill="#f8fafc"/>
+<text x="40" y="39" font-size="26" font-weight="600">CeruleanLonging · Complete workbench flow</text>
+<text x="40" y="66" font-size="16" fill="#627681">0.1.48 · Planning, execution, objective checks, blind review and delivery</text>
+<path d="M550 188 V222" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 330 V364" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 468 V502" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 610 V644" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 760 V794" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 910 V944" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 1062 V1096" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 1240 V1278" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M550 1382 V1420" fill="none" stroke="#28778a" stroke-width="2" marker-end="url(#forward)"/>
+<path d="M760 704 H820" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M962 648 V558 H760" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M962 762 V840" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M1104 892 H1148 V278 H760" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M760 1174 H962 V986" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M760 1332 H1118 V936 H1104" fill="none" stroke="#a76536" stroke-width="2" marker-end="url(#return)"/>
+<path d="M760 1476 H1118 V1332" fill="none" stroke="#a76536" stroke-width="2"/>
+<g><rect x="340" y="96" width="420" height="92" rx="12" fill="#edf6f6" stroke="#cddce3"/><text class="heading" x="550" y="125" text-anchor="middle">Configure the project and connections</text>
+<text class="body" x="550" y="151" text-anchor="middle">Bind project / chief directories, models and sessions</text>
+<text class="body" x="550" y="174" text-anchor="middle">One chief · One deputy · Up to five executor identities</text>
+</g>
+<g><rect x="340" y="226" width="420" height="104" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="255" text-anchor="middle">Clarify requirements with the chief</text>
+<text class="body" x="550" y="281" text-anchor="middle">Review text, extracted Markdown or a workflow import</text>
+<text class="body" x="550" y="304" text-anchor="middle">The chief proposes tasks, deliverables and objective tests</text>
+</g>
+<g><rect x="340" y="368" width="420" height="100" rx="12" fill="#edf6f6" stroke="#cddce3"/><text class="heading" x="550" y="397" text-anchor="middle">User reviews → Approves → Starts</text>
+<text class="body" x="550" y="423" text-anchor="middle">Review scope, directories, checks and granted authority</text>
+<text class="body" x="550" y="446" text-anchor="middle">Prepare approved Windows isolation accounts as needed</text>
+</g>
+<g><rect x="340" y="506" width="420" height="104" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="535" text-anchor="middle">Deputy assigns → Executors submit</text>
+<text class="body" x="550" y="561" text-anchor="middle">Assign approved tasks within each executor’s boundary</text>
+<text class="body" x="550" y="584" text-anchor="middle">Executors submit stable work; the deputy tracks feedback</text>
+</g>
+<g><rect x="340" y="648" width="420" height="112" rx="12" fill="#f3f0fa" stroke="#cddce3"/><text class="heading" x="550" y="677" text-anchor="middle">Objective checker verifies each task</text>
+<text class="body" x="550" y="703" text-anchor="middle">cerulean-checker.exe</text>
+<text class="body" x="550" y="726" text-anchor="middle">Check completeness; run approved tests on a snapshot</text>
+<text class="body" x="550" y="749" text-anchor="middle">Record assertions, failures, timeouts and evidence gaps</text>
+</g>
+<g><rect x="340" y="798" width="420" height="112" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="827" text-anchor="middle">Chief accepts → Core assembles delivery</text>
+<text class="body" x="550" y="853" text-anchor="middle">All tasks must pass checks and be accepted first</text>
+<text class="body" x="550" y="876" text-anchor="middle">Verify the report archive and persist a read-only delivery</text>
+</g>
+<g><rect x="340" y="948" width="420" height="114" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="977" text-anchor="middle">User approves review → Deputy confirms</text>
+<text class="body" x="550" y="1003" text-anchor="middle">Prepare redacted source fragments and check summaries</text>
+<text class="body" x="550" y="1026" text-anchor="middle">Review the materials, roster, criteria and request limits</text>
+</g>
+<g><rect x="340" y="1100" width="420" height="140" rx="12" fill="#f3f0fa" stroke="#cddce3"/><text class="heading" x="550" y="1129" text-anchor="middle">Independent votes → Verifier audits</text>
+<text class="body" x="550" y="1155" text-anchor="middle">One vote each for the chief, deputy and every executor</text>
+<text class="body" x="550" y="1178" text-anchor="middle">cerulean-verifier.exe audits the process and ballots</text>
+<text class="body" x="550" y="1201" text-anchor="middle">Seal votes; reveal the complete roster after all arrive</text>
+<text class="body" x="550" y="1224" text-anchor="middle">Unanimous pass · Each seat ≥80% · Overall mean ≥90%</text>
+</g>
+<g><rect x="340" y="1282" width="420" height="100" rx="12" fill="#ffffff" stroke="#cddce3"/><text class="heading" x="550" y="1311" text-anchor="middle">Chief runs whole-project functional tests</text>
+<text class="body" x="550" y="1337" text-anchor="middle">Open this stage only after the blind-review gates pass</text>
+<text class="body" x="550" y="1360" text-anchor="middle">Use read-only delivery and a separate writable test area</text>
+</g>
+<g><rect x="340" y="1424" width="420" height="104" rx="12" fill="#edf6f6" stroke="#cddce3"/><text class="heading" x="550" y="1453" text-anchor="middle">User reviews delivery → Confirms acceptance</text>
+<text class="body" x="550" y="1479" text-anchor="middle">Inspect the complete outputs and functional evidence</text>
+<text class="body" x="550" y="1502" text-anchor="middle">Confirm acceptance and preserve local handoff records</text>
+</g>
+<g><rect x="24" y="96" width="264" height="174" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="125">Daily and experiment workbenches</text>
+<text class="note-body" x="40" y="155">Both follow the same project flow.</text>
+<text class="note-body" x="40" y="178">Experiments have separate windows,</text>
+<text class="note-body" x="40" y="201">data and credentials. Start work</text>
+<text class="note-body" x="40" y="224">explicitly after creating a workspace.</text>
+</g>
+<g><rect x="24" y="506" width="264" height="196" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="535">Execution boundaries</text>
+<text class="note-body" x="40" y="565">The chief has a separate directory.</text>
+<text class="note-body" x="40" y="588">The deputy reads requirements</text>
+<text class="note-body" x="40" y="611">through the core’s bounded channel.</text>
+<text class="note-body" x="40" y="634">Each executor reads and writes</text>
+<text class="note-body" x="40" y="657">only its own assigned directory.</text>
+<text class="note-body" x="40" y="680">Assignments use distinct source areas.</text>
+</g>
+<g><rect x="24" y="798" width="264" height="132" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="827">Delivery handoff</text>
+<text class="note-body" x="40" y="857">Reports flow one way to the verifier.</text>
+<text class="note-body" x="40" y="880">Conflicts or changed output stop it.</text>
+<text class="note-body" x="40" y="903">Explicit integration follows its plan.</text>
+</g>
+<g><rect x="24" y="1100" width="264" height="258" rx="10" fill="#eef3f6"/><text class="note-title" x="40" y="1129">Review and evidence scores</text>
+<text class="note-body" x="40" y="1159">Models receive approved fragments</text>
+<text class="note-body" x="40" y="1182">through a restricted material channel.</text>
+<text class="note-body" x="40" y="1205">Tool use or an unverifiable process</text>
+<text class="note-body" x="40" y="1228">makes the vote fail and score zero.</text>
+<text class="note-body" x="40" y="1251">Instruction and check evidence</text>
+<text class="note-body" x="40" y="1274">each contribute 50% of the score.</text>
+<text class="note-body" x="40" y="1297">All original seats remain in the mean.</text>
+<text class="note-body" x="40" y="1320">Initial scores remain uncalibrated.</text>
+<text class="note-body" x="40" y="1343">Cloud inference still needs a network.</text>
+</g>
+<g><rect x="820" y="648" width="284" height="114" rx="10" fill="#fff4e9"/><text class="note-title" x="836" y="677">Failed check → Deputy-led rework</text>
+<text class="note-body" x="836" y="707">Preserve submissions and failed checks.</text>
+<text class="note-body" x="836" y="730">Correct within scope in a new attempt.</text>
+</g>
+<g><rect x="820" y="844" width="284" height="142" rx="10" fill="#fff4e9"/><text class="note-title" x="836" y="873">Chief revises → User approves again</text>
+<text class="note-body" x="836" y="903">Review omissions, disputes and changes.</text>
+<text class="note-body" x="836" y="926">Clarify details with the user and replan.</text>
+<text class="note-body" x="836" y="949">Approve the new plan, then start work.</text>
+</g>
+<text class="edge-label" x="866" y="546" text-anchor="middle">Rework within scope</text>
+<text class="edge-label" x="1050" y="806" text-anchor="middle">Plan revision needed</text>
+<text class="edge-label" x="967" y="1199" text-anchor="middle">Fails gates · Deputy analyzes</text>
+<text class="edge-label" x="898" y="1318" text-anchor="middle">Fails</text>
+<text class="edge-label" x="898" y="1464" text-anchor="middle">Changes requested</text>
+<text class="edge-label" x="597" y="1267" text-anchor="middle">Gates pass</text>
+<text class="edge-label" x="584" y="1411" text-anchor="middle">Pass</text>
+<g><rect x="24" y="1580" width="360" height="136" rx="10" fill="#eaf0f3"/><text class="note-title" x="40" y="1612">Interruption or unknown outcome</text>
+<text class="note-body" x="40" y="1644">Reconcile original requests, processes and records.</text>
+<text class="note-body" x="40" y="1669">Pause later dispatch; retain outcomes and evidence.</text>
+</g>
+<g><rect x="408" y="1580" width="360" height="136" rx="10" fill="#eaf0f3"/><text class="note-title" x="424" y="1612">Correcting a verification recipe</text>
+<text class="note-body" x="424" y="1644">Review, approve and separately start a new recheck.</text>
+<text class="note-body" x="424" y="1669">The chief still reviews and accepts a passing task.</text>
+</g>
+<g><rect x="792" y="1580" width="360" height="136" rx="10" fill="#eaf0f3"/><text class="note-title" x="808" y="1612">Local history and maintenance</text>
+<text class="note-body" x="808" y="1644">Trace plans, attempts, checks, ballots and handoffs.</text>
+<text class="note-body" x="808" y="1669">Backups, restores, upgrades, caches and shutdown.</text>
+</g>
+</svg>

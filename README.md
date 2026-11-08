@@ -64,21 +64,13 @@ CeruleanLonging 是一款面向 Windows 的本地优先多模型协作工作台�
 | 项目设置 | 管理项目目录、执行者、资源和整体交付检查等配置。 |
 | 维护与升级 | 核对备份，审阅数据迁移与恢复操作，维护程序和项目数据。 |
 
-### 一次典型的工作流程
+### 完整工作流程（0.1.48 预览）
 
-1. **确定目标。** 关联项目目录，说明需求、交付范围与检查标准。
+![项目接入、方案批准、隔离执行、逐任务独立检查、整体盲评、主指挥功能测试与用户最终确认，以及返工和修订回路](docs/images/workflow-0.1.48-zh.svg)
 
-2. **配置协作方式。** 选择当前可用的模型与执行工具，设置适用的请求和执行限制。
+图示对应 0.1.48 预览版工作流程。独立检查逐任务核对交付完整性与批准测试，全部合格并接受后汇总只读交付，再进入整体盲评、主指挥功能测试与用户最终确认。
 
-3. **审阅计划。** 检查任务安排、产物与权限，批准本次方案并明确启动。
-
-4. **跟进执行。** 查看分配、执行与验证记录；需要时暂停后续调度或补充信息。
-
-5. **核对交付。** 结合独立检查和实际产物审阅结果，保留交接记录供后续继续。
-
-6. **按需启用项目盲评。** 在满足账户隔离和 API 席位要求的工作台中，批准评审材料；全票后确认交付，需要修改时回到主指挥问答、方案修订和用户批准流程。
-
-例如，为现有项目增加一项数据处理功能时，可以先约定需要修改的文件与验证脚本，再由执行者完成实现，使用独立检查确认输出，最后回看整体交付记录。
+[查看中文原图](docs/images/workflow-0.1.48-zh.svg) · [View the English diagram](docs/images/workflow-0.1.48-en.svg)
 
 ### 接入与本地数据
 
@@ -259,21 +251,13 @@ The aim is to make AI collaboration reviewable and resumable. Whether you are im
 | Project settings | Configure project directories, workers, resources, and final delivery checks. |
 | Maintenance and upgrades | Verify backups and review migration, recovery, and program maintenance operations. |
 
-### A typical workflow
+### Complete workflow (0.1.48 preview)
 
-1. **Define the goal.** Associate a project directory and describe the requirements, deliverables, and checks.
+![Project setup, plan approval, isolated execution, per-task checks, blind review, chief functional testing and user acceptance, including rework and revision paths](docs/images/workflow-0.1.48-en.svg)
 
-2. **Configure collaboration.** Choose available models and tools, and set applicable request and execution limits.
+The diagram describes the 0.1.48 preview workflow. Independent checks evaluate each task's completeness and approved tests. After all tasks pass and are accepted, the core assembles read-only delivery for blind review, chief functional testing and final user confirmation.
 
-3. **Review the plan.** Inspect tasks, artifacts, and permissions, approve the plan, and explicitly start work.
-
-4. **Follow execution.** Inspect assignment, execution, and verification records; pause further scheduling or provide input when needed.
-
-5. **Review delivery.** Assess independent checks alongside the actual artifacts, and retain handoff records for future work.
-
-6. **Optionally enable project blind review.** In a workbench meeting account-isolation and API-reviewer requirements, approve the material, confirm a unanimous result, or return to lead-planner questions, plan revision, and user approval.
-
-For example, when adding a data-processing feature to an existing project, you can first agree on the affected files and validation script, let a worker implement the change, verify its output independently, and then review the overall delivery record.
+[View the English diagram](docs/images/workflow-0.1.48-en.svg) · [查看中文原图](docs/images/workflow-0.1.48-zh.svg)
 
 ### Integrations and local data
 
@@ -443,9 +427,7 @@ Development-stage native maintenance window showing backup verification and revi
 
 ## 项目反馈 / Feedback
 
-**项目反馈 QQ 群号：137562063**  
-
-**Project feedback QQ group: 137562063**
+[提交 Issue / Report an issue](https://github.com/CereleanLonging/CeruleanLonging/issues)
 
 欢迎反馈使用体验、功能建议和问题。描述问题时，请附上产品版本、复现步骤，以及去除敏感信息后的截图或错误信息；请勿提交 API 密钥、登录凭证或私人项目内容。
 
