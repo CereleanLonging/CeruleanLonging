@@ -14,7 +14,7 @@ DOWNLOADS = {
         'https://static.rust-lang.org/rustup/archive/1.29.1/x86_64-pc-windows-msvc/rustup-init.exe',
         '6f4bef66261261fcb43131be8720bab817d403a09edec7455c371974b90bdb7e'),
     'nsis.zip': (
-        'https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip',
+        'https://api.github.com/repos/tauri-apps/binary-releases/releases/assets/317051073',
         'c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1'),
     'nsis_tauri_utils.dll': (
         'https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll',
@@ -37,6 +37,7 @@ def download(name, directory):
     destination = directory / name
     subprocess.run(['curl.exe', '--fail', '--silent', '--show-error', '--location',
                     '--proto', '=https', '--proto-redir', '=https', '--max-time', '120',
+                    '--header', 'Accept: application/octet-stream',
                     '--url', url, '--output', str(destination)], check=True, timeout=130)
     if hashlib.sha256(destination.read_bytes()).hexdigest() != expected:
         raise RuntimeError('Reviewed download digest mismatch for ' + name)
