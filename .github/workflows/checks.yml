@@ -22,6 +22,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python ./scripts/distribution-notices.py --check
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Validate standard desktop test token
+        run: ./.github/scripts/standard-test-token.ps1 -ProbeOnly
       - run: ./scripts/check.ps1
         env:
           CERULEAN_RUN_NATIVE_ACCOUNT_TESTS: '1'

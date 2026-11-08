@@ -19,7 +19,11 @@ function Get-CoreDigest([string]$path) {
 $before=Get-CoreDigest $core
 cargo clippy --workspace --all-targets --keep-going --features custom-protocol --locked -- -D warnings
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
-cargo test -p cerulean-desktop --features custom-protocol --locked
+if ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted') {
+    & powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File (Join-Path $ceruleanRoot '.github/scripts/standard-test-token.ps1')
+} else {
+    cargo test -p cerulean-desktop --features custom-protocol --locked
+}
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
 if ((Get-CoreDigest $core) -ne $before) { throw 'Desktop build replaced Cargo core binary' }
 Copy-Item -LiteralPath $core -Destination (Join-Path $ceruleanRoot 'target/debug/cerulean-core.exe') -Force
