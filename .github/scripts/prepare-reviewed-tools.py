@@ -47,7 +47,15 @@ def provision():
     if os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted':
         raise RuntimeError('Tool provisioning is limited to disposable GitHub-hosted runners')
     identity = json.loads((ROOT / 'third-party/distribution-build-inputs.json').read_text('utf-8'))
-    cargo = Path(os.environ.get('CARGO_HOME') or Path.home() / '.cargo')
+    cargo = Path(os.environ.get('CARGO_HOME') or Path.home() / '.cargo').resolve()
+    rustup = Path(os.environ.get('RUSTUP_HOME') or Path.home() / '.rustup').resolve()
+    # Hosted images can route these homes through junctions. Publish the real
+    # roots so the existing package guard can verify ordinary files end to end.
+    os.environ.update(CARGO_HOME=str(cargo), RUSTUP_HOME=str(rustup))
+    with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as output:
+        output.write(f'CARGO_HOME={cargo}\nRUSTUP_HOME={rustup}\n')
+    with Path(os.environ['GITHUB_PATH']).open('a', encoding='utf-8') as output:
+        output.write(str(cargo / 'bin') + '\n')
     nsis = Path(os.environ['LOCALAPPDATA']) / 'tauri/NSIS'
     with tempfile.TemporaryDirectory(prefix='cerulean-reviewed-tools-', dir=os.environ['RUNNER_TEMP']) as directory:
         temporary = Path(directory)
@@ -57,6 +65,18 @@ def provision():
                            check=True, timeout=180)
         if not matches(cargo, identity['files']['cargo-home']):
             raise RuntimeError('Installed Rust proxies differ from reviewed inputs')
+        for item in identity['files']['cargo-home']:
+            path = cargo / item['path']
+            if path.is_symlink() or getattr(path.lstat(), 'st_file_attributes', 0) & 0x400:
+                data = path.read_bytes()
+                if len(data) != item['bytes'] or hashlib.sha256(data).hexdigest() != item['sha256']:
+                    raise RuntimeError('Linked proxy content differs from reviewed input')
+                replacement = path.with_name(path.name + '.cerulean-ordinary')
+                with replacement.open('xb') as output:
+                    output.write(data)
+                # Replace this known proxy link itself, preserving its exact
+                # reviewed bytes and leaving the link target untouched.
+                os.replace(replacement, path)
         if not nsis.exists():
             archive = download('nsis.zip', temporary)
             plugin = download('nsis_tauri_utils.dll', temporary)
